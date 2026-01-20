@@ -12,6 +12,7 @@ export interface CardBase {
     name: string;
     side: "player" | "villain";
     imgPath: string;
+    tags: string[];
 }
 
 export interface IdentityCard extends CardBase {
@@ -20,6 +21,7 @@ export interface IdentityCard extends CardBase {
     status: CardStatus;
     hitPoints: number;
     healing: number;
+    thw: number;
     atk: number;
     def: number;
     handSizeHero: number;
@@ -33,22 +35,26 @@ export interface PlayerCard extends CardBase {
     cost: number;
     aspect: Aspect;
     imgPath: string;
+    resources: Resource[];
+    thw?: number;
+    atk?: number;
+    health?: number;
 }
 
 export interface PlayerCardInstance extends PlayerCard {
     id?: number;
-    health?: number;
     counters?: number;
-    tags?: string[];
 }
 
 export interface Ally extends PlayerCardInstance {
     exhausted: boolean;
     health: number;
+    thw: number;
+    atk: number;
 }
 
 export interface Event extends PlayerCardInstance {
-    tags: string[];
+    
 }
 
 export interface Upgrade extends PlayerCardInstance {
