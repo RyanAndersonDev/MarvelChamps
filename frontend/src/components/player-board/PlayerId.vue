@@ -2,8 +2,8 @@
     import { ref, computed } from "vue";
     import type { IdentityStatus, CardStatus } from "../../types/card";
 
-    const aePath: string = "/cards/heroes/PeterParker-AE.png";
-    const heroPath: string = "/cards/heroes/PeterParker-Hero.png";
+    const aePath: string = "/cards/heroes/spider-man/PeterParker-AE.png";
+    const heroPath: string = "/cards/heroes/spider-man/PeterParker-Hero.png";
 
     const exhaustStatus = ref<CardStatus>("ready");
     const idSide = ref<IdentityStatus>("alter-ego");
