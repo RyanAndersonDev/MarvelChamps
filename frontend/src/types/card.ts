@@ -37,7 +37,9 @@ export interface PlayerCard extends CardBase {
     imgPath: string;
     resources: Resource[];
     thw?: number;
+    thwPain?: number;
     atk?: number;
+    atkPain?: number;
     health?: number;
 }
 
@@ -50,7 +52,10 @@ export interface Ally extends PlayerCardInstance {
     exhausted: boolean;
     health: number;
     thw: number;
+    thwPain: number;
     atk: number;
+    atkPain: number;
+    hpLeft: number;
 }
 
 export interface Event extends PlayerCardInstance {
