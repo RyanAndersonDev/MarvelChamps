@@ -7,10 +7,19 @@ export function createHandCard(cardId: number, cardsInDeck: number) : Ally | Eve
     if (!blueprint)
         throw new Error(`Card ID ${cardId} not found in the map.`);
 
-    return printCard(blueprint, cardsInDeck);
-} 
+    return printHandCard(blueprint, cardsInDeck);
+}
 
-function printCard(blueprint: PlayerCardInstance, id: number): Ally | Event | Upgrade | Support {
+export function createTableauCard(cardId: number, cardsInTableau: number) : Ally | Upgrade | Support {
+    const blueprint : PlayerCardInstance | undefined = cardMap.get(cardId);
+
+    if (!blueprint)
+        throw new Error(`Card ID ${cardId} not found in the map.`);
+
+    return printTableauCard(blueprint, cardsInTableau);
+}
+
+function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event | Upgrade | Support {
     const base = {
         id: id,
         name: blueprint.name,
@@ -26,7 +35,8 @@ function printCard(blueprint: PlayerCardInstance, id: number): Ally | Event | Up
             return {
                 ...base,
                 exhausted: false,
-                health: blueprint.health ?? 1000
+                health: blueprint.health ?? 1000,
+                hpLeft: blueprint.health ?? 1000
             } as Ally;
 
         case 'event':
@@ -52,3 +62,42 @@ function printCard(blueprint: PlayerCardInstance, id: number): Ally | Event | Up
             throw new Error(`Unhandled card type: ${blueprint.type}`);
     }
 }
+
+function printTableauCard(blueprint: PlayerCardInstance, id: number): Ally | Upgrade | Support {
+    const base = {
+        id: id,
+        name: blueprint.name,
+        side: blueprint.side,
+        type: blueprint.type,
+        cost: blueprint.cost,
+        aspect: blueprint.aspect,
+        imgPath: blueprint.imgPath,
+    };
+
+    switch (blueprint.type) {
+        case 'ally':
+            return {
+                ...base,
+                exhausted: false,
+                health: blueprint.health ?? 1000,
+                hpLeft: blueprint.health ?? 1000
+            } as Ally;
+
+        case 'upgrade':
+            return {
+                ...base,
+                exhausted: false,
+                counters: blueprint.counters ?? 0
+            } as Upgrade;
+
+        case 'support':
+            return {
+                ...base,
+                exhausted: false
+            } as Support;
+
+        default:
+            throw new Error(`Unhandled card type: ${blueprint.type}`);
+    }
+}
+
