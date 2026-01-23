@@ -1,4 +1,9 @@
-import type { PlayerCardInstance } from "../types/card";
+import type { IdentityCardInstance, PlayerCardInstance } from "../types/card";
+
+export const idCardMap: Map<number, IdentityCardInstance> = new Map<number, IdentityCardInstance>([
+    [1, {name: "Peter Parker/Spiderman", side: "player", imgPath: "/cards/heroes/spider-man/PeterParker-AE.png", heroImgPath: "/cards/heroes/spider-man/PeterParker-Hero.png", 
+        hitPoints: 10, healing: 3, thw: 1, atk: 2, def: 3, handsizeAe: 6, handSizeHero: 5, tags: ["genius"], heroTags: ["avenger"]}]
+]);
 
 export const cardMap: Map<number, PlayerCardInstance> = new Map<number, PlayerCardInstance>([
     [1, { name: "Black Cat", side: "player", type: "ally", cost: 2, aspect: "hero", imgPath: "/cards/heroes/spider-man/BlackCat-Ally.png", tags: ["hero for hire"], resources: ["energy"], 
@@ -11,8 +16,8 @@ export const cardMap: Map<number, PlayerCardInstance> = new Map<number, PlayerCa
     [7, { name: "Web-Shooter", side: "player", type: "upgrade", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/WebShooter-Upgrade.png", tags: ["item", "tech"], resources: ["physical"],
         counters: 3
      }],
-    [8, { name: "Webbed Up", side: "player", type: "upgrade", cost: 4, aspect: "hero", imgPath: "/cards/heroes/WebbedUp-Upgrade.png", tags: ["aerial", "attack", "superpower"], resources: ["physical"] }]
-])
+    [8, { name: "Webbed Up", side: "player", type: "upgrade", cost: 4, aspect: "hero", imgPath: "/cards/heroes/spider-man/WebbedUp-Upgrade.png", tags: ["aerial", "attack", "superpower"], resources: ["physical"] }]
+]);
 
 export function getCardImgPathById(cardId : number) : string {
     let mapEntry = cardMap.get(cardId) as PlayerCardInstance | undefined;
@@ -22,4 +27,4 @@ export function getCardImgPathById(cardId : number) : string {
     }
 
     return "";
-}
+};
