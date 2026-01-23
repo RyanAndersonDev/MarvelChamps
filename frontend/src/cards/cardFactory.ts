@@ -1,6 +1,7 @@
-import type { PlayerCardInstance, Ally, Event, Upgrade, Support } from '../types/card';
-import { cardMap } from './cardStore';
+import type { PlayerCardInstance, Ally, Event, Upgrade, Support, IdentityCardInstance } from '../types/card';
+import { cardMap, idCardMap } from './cardStore';
 
+// ************* HAND CARDS *************
 export function createHandCard(cardId: number, cardsInDeck: number) : Ally | Event | Upgrade | Support {
     const blueprint : PlayerCardInstance | undefined = cardMap.get(cardId);
 
@@ -8,15 +9,6 @@ export function createHandCard(cardId: number, cardsInDeck: number) : Ally | Eve
         throw new Error(`Card ID ${cardId} not found in the map.`);
 
     return printHandCard(blueprint, cardsInDeck);
-}
-
-export function createTableauCard(cardId: number, cardsInTableau: number) : Ally | Upgrade | Support {
-    const blueprint : PlayerCardInstance | undefined = cardMap.get(cardId);
-
-    if (!blueprint)
-        throw new Error(`Card ID ${cardId} not found in the map.`);
-
-    return printTableauCard(blueprint, cardsInTableau);
 }
 
 function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event | Upgrade | Support {
@@ -63,6 +55,16 @@ function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event 
     }
 }
 
+// ************* TABLEAU CARDS *************
+export function createTableauCard(cardId: number, cardsInTableau: number) : Ally | Upgrade | Support {
+    const blueprint : PlayerCardInstance | undefined = cardMap.get(cardId);
+
+    if (!blueprint)
+        throw new Error(`Card ID ${cardId} not found in the map.`);
+
+    return printTableauCard(blueprint, cardsInTableau);
+}
+
 function printTableauCard(blueprint: PlayerCardInstance, id: number): Ally | Upgrade | Support {
     const base = {
         id: id,
@@ -101,3 +103,21 @@ function printTableauCard(blueprint: PlayerCardInstance, id: number): Ally | Upg
     }
 }
 
+// ************* IDENTITY CARDS *************
+export function createIdentityCard(cardId: number) : IdentityCardInstance {
+    const blueprint : IdentityCardInstance | undefined = idCardMap.get(cardId);
+
+    if (!blueprint)
+        throw new Error(`Card ID ${cardId} not found in the map.`);
+
+    return printIdentityCard(blueprint);
+}
+
+function printIdentityCard (blueprint: IdentityCardInstance): IdentityCardInstance {
+    blueprint.hitPointsRemaining = blueprint.hitPoints;
+    blueprint.exhausted = false;
+    blueprint.identityStatus = "alter-ego";
+    blueprint.status = "ready";
+
+    return blueprint;
+}
