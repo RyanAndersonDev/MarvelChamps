@@ -2,14 +2,15 @@
     import { ref } from "vue";
     import { getCardImgPathById } from '../../cards/cardStore'
 
-    const pile = ref<number[]>([1]);
+    const props = defineProps<{ pile: number[] }>();
 
     function setImgAsLastPlayed() : string {
-        if (pile.value.length === 0) {
-            return "";
+        if (props.pile.length === 0) {
+            // TODO: Find default empty image and store in universal location
+            return "/cards/misc/player-card-back.png";
         }
 
-        const lastCardId : number = pile.value[pile.value.length - 1] as number;
+        const lastCardId : number = props.pile[props.pile.length - 1] as number;
 
         return getCardImgPathById(lastCardId);
     }
