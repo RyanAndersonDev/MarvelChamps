@@ -1,14 +1,25 @@
 <script setup lang="ts">
-    import { ref } from "vue";
+    const props = defineProps<{ deckIds: number[] }>();
+    const emit = defineEmits<{
+      (e: "card-drawn", cardId: number): void;
+    }>();
 
-    const deck = ref<number[]>([]);
+    function drawCardFromDeck() {
+      if (props.deckIds.length <= 0) {
+        console.warn("Deck is empty!");
+        return;
+      }
+
+      const cardId = props.deckIds.shift()!;
+      emit("card-drawn", cardId);
+    }
 
     function peekDeck() {
         // TODO: implement peek
     }
 
     function shuffleDeck() {
-        deck.value = [...deck.value].sort(() => Math.random() - 0.5);
+        // TODO: implement shuffle
     }
 </script>
 
@@ -22,13 +33,13 @@
       />
 
       <div class="pile-counter">
-        {{ deck.length }}
+        {{ props.deckIds.length }}
       </div>
     </div>
 
     <div class="button-row">
       <button @click="peekDeck">Peek</button>
-      <button @click="shuffleDeck">Shuffle</button>
+      <button @click="drawCardFromDeck()">Draw</button>
     </div>
   </div>
 </template>

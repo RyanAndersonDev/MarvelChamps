@@ -1,21 +1,28 @@
 <script setup lang="ts">
-    import { ref } from 'vue';
+    import { ref, watch } from 'vue';
     import type { Ally, Event, Upgrade, Support } from '../../types/card';
     import HandCard from '../cards/HandCard.vue';
     import { createHandCard } from '../../cards/cardFactory';
 
+    const props = defineProps<{ newCardId: number | null }>();
     const hand = ref<(Ally | Event | Upgrade | Support)[]>([]);
+
+    watch(() => props.newCardId, (id) => {
+        if (id !== null) {
+            hand.value.push(createHandCard(id, hand.value.length));
+        }
+    })
 
     function handlePlay(cardId: number) : void {
         
     }
-
-    hand.value.push(createHandCard(1, 1));
-    hand.value.push(createHandCard(2, 2));
-    hand.value.push(createHandCard(3, 3));
-    hand.value.push(createHandCard(4, 4));
-    hand.value.push(createHandCard(5, 5));
-    hand.value.push(createHandCard(6, 6));
+    
+    // props.hand.push(createHandCard(1, 1));
+    // props.hand.push(createHandCard(2, 2));
+    // props.hand.push(createHandCard(3, 3));
+    // props.hand.push(createHandCard(4, 4));
+    // props.hand.push(createHandCard(5, 5));
+    // props.hand.push(createHandCard(6, 6));
 </script>
 
 <template>
