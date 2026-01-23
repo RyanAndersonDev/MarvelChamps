@@ -1,9 +1,18 @@
 <script setup lang="ts">
-import PlayerHand from "./components/player-board/PlayerHand.vue";
-import PlayerId from "./components/player-board/PlayerId.vue";
-import PlayerDeck from "./components/piles/PlayerDeck.vue";
-import PlayerDiscard from "./components/piles/PlayerDiscard.vue";
-import PlayerTableau from "./components/player-board/PlayerTableau.vue";
+  import { ref } from "vue";
+  import PlayerHand from "./components/player-board/PlayerHand.vue";
+  import PlayerId from "./components/player-board/PlayerId.vue";
+  import PlayerDeck from "./components/piles/PlayerDeck.vue";
+  import PlayerDiscard from "./components/piles/PlayerDiscard.vue";
+  import PlayerTableau from "./components/player-board/PlayerTableau.vue";
+
+  const idCardId = 1;
+  const playerDeckIds = [1, 2, 3, 4, 5, 6, 7, 8];
+  const latestCardId = ref<number | null>(null);
+
+  function addCardToHandFromDeck(cardId : number) {
+    latestCardId.value = cardId;
+  }
 </script>
 
 <template>
@@ -12,13 +21,20 @@ import PlayerTableau from "./components/player-board/PlayerTableau.vue";
 
     <div class="bottom-bar">
       <div class="left-group">
-        <PlayerDeck />
-        <PlayerId />
+        <PlayerDeck 
+          :deckIds="playerDeckIds" 
+          @card-drawn="addCardToHandFromDeck"/>
+
+        <PlayerId 
+          :id-card-id="idCardId"/>
       </div>
 
-      <PlayerHand class="hand" />
+      <PlayerHand
+        :new-card-id="latestCardId"
+        class="hand"
+        />
 
-      <PlayerDiscard />
+      <PlayerDiscard :pile="[]"/>
     </div>
   </main>
 </template>
@@ -61,6 +77,4 @@ import PlayerTableau from "./components/player-board/PlayerTableau.vue";
   display: flex;
   justify-content: center;
 }
-
-
 </style>
