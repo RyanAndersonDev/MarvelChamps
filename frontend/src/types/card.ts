@@ -1,4 +1,4 @@
-export type IdentityStatus = "hero" | "alter-ego";
+export type IdentityStatus = "hero" | "alter-ego" | "dead";
 
 export type CardStatus = "ready" | "exhausted";
 
@@ -17,15 +17,22 @@ export interface CardBase {
 
 export interface IdentityCard extends CardBase {
     name: string;
-    identityStatus: IdentityStatus;
-    status: CardStatus;
+    heroImgPath: string;
     hitPoints: number;
     healing: number;
     thw: number;
     atk: number;
     def: number;
-    handSizeHero: number;
     handsizeAe: number;
+    handSizeHero: number;
+    heroTags: string[];
+}
+
+export interface IdentityCardInstance extends IdentityCard {
+    hitPointsRemaining?: number;
+    exhausted?: boolean;
+    identityStatus?: IdentityStatus;
+    status?: CardStatus;
 }
 
 export interface PlayerCard extends CardBase {
