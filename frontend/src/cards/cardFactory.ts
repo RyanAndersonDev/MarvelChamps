@@ -20,6 +20,7 @@ function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event 
         cost: blueprint.cost,
         aspect: blueprint.aspect,
         imgPath: blueprint.imgPath,
+        resources: blueprint.resources
     };
 
     switch (blueprint.type) {

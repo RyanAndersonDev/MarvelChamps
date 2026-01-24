@@ -1,32 +1,25 @@
 <script setup lang="ts">
   import BaseCard from './BaseCard.vue';
   import type { Ally, Event, Upgrade, Support } from '../../types/card';
-  import type { PlayerCardType } from '../../types/card';
+  import type { Resource } from '../../types/card';
     
-  const props = defineProps<{ card: Ally | Event | Upgrade | Support }>();
+  const props = defineProps<{ 
+    card: Ally | Event | Upgrade | Support;
+    mode: 'play' | 'resource' | 'used';
+  }>();
 
   const emit = defineEmits<{
-    (e: 'play', cardId: string): void;
-    (e: 'resource', cardId: string): void;
+    (e: 'play', cardId: number): void;
+    (e: 'resource', payload: { cardId: number; resources: Resource[] }): void;
   }>();
 
   function playCard() : void {
-    const cardType : PlayerCardType = props.card.type;
-
-    // TODO: These cards need to be moved into the tableau component
-    if (cardType === "ally" || cardType === "upgrade" || cardType === "support") {
-      // DO SOMETHING
-      console.log(`Playing a${cardType === "support" ? "" : "n"} ${cardType}!`);
-    } 
-    // TODO: Needs to do something before component is destroyed, id added to discard pile
-    else {
-      // DO SOMETHING
-      console.log(`Playing a${cardType === "event" ? "n" : ""} ${cardType}!`);
-    }
+    emit('play', props.card.id!)  
   }
 
-  function useAsResource() : void {
-    
+  function useAsResource(): void {
+    console.log('CARD:', props.card.name, props.card.id, props.card.resources);
+    emit('resource', { cardId: props.card.id!, resources: props.card.resources });
   }
 </script>
 
@@ -35,13 +28,11 @@
     <BaseCard :img-path="card.imgPath" />
 
     <div class="button-row">
-      <button @click="playCard">Play</button>
-      <!-- <button @click="useAsResource">Resource</button> -->
+      <button v-if="mode === 'play'" @click="playCard">Play</button>
+      <button v-else-if="mode === 'resource'" @click="useAsResource">Resource</button>
+      <button v-else disabled>Used</button> <!-- visually indicate selected resources -->
     </div>
   </div>
-  <!-- <p>{{ card.name }}</p>
-  <p v-if="'health' in card">Health: {{ card.health }}</p>
-  <p v-if="'counters' in card">Counters: {{ card.counters }}</p> -->
 </template>
 
 <style scoped>

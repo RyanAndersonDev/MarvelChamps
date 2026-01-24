@@ -13,6 +13,10 @@
   function addCardToHandFromDeck(cardId : number) {
     latestCardId.value = cardId;
   }
+
+  function handleDiscardFromHand() {
+
+  }
 </script>
 
 <template>
@@ -31,10 +35,12 @@
 
       <PlayerHand
         :new-card-id="latestCardId"
+        @discard="handleDiscardFromHand"
         class="hand"
         />
 
-      <PlayerDiscard :pile="[]"/>
+      <PlayerDiscard 
+        :pileIds="[]"/>
     </div>
   </main>
 </template>

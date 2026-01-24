@@ -1,26 +1,34 @@
 <script setup lang="ts">
-    const props = defineProps<{ deckIds: number[] }>();
-    const emit = defineEmits<{
-      (e: "card-drawn", cardId: number): void;
-    }>();
+  import { ref, computed } from "vue";
+  
+  const props = defineProps<{ deckIds: number[] }>();
+  const emit = defineEmits<{
+    (e: "card-drawn", cardId: number): void;
+  }>();
 
-    function drawCardFromDeck() {
-      if (props.deckIds.length <= 0) {
-        console.warn("Deck is empty!");
-        return;
-      }
+  const deckList = ref<number[]>([...props.deckIds]);
 
-      const cardId = props.deckIds.shift()!;
-      emit("card-drawn", cardId);
+  const deckCount = computed(() => 
+    deckList.value.length
+  );
+
+  function drawCardFromDeck() {
+    if (props.deckIds.length <= 0) {
+      console.warn("Deck is empty!");
+      return;
     }
 
-    function peekDeck() {
-        // TODO: implement peek
-    }
+    const cardId = deckList.value.shift()!;
+    emit("card-drawn", cardId);
+  }
 
-    function shuffleDeck() {
-        // TODO: implement shuffle
-    }
+  function peekDeck() {
+    // TODO: implement peek
+  }
+
+  function shuffleDeck() {
+    // TODO: implement shuffle
+  }
 </script>
 
 <template>
@@ -33,7 +41,7 @@
       />
 
       <div class="pile-counter">
-        {{ props.deckIds.length }}
+        {{ deckCount }}
       </div>
     </div>
 

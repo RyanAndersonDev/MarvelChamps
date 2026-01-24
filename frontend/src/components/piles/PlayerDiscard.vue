@@ -1,19 +1,20 @@
 <script setup lang="ts">
-    import { ref } from "vue";
+    import { ref, computed } from "vue";
     import { getCardImgPathById } from '../../cards/cardStore'
 
-    const props = defineProps<{ pile: number[] }>();
+    const props = defineProps<{ pileIds: number[] }>();
 
-    function setImgAsLastPlayed() : string {
-        if (props.pile.length === 0) {
-            // TODO: Find default empty image and store in universal location
+    const discardCount = computed(() =>
+        props.pileIds.length
+    );
+
+    const lastPlayedImage = computed(() => {
+        if (props.pileIds.length === 0) {
             return "/cards/misc/player-card-back.png";
         }
 
-        const lastCardId : number = props.pile[props.pile.length - 1] as number;
-
-        return getCardImgPathById(lastCardId);
-    }
+        return getCardImgPathById(props.pileIds[-1]!);
+    });
 
     function peekPile() {
         // TODO: implement peek
@@ -24,13 +25,13 @@
     <div class="pile-container">
         <div class="pile-card-container">
             <img
-                :src= setImgAsLastPlayed()
+                :src= lastPlayedImage
                 alt="Discard Pile"
                 class="pile-card"
             />
 
             <div class="pile-counter">
-                {{ pile.length }}
+                {{ discardCount }}
             </div>
         </div>
 
