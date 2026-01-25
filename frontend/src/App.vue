@@ -9,7 +9,7 @@
   import { createHandCard } from "./cards/cardFactory";
   import { createTableauCard } from './cards/cardFactory';
 
-  const idCardId = 1;
+  const idCardId = ref(1);
 
   const deckIds = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8]);
   const hand = ref<(Ally | Event | Upgrade | Support)[]>([]);
@@ -32,6 +32,10 @@
   function discardCards(cardIds: number[]) {
     discardIds.value.push(...cardIds);
     hand.value = hand.value.filter(c => !cardIds.includes(c.storageId!));
+  }
+
+  function destroyHandCard(cardId: number) {
+    hand.value = hand.value.filter(c => c.instanceId !== cardId)
   }
 </script>
 
@@ -57,6 +61,7 @@
         :hand="hand"
         @discard="discardCards"
         @send-to-tableau="makeTableauCardFromDeck"
+        @destroy-hand-card="destroyHandCard"
         class="hand"
       />
 

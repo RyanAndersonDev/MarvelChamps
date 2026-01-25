@@ -8,6 +8,7 @@
     const emit = defineEmits<{
         (e: 'discard', cardIds: number[]): void;
         (e: 'sendToTableau', cardId: number): void;
+        (e: 'destroyHandCard', cardId: number): void;
     }>();
     
     const activeCardId = ref<number | null>(null);
@@ -73,7 +74,7 @@
             }
             else {
                 sendToTableau(card?.storageId!);
-                cardIdsToDiscard.value.push(card?.storageId!);
+                emit('destroyHandCard', card?.instanceId!);
             }
 
             emit('discard', [...cardIdsToDiscard.value]);
