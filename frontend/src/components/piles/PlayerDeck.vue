@@ -1,26 +1,14 @@
 <script setup lang="ts">
-  import { ref, computed } from "vue";
+  import { computed } from "vue";
   
   const props = defineProps<{ deckIds: number[] }>();
   const emit = defineEmits<{
-    (e: "card-drawn", cardId: number): void;
+    (e: "draw"): void;
   }>();
 
-  const deckList = ref<number[]>([...props.deckIds]);
-
   const deckCount = computed(() => 
-    deckList.value.length
+    props.deckIds.length
   );
-
-  function drawCardFromDeck() {
-    if (props.deckIds.length <= 0) {
-      console.warn("Deck is empty!");
-      return;
-    }
-
-    const cardId = deckList.value.shift()!;
-    emit("card-drawn", cardId);
-  }
 
   function peekDeck() {
     // TODO: implement peek
@@ -47,7 +35,7 @@
 
     <div class="button-row">
       <button @click="peekDeck">Peek</button>
-      <button @click="drawCardFromDeck()">Draw</button>
+      <button @click="emit('draw')">Draw</button>
     </div>
   </div>
 </template>

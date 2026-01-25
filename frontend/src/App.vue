@@ -5,42 +5,64 @@
   import PlayerDeck from "./components/piles/PlayerDeck.vue";
   import PlayerDiscard from "./components/piles/PlayerDiscard.vue";
   import PlayerTableau from "./components/player-board/PlayerTableau.vue";
+  import type { Ally, Event, Upgrade, Support } from './types/card'
+  import { createHandCard } from "./cards/cardFactory";
+  import { createTableauCard } from './cards/cardFactory';
 
   const idCardId = 1;
-  const playerDeckIds = [1, 2, 3, 4, 5, 6, 7, 8];
-  const latestCardId = ref<number | null>(null);
 
-  function addCardToHandFromDeck(cardId : number) {
-    latestCardId.value = cardId;
+  const deckIds = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8]);
+  const hand = ref<(Ally | Event | Upgrade | Support)[]>([]);
+  const discardIds = ref<number[]>([]);
+  const tableauCards = ref<(Ally | Upgrade | Support)[]>([]);
+  const idIncrementer = ref(0);
+
+  function drawCardFromDeck() {
+    if (deckIds.value.length === 0)
+      return;
+
+    const id = deckIds.value.shift()!;
+    hand.value.push(createHandCard(id, ++idIncrementer.value));
   }
 
-  function handleDiscardFromHand() {
+  function makeTableauCardFromDeck(cardId : number) {
+    tableauCards.value.push(createTableauCard(cardId, ++idIncrementer.value))
+  }
 
+  function discardCards(cardIds: number[]) {
+    discardIds.value.push(...cardIds);
+    hand.value = hand.value.filter(c => !cardIds.includes(c.storageId!));
   }
 </script>
 
 <template>
   <main>
-    <PlayerTableau />
+    <PlayerTableau 
+      :tableau-cards="tableauCards"
+    />
 
     <div class="bottom-bar">
       <div class="left-group">
         <PlayerDeck 
-          :deckIds="playerDeckIds" 
-          @card-drawn="addCardToHandFromDeck"/>
+          :deckIds="deckIds" 
+          @draw="drawCardFromDeck"
+        />
 
         <PlayerId 
-          :id-card-id="idCardId"/>
+          :id-card-id="idCardId"
+        />
       </div>
 
       <PlayerHand
-        :new-card-id="latestCardId"
-        @discard="handleDiscardFromHand"
+        :hand="hand"
+        @discard="discardCards"
+        @send-to-tableau="makeTableauCardFromDeck"
         class="hand"
-        />
+      />
 
       <PlayerDiscard 
-        :pileIds="[]"/>
+        :pileIds="discardIds"
+      />
     </div>
   </main>
 </template>
@@ -52,35 +74,35 @@
   }
 
   .bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
 
-  display: flex;
-  align-items: flex-end;
+    display: flex;
+    align-items: flex-end;
 
-  padding: 12px;
-  gap: 12px;
+    padding: 12px;
+    gap: 12px;
 
-  background: #5e5c66;
-  box-sizing: border-box;
-}
+    background: #5e5c66;
+    box-sizing: border-box;
+  }
 
-.left-group {
-  display: flex;
-  gap: 12px;
-  flex-shrink: 0;
-}
+  .left-group {
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+  }
 
-.PlayerDiscard {
-  flex-shrink: 0;
-}
+  .PlayerDiscard {
+    flex-shrink: 0;
+  }
 
-.hand {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  justify-content: center;
-}
+  .hand {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    justify-content: center;
+  }
 </style>

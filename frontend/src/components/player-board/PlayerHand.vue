@@ -1,16 +1,15 @@
 <script setup lang="ts">
-    import { computed, ref, watch } from 'vue';
+    import { computed, ref } from 'vue';
     import type { Ally, Event, Upgrade, Support } from '../../types/card';
     import HandCard from '../cards/HandCard.vue';
-    import { createHandCard } from '../../cards/cardFactory';
     import type { Resource } from '../../types/card';
 
-    const props = defineProps<{ newCardId: number | null }>();
+    const props = defineProps<{ hand: (Ally | Event | Upgrade | Support)[] }>();
     const emit = defineEmits<{
         (e: 'discard', cardIds: number[]): void;
+        (e: 'sendToTableau', cardId: number): void;
     }>();
     
-    const hand = ref<(Ally | Event | Upgrade | Support)[]>([]);
     const activeCardId = ref<number | null>(null);
     const cardIdsToDiscard = ref<number[]>([]);
 
@@ -18,7 +17,7 @@
         if (activeCardId.value === null)
             return;
 
-        const activeCard = hand.value.find(card => card.id === activeCardId.value);
+        const activeCard = props.hand.find(card => card.instanceId === activeCardId.value);
         return activeCard?.cost || null;
     });
 
@@ -31,14 +30,21 @@
         ])
     );
 
-    watch(() => props.newCardId, (id) => {
-        if (id !== null) {
-            hand.value.push(createHandCard(id, hand.value.length));
-        }
-    })
-
     function handlePlay(cardId: number) : void {
-        activeCardId.value = cardId;
+        const currentCard = props.hand.find(c => c.instanceId === cardId);
+
+        if (currentCard?.cost === 0) {
+            cardIdsToDiscard.value.push(currentCard.storageId!);
+            emit('discard', [...cardIdsToDiscard.value]);
+            resolveCardEffect();
+
+            cardIdsToDiscard.value = [];
+            activeResources.value.clear();
+            activeCardId.value = null;
+        }
+        else {
+            activeCardId.value = cardId;
+        }
     }
 
     function handleAllResourcesFromEvent(payload: { cardId: number, resources: Resource[] }) {
@@ -48,19 +54,26 @@
     function handleAllResources(rscArr: Resource[], cardId: number) {
         rscArr.forEach(r => {
             const map = activeResources.value;
-            if (!map) return;
+            if (!map) 
+                return;
 
             const current = map.get(r) ?? 0;
             map.set(r, current + 1);
         });
 
+        cardIdsToDiscard.value.push(cardId);
+
         if (resolvePlay()) {
-            const card = hand.value.find(c => c.id === cardId);
+            const card = props.hand.find(c => c.instanceId === activeCardId.value!);
 
             if (card?.type === "event") {
-                if (!cardIdsToDiscard.value.includes(cardId)) {
-                    cardIdsToDiscard.value.push(cardId);
+                if (!cardIdsToDiscard.value.includes(card?.storageId!)) {
+                    cardIdsToDiscard.value.push(card?.storageId!);
                 }
+            }
+            else {
+                sendToTableau(card?.storageId!);
+                cardIdsToDiscard.value.push(card?.storageId!);
             }
 
             emit('discard', [...cardIdsToDiscard.value]);
@@ -96,16 +109,20 @@
 
         return activeCardId.value === cardId ? 'play' : 'resource';
     }
+
+    function sendToTableau(cardId : number) {
+        emit('sendToTableau', cardId);
+    }
 </script>
 
 <template>
     <div class="hand-container-wrapper">
         <div class="hand-container">
             <HandCard
-                v-for="card in hand"
-                :key="card.id"
+                v-for="card in props.hand"
+                :key="card.instanceId"
                 :card="card"
-                :mode="getCardMode(card.id!)"
+                :mode="getCardMode(card.instanceId!)"
                 @play="handlePlay"
                 @resource="handleAllResourcesFromEvent"
             />

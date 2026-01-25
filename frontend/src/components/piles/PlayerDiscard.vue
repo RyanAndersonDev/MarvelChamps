@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import { ref, computed } from "vue";
+    import { computed } from "vue";
     import { getCardImgPathById } from '../../cards/cardStore'
 
     const props = defineProps<{ pileIds: number[] }>();
@@ -8,13 +8,11 @@
         props.pileIds.length
     );
 
-    const lastPlayedImage = computed(() => {
-        if (props.pileIds.length === 0) {
-            return "/cards/misc/player-card-back.png";
-        }
-
-        return getCardImgPathById(props.pileIds[-1]!);
-    });
+    const lastPlayedImage = computed(() =>
+        props.pileIds.length
+            ? getCardImgPathById(props.pileIds[props.pileIds.length - 1]!)
+            : '/cards/misc/player-card-back.png'
+    );
 
     function peekPile() {
         // TODO: implement peek
