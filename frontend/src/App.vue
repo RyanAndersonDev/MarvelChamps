@@ -27,7 +27,7 @@
     hand.value.push(createHandCard(id, ++idIncrementer.value));
   }
 
-  function makeTableauCardFromDeck(cardId : number) {
+  function makeTableauCardFromHand(cardId : number) {
     tableauCards.value.push(createTableauCard(cardId, ++idIncrementer.value))
   }
 
@@ -66,7 +66,7 @@
       <PlayerHand
         :hand="hand"
         @discard="discardCards"
-        @send-to-tableau="makeTableauCardFromDeck"
+        @send-to-tableau="makeTableauCardFromHand"
         @destroy-hand-card="destroyHandCard"
         class="hand"
       />
