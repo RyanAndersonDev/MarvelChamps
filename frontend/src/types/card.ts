@@ -33,6 +33,9 @@ export interface IdentityCardInstance extends IdentityCard {
     exhausted?: boolean;
     identityStatus?: IdentityStatus;
     status?: CardStatus;
+    stunned?: boolean;
+    confused?: boolean;
+    tough?: boolean;
 }
 
 export interface PlayerCard extends CardBase {
@@ -43,6 +46,7 @@ export interface PlayerCard extends CardBase {
     aspect: Aspect;
     imgPath: string;
     resources: Resource[];
+    storageId?: number,
     thw?: number;
     thwPain?: number;
     atk?: number;
@@ -51,7 +55,7 @@ export interface PlayerCard extends CardBase {
 }
 
 export interface PlayerCardInstance extends PlayerCard {
-    id?: number;
+    instanceId?: number;
     counters?: number;
 }
 
@@ -63,6 +67,9 @@ export interface Ally extends PlayerCardInstance {
     atk: number;
     atkPain: number;
     hpLeft: number;
+    stunned: boolean;
+    confused: boolean;
+    tough: boolean;
 }
 
 export interface Event extends PlayerCardInstance {

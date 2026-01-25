@@ -2,18 +2,22 @@ import type { PlayerCardInstance, Ally, Event, Upgrade, Support, IdentityCardIns
 import { cardMap, idCardMap } from './cardStore';
 
 // ************* HAND CARDS *************
-export function createHandCard(cardId: number, cardsInDeck: number) : Ally | Event | Upgrade | Support {
+export function createHandCard(cardId: number, instanceId: number) : Ally | Event | Upgrade | Support {
     const blueprint : PlayerCardInstance | undefined = cardMap.get(cardId);
+    
 
     if (!blueprint)
         throw new Error(`Card ID ${cardId} not found in the map.`);
 
-    return printHandCard(blueprint, cardsInDeck);
+    blueprint!.storageId = cardId;
+
+    return printHandCard(blueprint, instanceId);
 }
 
 function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event | Upgrade | Support {
     const base = {
-        id: id,
+        instanceId: id,
+        storageId: blueprint.storageId,
         name: blueprint.name,
         side: blueprint.side,
         type: blueprint.type,
@@ -29,7 +33,10 @@ function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event 
                 ...base,
                 exhausted: false,
                 health: blueprint.health ?? 1000,
-                hpLeft: blueprint.health ?? 1000
+                hpLeft: blueprint.health ?? 1000,
+                stunned: false,
+                confused: false,
+                tough: false
             } as Ally;
 
         case 'event':
@@ -68,7 +75,7 @@ export function createTableauCard(cardId: number, cardsInTableau: number) : Ally
 
 function printTableauCard(blueprint: PlayerCardInstance, id: number): Ally | Upgrade | Support {
     const base = {
-        id: id,
+        instanceId: id,
         name: blueprint.name,
         side: blueprint.side,
         type: blueprint.type,

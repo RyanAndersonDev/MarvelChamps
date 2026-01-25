@@ -20,10 +20,10 @@ export const cardMap: Map<number, PlayerCardInstance> = new Map<number, PlayerCa
 ]);
 
 export function getCardImgPathById(cardId : number) : string {
-    let mapEntry = cardMap.get(cardId) as PlayerCardInstance | undefined;
+    let imgPath = cardMap.get(cardId)?.imgPath;
 
-    if (mapEntry != null) {
-        return mapEntry.imgPath;
+    if (imgPath != null) {
+        return imgPath;
     }
 
     return "";

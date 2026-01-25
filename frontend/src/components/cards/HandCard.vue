@@ -14,12 +14,12 @@
   }>();
 
   function playCard() : void {
-    emit('play', props.card.id!)  
+    emit('play', props.card.instanceId!)  
   }
 
   function useAsResource(): void {
-    console.log('CARD:', props.card.name, props.card.id, props.card.resources);
-    emit('resource', { cardId: props.card.id!, resources: props.card.resources });
+    console.log('CARD:', props.card.name, props.card.instanceId, props.card.resources);
+    emit('resource', { cardId: props.card.instanceId!, resources: props.card.resources });
   }
 </script>
 
