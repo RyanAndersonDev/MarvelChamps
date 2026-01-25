@@ -1,5 +1,5 @@
-import type { PlayerCardInstance, Ally, Event, Upgrade, Support, IdentityCardInstance } from '../types/card';
-import { cardMap, idCardMap } from './cardStore';
+import type { PlayerCardInstance, Ally, Event, Upgrade, Support, IdentityCardInstance, VillainIdentityCard, VillainIdentityCardInstance } from '../types/card';
+import { cardMap, idCardMap, villainIdCardMap } from './cardStore';
 
 // ************* HAND CARDS *************
 export function createHandCard(cardId: number, instanceId: number) : Ally | Event | Upgrade | Support {
@@ -128,4 +128,24 @@ function printIdentityCard (blueprint: IdentityCardInstance): IdentityCardInstan
     blueprint.status = "ready";
 
     return blueprint;
+}
+
+// ************* VILLAIN IDENTITY CARDS *************
+export function createVillainIdentityCard(cardId: number) : VillainIdentityCardInstance {
+    const blueprint : VillainIdentityCard | undefined = villainIdCardMap.get(cardId);
+
+    if (!blueprint)
+        throw new Error(`Villain Card ID ${cardId} not found in the map.`)
+
+    return printVillainIdentityCard(blueprint);
+}
+
+export function printVillainIdentityCard(blueprint: VillainIdentityCard) : VillainIdentityCardInstance {
+    return {
+        ... blueprint,
+        hitPointsRemaining: blueprint.hitPointsPerPlayer * 1, // TODO: Make number of players!
+        stunned: false,
+        confused: false,
+        tough: false,
+    };
 }

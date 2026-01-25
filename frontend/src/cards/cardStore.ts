@@ -1,4 +1,4 @@
-import type { IdentityCardInstance, PlayerCardInstance } from "../types/card";
+import type { IdentityCardInstance, PlayerCardInstance, VillainIdentityCard } from "../types/card";
 
 export const idCardMap: Map<number, IdentityCardInstance> = new Map<number, IdentityCardInstance>([
     [1, {name: "Peter Parker/Spiderman", side: "player", imgPath: "/cards/heroes/spider-man/PeterParker-AE.png", heroImgPath: "/cards/heroes/spider-man/PeterParker-Hero.png", 
@@ -17,6 +17,11 @@ export const cardMap: Map<number, PlayerCardInstance> = new Map<number, PlayerCa
         counters: 3
      }],
     [8, { name: "Webbed Up", side: "player", type: "upgrade", cost: 4, aspect: "hero", imgPath: "/cards/heroes/spider-man/WebbedUp-Upgrade.png", tags: ["aerial", "attack", "superpower"], resources: ["physical"] }]
+]);
+
+export const villainIdCardMap: Map<number, VillainIdentityCard> = new Map<number, VillainIdentityCard>([
+    [1, {name: "Rhino", side: "villain", imgPath: "/cards/villains/Rhino-Phase1.png", tags: ["brute", "criminal"], phase: 1, hitPointsPerPlayer: 14, sch: 1, atk: 2, 
+        flavorText: `"I'm Rhino. I knock things down. That's what I do. That's who I am."`}]
 ]);
 
 export function getCardImgPathById(cardId : number) : string {

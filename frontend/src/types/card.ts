@@ -16,7 +16,6 @@ export interface CardBase {
 }
 
 export interface IdentityCard extends CardBase {
-    name: string;
     heroImgPath: string;
     hitPoints: number;
     healing: number;
@@ -39,7 +38,6 @@ export interface IdentityCardInstance extends IdentityCard {
 }
 
 export interface PlayerCard extends CardBase {
-    name: string;
     side: "player";
     type: PlayerCardType;
     cost: number;
@@ -83,6 +81,21 @@ export interface Upgrade extends PlayerCardInstance {
 
 export interface Support extends PlayerCardInstance {
     exhausted: boolean;
+}
+
+export interface VillainIdentityCard extends CardBase {
+    phase: number;
+    hitPointsPerPlayer: number;
+    sch: number;
+    atk: number;
+    flavorText: string;
+}
+
+export interface VillainIdentityCardInstance extends VillainIdentityCard {
+    hitPointsRemaining?: number;
+    stunned?: boolean;
+    confused?: boolean;
+    tough?: boolean;
 }
 
 export interface VillainCard extends CardBase {

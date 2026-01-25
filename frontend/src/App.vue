@@ -5,11 +5,13 @@
   import PlayerDeck from "./components/piles/PlayerDeck.vue";
   import PlayerDiscard from "./components/piles/PlayerDiscard.vue";
   import PlayerTableau from "./components/player-board/PlayerTableau.vue";
-  import type { Ally, Event, Upgrade, Support } from './types/card'
-  import { createHandCard } from "./cards/cardFactory";
-  import { createTableauCard } from './cards/cardFactory';
+  import type { Ally, Event, Upgrade, Support, VillainIdentityCardInstance } from './types/card'
+  import { createHandCard, createTableauCard, createVillainIdentityCard } from "./cards/cardFactory";
+  import VillainCard from "./components/cards/VillainIdentityCard.vue";
 
   const idCardId = ref(1);
+
+  const villainCard = ref<VillainIdentityCardInstance>(createVillainIdentityCard(1));
 
   const deckIds = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8]);
   const hand = ref<(Ally | Event | Upgrade | Support)[]>([]);
@@ -41,6 +43,10 @@
 
 <template>
   <main>
+    <VillainCard
+      :card-instance="villainCard"
+    />
+
     <PlayerTableau 
       :tableau-cards="tableauCards"
     />
