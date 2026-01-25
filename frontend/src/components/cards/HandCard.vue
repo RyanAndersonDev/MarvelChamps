@@ -10,7 +10,7 @@
 
   const emit = defineEmits<{
     (e: 'play', cardId: number): void;
-    (e: 'resource', payload: { cardId: number; resources: Resource[] }): void;
+    (e: 'resource', payload: { instanceId: number, storageId: number, resources: Resource[] }): void;
   }>();
 
   function playCard() : void {
@@ -19,7 +19,7 @@
 
   function useAsResource(): void {
     console.log('CARD:', props.card.name, props.card.instanceId, props.card.resources);
-    emit('resource', { cardId: props.card.instanceId!, resources: props.card.resources });
+    emit('resource', { instanceId: props.card.instanceId!, storageId: props.card.storageId!, resources: props.card.resources });
   }
 </script>
 

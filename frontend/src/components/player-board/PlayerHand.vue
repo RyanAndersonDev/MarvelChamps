@@ -48,11 +48,11 @@
         }
     }
 
-    function handleAllResourcesFromEvent(payload: { cardId: number, resources: Resource[] }) {
-        handleAllResources(payload.resources, payload.cardId);
+    function handleAllResourcesFromEvent(payload: { instanceId: number, storageId: number, resources: Resource[] }) {
+        handleAllResources(payload.resources, payload.instanceId, payload.storageId);
     }
 
-    function handleAllResources(rscArr: Resource[], cardId: number) {
+    function handleAllResources(rscArr: Resource[], instanceId: number, storageId: number) {
         rscArr.forEach(r => {
             const map = activeResources.value;
             if (!map) 
@@ -62,7 +62,7 @@
             map.set(r, current + 1);
         });
 
-        cardIdsToDiscard.value.push(cardId);
+        cardIdsToDiscard.value.push(storageId);
 
         if (resolvePlay()) {
             const card = props.hand.find(c => c.instanceId === activeCardId.value!);
