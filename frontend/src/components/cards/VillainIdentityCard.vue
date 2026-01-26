@@ -7,11 +7,11 @@
 
 <template>
     <div class="id-card-wrapper">
-        <h2>HP: {{ props.cardInstance.hitPointsRemaining }}</h2>
         <BaseCard 
             :img-path="props.cardInstance.imgPath" 
             class="id-card"
         />
+        <h2>HP: {{ props.cardInstance.hitPointsRemaining }}</h2>
     </div>
 </template>
 
