@@ -25,7 +25,11 @@
 
 <template>
   <div class="hand-card-wrapper">
-    <BaseCard :img-path="card.imgPath" />
+    <BaseCard 
+      :img-path="card.imgPath" 
+      :orientation="'vertical'"
+      :zoom-direction="'up'"
+    />
 
     <div class="button-row">
       <button v-if="mode === 'play'" @click="playCard">Play</button>

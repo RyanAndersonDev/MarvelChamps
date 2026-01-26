@@ -8,7 +8,9 @@
 <template>
     <div class="id-card-wrapper">
         <BaseCard 
-            :img-path="props.cardInstance.imgPath" 
+            :img-path="props.cardInstance.imgPath"
+            :orientation="'vertical'"
+            :zoom-direction="'down'"
             class="id-card"
         />
         <h2>HP: {{ props.cardInstance.hitPointsRemaining }}</h2>
