@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import IdentityCard from "../cards/IdentityCard.vue";
+    import IdentityCard from "../cards/PlayerIdentityCard.vue";
 
     const props = defineProps<{ idCardId: number }>();
 </script>

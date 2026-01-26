@@ -2,22 +2,26 @@
   import { ref } from "vue";
   import PlayerHand from "./components/player-board/PlayerHand.vue";
   import PlayerId from "./components/player-board/PlayerId.vue";
-  import PlayerDeck from "./components/piles/PlayerDeck.vue";
-  import PlayerDiscard from "./components/piles/PlayerDiscard.vue";
+  import PlayerDeck from "./components/piles/DeckPile.vue";
   import PlayerTableau from "./components/player-board/PlayerTableau.vue";
   import type { Ally, Event, Upgrade, Support, VillainIdentityCardInstance } from './types/card'
   import { createHandCard, createTableauCard, createVillainIdentityCard } from "./cards/cardFactory";
-  import VillainCard from "./components/cards/VillainIdentityCard.vue";
+  import VillainBoard from "./components/villain-board/VillainBoard.vue";
+  import DiscardPile from "./components/piles/DiscardPile.vue";
+
+  const idIncrementer = ref(0);
+  
+  const villainCard = ref<VillainIdentityCardInstance>(createVillainIdentityCard(1));
+  const villainDiscardIds = ref<number[]>([]);
 
   const idCardId = ref(1);
-
-  const villainCard = ref<VillainIdentityCardInstance>(createVillainIdentityCard(1));
-
   const deckIds = ref<number[]>([ 8, 7, 6, 5, 4, 3, 2, 1]);
   const hand = ref<(Ally | Event | Upgrade | Support)[]>([]);
-  const discardIds = ref<number[]>([]);
+  const playerDiscardIds = ref<number[]>([]);
   const tableauCards = ref<(Ally | Upgrade | Support)[]>([]);
-  const idIncrementer = ref(0);
+
+  const playerCardBackImg = "/cards/misc/player-card-back.png";
+  const villainCardBackImg = "/cards/misc/villain-card-back.png";
 
   function drawCardFromDeck() {
     if (deckIds.value.length === 0)
@@ -31,9 +35,13 @@
     tableauCards.value.push(createTableauCard(cardId, ++idIncrementer.value))
   }
 
-  function discardCards(cardIds: number[]) {
-    discardIds.value.push(...cardIds);
+  function discardPlayerCardsFromHand(cardIds: number[]) {
+    playerDiscardIds.value.push(...cardIds);
     hand.value = hand.value.filter(c => !cardIds.includes(c.storageId!));
+  }
+
+  function discardVillainCards(cardIds: number[]) {
+    villainDiscardIds.value.push(...cardIds);
   }
 
   function destroyHandCard(cardId: number) {
@@ -43,9 +51,15 @@
 
 <template>
   <main>
-    <VillainCard
-      :card-instance="villainCard"
-    />
+    <div class="villain-wrapper">
+      <VillainBoard
+        :card-instance="villainCard"
+        :deckIds="deckIds"
+        :discard-ids="villainDiscardIds"
+        :card-back-img-path="villainCardBackImg"
+        :empty-pile-img-path="villainCardBackImg"
+      />
+    </div>
 
     <PlayerTableau 
       :tableau-cards="tableauCards"
@@ -54,7 +68,8 @@
     <div class="bottom-bar">
       <div class="left-group">
         <PlayerDeck 
-          :deckIds="deckIds" 
+          :deckIds="deckIds"
+          :card-back-img-path="playerCardBackImg"
           @draw="drawCardFromDeck"
         />
 
@@ -65,14 +80,15 @@
 
       <PlayerHand
         :hand="hand"
-        @discard="discardCards"
+        @discard="discardPlayerCardsFromHand"
         @send-to-tableau="makeTableauCardFromHand"
         @destroy-hand-card="destroyHandCard"
         class="hand"
       />
 
-      <PlayerDiscard 
-        :pileIds="discardIds"
+      <DiscardPile
+        :pileIds="playerDiscardIds"
+        :empty-image-path="playerCardBackImg"
       />
     </div>
   </main>
@@ -115,5 +131,13 @@
     min-width: 0;
     display: flex;
     justify-content: center;
+  }
+
+  .villain-wrapper {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
   }
 </style>

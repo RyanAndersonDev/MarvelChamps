@@ -8,6 +8,8 @@ export type VillainCardType = "minion" | "treachery" | "side-scheme" | "attachme
 
 export type Aspect = "neutral" | "hero" | "aggression" | "justice" | "protection" | "leadership";
 
+export type Resource = "physical" | "mental" | "energy" | "wild";
+
 export interface CardBase {
     name: string;
     side: "player" | "villain";
@@ -103,7 +105,3 @@ export interface VillainCard extends CardBase {
     type: VillainCardType;
     boostIcons: number;
 }
-
-export type Card = IdentityCard | PlayerCard | VillainCard;
-
-export type Resource = "physical" | "mental" | "energy" | "wild";
