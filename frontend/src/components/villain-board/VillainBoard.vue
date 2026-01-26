@@ -1,11 +1,13 @@
 <script setup lang="ts">
-    import type { VillainIdentityCardInstance } from '../../types/card';
+    import type { MainSchemeInstance, VillainIdentityCardInstance } from '../../types/card';
     import VillainIdentityCard from '../cards/VillainIdentityCard.vue';
     import DeckPile from '../piles/DeckPile.vue';
     import DiscardPile from '../piles/DiscardPile.vue';
+import MainScheme from './MainScheme.vue';
 
     const props = defineProps<{ 
         cardInstance: VillainIdentityCardInstance,
+        mainSchemeInstance: MainSchemeInstance,
         deckIds: number[],
         discardIds: number[],
         cardBackImgPath: string,
@@ -18,6 +20,10 @@
         <DeckPile
             :deck-ids="deckIds"
             :card-back-img-path="emptyPileImgPath"
+        />
+
+        <MainScheme
+            :scheme-instance="props.mainSchemeInstance"
         />
 
         <VillainIdentityCard

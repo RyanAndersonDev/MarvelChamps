@@ -15,6 +15,7 @@ export interface CardBase {
     side: "player" | "villain";
     imgPath: string;
     tags: string[];
+    flavorText: string;
 }
 
 export interface IdentityCard extends CardBase {
@@ -90,7 +91,6 @@ export interface VillainIdentityCard extends CardBase {
     hitPointsPerPlayer: number;
     sch: number;
     atk: number;
-    flavorText: string;
 }
 
 export interface VillainIdentityCardInstance extends VillainIdentityCard {
@@ -104,4 +104,18 @@ export interface VillainCard extends CardBase {
     side: "villain";
     type: VillainCardType;
     boostIcons: number;
+}
+
+export interface MainScheme extends CardBase {
+    threatThreshold: number;
+    threatThresholdIsPerPlayer: boolean;
+    startingThreat: number;
+    startingThreatIsPerPlayer: boolean;
+    threatIncrement: number;
+    threatIncrementIsPerPlayer: boolean;
+    nextMainSchemeId: number | null;
+}
+
+export interface MainSchemeInstance extends MainScheme {
+    currentThreat: number;
 }

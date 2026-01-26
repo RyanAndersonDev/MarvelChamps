@@ -4,14 +4,16 @@
   import PlayerId from "./components/player-board/PlayerId.vue";
   import PlayerDeck from "./components/piles/DeckPile.vue";
   import PlayerTableau from "./components/player-board/PlayerTableau.vue";
-  import type { Ally, Event, Upgrade, Support, VillainIdentityCardInstance } from './types/card'
-  import { createHandCard, createTableauCard, createVillainIdentityCard } from "./cards/cardFactory";
+  import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance } from './types/card'
+  import { createHandCard, createMainSchemeCard, createTableauCard, createVillainIdentityCard } from "./cards/cardFactory";
   import VillainBoard from "./components/villain-board/VillainBoard.vue";
   import DiscardPile from "./components/piles/DiscardPile.vue";
 
   const idIncrementer = ref(0);
   
   const villainCard = ref<VillainIdentityCardInstance>(createVillainIdentityCard(1));
+  const mainScheme = ref<MainSchemeInstance>(createMainSchemeCard(1));
+  const villainDeckIds = ref<number[]>([]);
   const villainDiscardIds = ref<number[]>([]);
 
   const idCardId = ref(1);
@@ -54,7 +56,8 @@
     <div class="villain-wrapper">
       <VillainBoard
         :card-instance="villainCard"
-        :deckIds="deckIds"
+        :main-scheme-instance="mainScheme"
+        :deckIds="villainDeckIds"
         :discard-ids="villainDiscardIds"
         :card-back-img-path="villainCardBackImg"
         :empty-pile-img-path="villainCardBackImg"
