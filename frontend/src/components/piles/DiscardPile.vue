@@ -1,8 +1,8 @@
 <script setup lang="ts">
     import { computed } from "vue";
-    import { getCardImgPathById } from '../../cards/cardStore'
+    import { getCardImgPathById } from "../../cards/cardStore";
 
-    const props = defineProps<{ pileIds: number[] }>();
+    const props = defineProps<{ pileIds: number[], emptyImagePath: string }>();
 
     const discardCount = computed(() =>
         props.pileIds.length
@@ -11,7 +11,7 @@
     const lastPlayedImage = computed(() =>
         props.pileIds.length
             ? getCardImgPathById(props.pileIds[props.pileIds.length - 1]!)
-            : '/cards/misc/player-card-back.png'
+            : props.emptyImagePath
     );
 
     function peekPile() {

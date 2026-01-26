@@ -1,7 +1,11 @@
 <script setup lang="ts">
   import { computed } from "vue";
   
-  const props = defineProps<{ deckIds: number[] }>();
+  const props = defineProps<{ 
+    deckIds: number[],
+    cardBackImgPath: string
+  }>();
+
   const emit = defineEmits<{
     (e: "draw"): void;
   }>();
@@ -23,7 +27,7 @@
   <div class="pile-container">
     <div class="pile-card-container">
       <img
-        src="/cards/misc/player-card-back.png"
+        :src="props.cardBackImgPath"
         alt="Deck"
         class="pile-card"
       />
