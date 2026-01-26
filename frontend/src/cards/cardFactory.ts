@@ -1,5 +1,5 @@
-import type { PlayerCardInstance, Ally, Event, Upgrade, Support, IdentityCardInstance, VillainIdentityCard, VillainIdentityCardInstance } from '../types/card';
-import { cardMap, idCardMap, villainIdCardMap } from './cardStore';
+import type { PlayerCardInstance, Ally, Event, Upgrade, Support, IdentityCardInstance, VillainIdentityCard, VillainIdentityCardInstance, MainScheme, MainSchemeInstance } from '../types/card';
+import { cardMap, idCardMap, villainIdCardMap, villainMainSchemeMap } from './cardStore';
 
 // ************* HAND CARDS *************
 export function createHandCard(cardId: number, instanceId: number) : Ally | Event | Upgrade | Support {
@@ -148,4 +148,23 @@ export function printVillainIdentityCard(blueprint: VillainIdentityCard) : Villa
         confused: false,
         tough: false,
     };
+}
+
+// ************* VILLAIN MAIN SCHEME CARDS *************
+export function createMainSchemeCard(cardId: number) : MainSchemeInstance {
+    const blueprint : MainScheme | undefined = villainMainSchemeMap.get(cardId);
+
+    if (!blueprint)
+        throw new Error(`Main Scheme Card ID ${cardId} not found in the map.`)
+
+    return printMainSchemeCard(blueprint);
+}
+
+export function printMainSchemeCard(blueprint: MainScheme) : MainSchemeInstance {
+    return {
+        ... blueprint,
+        currentThreat: blueprint.startingThreatIsPerPlayer 
+            ? blueprint.startingThreat * 1 // TODO: Make number of players!
+            : blueprint.startingThreat
+    }
 }
