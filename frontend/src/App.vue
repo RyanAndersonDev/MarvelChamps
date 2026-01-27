@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { ref } from "vue";
   import PlayerHand from "./components/player-board/PlayerHand.vue";
-  import PlayerId from "./components/player-board/PlayerId.vue";
+  import PlayerId from "./components/player-board/PlayerIdentity.vue";
   import PlayerDeck from "./components/piles/DeckPile.vue";
   import PlayerTableau from "./components/player-board/PlayerTableau.vue";
   import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance } from './types/card'
