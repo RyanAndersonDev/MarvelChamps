@@ -5,7 +5,9 @@
 </script>
 
 <template>
-    <IdentityCard :cardId="props.idCardId" />
+    <IdentityCard 
+        :cardId="props.idCardId" 
+    />
 </template>
 
 <style scoped>

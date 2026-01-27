@@ -3,7 +3,7 @@
     import VillainIdentityCard from '../cards/VillainIdentityCard.vue';
     import DeckPile from '../piles/DeckPile.vue';
     import DiscardPile from '../piles/DiscardPile.vue';
-import MainScheme from './MainScheme.vue';
+    import MainScheme from './MainScheme.vue';
 
     const props = defineProps<{ 
         cardInstance: VillainIdentityCardInstance,

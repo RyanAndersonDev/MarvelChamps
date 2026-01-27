@@ -1,16 +1,16 @@
-import type { PlayerCardInstance, Ally, Event, Upgrade, Support, IdentityCardInstance, VillainIdentityCard, VillainIdentityCardInstance, MainScheme, MainSchemeInstance } from '../types/card';
-import { cardMap, idCardMap, villainIdCardMap, villainMainSchemeMap } from './cardStore';
+import type { PlayerCardInstance, PlayerCard, Ally, Event, Upgrade, Support, IdentityCardInstance, VillainIdentityCard, VillainIdentityCardInstance, 
+    MainScheme, MainSchemeInstance, VillainCardInstance, VillainCard, Attachment, Treachery, Minion, SideScheme} from '../types/card';
+import { cardMap, idCardMap, villainIdCardMap, villainMainSchemeMap, villainCardMap } from './cardStore';
 
 // ************* HAND CARDS *************
 export function createHandCard(cardId: number, instanceId: number) : Ally | Event | Upgrade | Support {
-    const blueprint : PlayerCardInstance | undefined = cardMap.get(cardId);
+    const blueprint : PlayerCard | undefined = cardMap.get(cardId);
     
 
     if (!blueprint)
         throw new Error(`Card ID ${cardId} not found in the map.`);
 
     blueprint!.storageId = cardId;
-
     return printHandCard(blueprint, instanceId);
 }
 
@@ -64,18 +64,18 @@ function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event 
 }
 
 // ************* TABLEAU CARDS *************
-export function createTableauCard(cardId: number, cardsInTableau: number) : Ally | Upgrade | Support {
+export function createTableauCard(cardId: number, instanceId: number) : Ally | Upgrade | Support {
     const blueprint : PlayerCardInstance | undefined = cardMap.get(cardId);
 
     if (!blueprint)
         throw new Error(`Card ID ${cardId} not found in the map.`);
 
-    return printTableauCard(blueprint, cardsInTableau);
+    return printTableauCard(blueprint, instanceId);
 }
 
-function printTableauCard(blueprint: PlayerCardInstance, id: number): Ally | Upgrade | Support {
+function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Ally | Upgrade | Support {
     const base = {
-        instanceId: id,
+        instanceId: instanceId,
         name: blueprint.name,
         side: blueprint.side,
         type: blueprint.type,
@@ -166,5 +166,61 @@ export function printMainSchemeCard(blueprint: MainScheme) : MainSchemeInstance 
         currentThreat: blueprint.startingThreatIsPerPlayer 
             ? blueprint.startingThreat * 1 // TODO: Make number of players!
             : blueprint.startingThreat
+    }
+}
+
+// ************* VILLAIN CARDS *************
+export function createVillainCard(cardId: number, instanceId: number) : VillainCardInstance {
+    const blueprint : VillainCard | undefined = villainCardMap.get(cardId);
+
+    if (!blueprint)
+        throw new Error(`Villain Card ID ${cardId} not found in the map.`)
+
+    blueprint!.storageId = cardId;
+    return printVillainCard(blueprint, instanceId);
+}
+
+export function printVillainCard(blueprint: VillainCard, instanceId: number) : VillainCardInstance {
+    const base = {
+        instanceId: instanceId,
+        storageId: blueprint.storageId,
+        name: blueprint.name,
+        side: blueprint.side,
+        type: blueprint.type,
+        boostIcons: blueprint.boostIcons,
+        imgPath: blueprint.imgPath,
+        tags: blueprint.tags,
+        flavorText: blueprint.flavorText
+    }
+
+    switch (blueprint.type) {
+        case "attachment":
+            return {
+                ...base,
+                schMod: blueprint.schMod,
+                atkMod: blueprint.atkMod
+            } as Attachment;
+
+        case "minion":
+            return {
+                ...base,
+                healthRemaining: blueprint.hitPoints
+            } as Minion;
+
+        case "side-scheme":
+            return {
+                ...base,
+                startingThreat: blueprint.startingThreat,
+                startingThreatIsPerPlayer: blueprint.startingThreatIsPerPlayer,
+                threatRemaining: blueprint.startingThreatIsPerPlayer ? blueprint.startingThreat! * 1 : blueprint.startingThreat // TODO: Make number of players!
+            } as SideScheme;
+
+        case "treachery":
+            return {
+                ...base
+            }
+            
+        default:
+            throw new Error(`Unhandled card type: ${blueprint.type}`);
     }
 }

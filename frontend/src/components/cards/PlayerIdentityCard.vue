@@ -47,9 +47,11 @@
 <template>
     <div class="id-card-wrapper">
         <BaseCard 
-            :img-path="imgPath" 
+            :img-path="imgPath"
+            :orientation="'vertical'"
+            :zoom-direction="'up'"
             class="id-card"
-            />
+        />
 
         <div class="button-row">
             <button @click="toggleExhaust">

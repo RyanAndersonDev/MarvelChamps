@@ -13,7 +13,7 @@
   
   const villainCard = ref<VillainIdentityCardInstance>(createVillainIdentityCard(1));
   const mainScheme = ref<MainSchemeInstance>(createMainSchemeCard(1));
-  const villainDeckIds = ref<number[]>([]);
+  const villainDeckIds = ref<number[]>([8, 7, 6, 5, 4, 3, 2, 1]);
   const villainDiscardIds = ref<number[]>([]);
 
   const idCardId = ref(1);
