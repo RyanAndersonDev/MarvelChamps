@@ -41,13 +41,21 @@
 
 /* CARD IMAGES */
 .pile-card {
-    width: 200px;
+    width: 100%;
+    max-width: 200px;
+    aspect-ratio: 2 / 3;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+    display: block;
 }
 
 .pile-card-container {
     position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
 }
 
 .base-card img {
@@ -78,11 +86,11 @@
 
 /* HAND CONTAINER */
 .hand-container-wrapper {
-    border: 3px solid #000000; /* border around the container */
-    border-radius: 10px;     /* optional, rounded corners */
-    background-color: #f3bbbb; /* the "offset" background color */
-    padding: 15px;           /* space between border and content */
-    display: inline-block;   /* shrink-wrap around content, optional */
+    border: 3px solid #000000;
+    border-radius: 10px;
+    background-color: #f3bbbb;
+    padding: 15px;
+    display: inline-block;
 }
 
 .hand-container {
@@ -96,11 +104,11 @@
 
 /* TABLEAU CONTAINER */
 .tableau-container-wrapper {
-    border: 3px solid #000000; /* border around the container */
-    border-radius: 10px;     /* optional, rounded corners */
-    background-color: #f3bbbb; /* the "offset" background color */
-    padding: 15px;           /* space between border and content */
-    display: inline-block;   /* shrink-wrap around content, optional */
+    border: 3px solid #000000;
+    border-radius: 10px;
+    background-color: #f3bbbb;
+    padding: 15px;           
+    display: inline-block;
 }
 
 .tableau-container {
