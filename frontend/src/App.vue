@@ -4,10 +4,11 @@
   import PlayerId from "./components/player-board/PlayerIdentity.vue";
   import PlayerDeck from "./components/piles/DeckPile.vue";
   import PlayerTableau from "./components/player-board/PlayerTableau.vue";
-  import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance } from './types/card'
-  import { createHandCard, createMainSchemeCard, createTableauCard, createVillainIdentityCard } from "./cards/cardFactory";
+  import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme } from './types/card'
+  import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard } from "./cards/cardFactory";
   import VillainBoard from "./components/villain-board/VillainBoard.vue";
   import DiscardPile from "./components/piles/DiscardPile.vue";
+  import PlayerEncounterCards from "./components/player-board/PlayerEncounterCards.vue";
 
   const idIncrementer = ref(0);
   
@@ -20,6 +21,8 @@
   const deckIds = ref<number[]>([ 8, 7, 6, 5, 4, 3, 2, 1]);
   const hand = ref<(Ally | Event | Upgrade | Support)[]>([]);
   const playerDiscardIds = ref<number[]>([]);
+  const encounterPileIds = ref<number[]>([]);
+  const revealedEncounterCard = ref<(Treachery | Attachment | Minion | SideScheme) | null>();
   const tableauCards = ref<(Ally | Upgrade | Support)[]>([]);
 
   const playerCardBackImg = "/cards/misc/player-card-back.png";
@@ -49,6 +52,14 @@
   function destroyHandCard(cardId: number) {
     hand.value = hand.value.filter(c => c.instanceId !== cardId)
   }
+
+  function drawEncounterCardFromPlayerPile() {
+    if (encounterPileIds.value.length === 0)
+      return;
+
+    const id = villainDeckIds.value.shift()!;
+    revealedEncounterCard.value = createVillainCard(id, ++idIncrementer.value)
+  }
 </script>
 
 <template>
@@ -63,6 +74,13 @@
         :empty-pile-img-path="villainCardBackImg"
       />
     </div>
+
+    <PlayerEncounterCards
+      :card-back-img-path="villainCardBackImg"m
+      :encounter-card-id-pile="encounterPileIds"
+      :revealed-card="revealedEncounterCard!"
+      @draw="drawEncounterCardFromPlayerPile"
+    />
 
     <PlayerTableau 
       :tableau-cards="tableauCards"
