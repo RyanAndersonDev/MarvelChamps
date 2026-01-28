@@ -13,7 +13,11 @@
 
 <template>
   <div class="tableau-card-wrapper">
-    <BaseCard :img-path="card.imgPath" />
+    <BaseCard 
+      :img-path="card.imgPath"
+      :orientation="'vertical'"
+      :zoom-direction="'up'"
+    />
 
     <div class="button-row">
       <button @click="doAction">Action</button>
@@ -24,9 +28,9 @@
 
 <style scoped>
   .tableau-card-wrapper {
-    display: flex;            /* make this a flex container */
-    flex-direction: column;   /* stack children vertically: card first, buttons below */
-    align-items: center;      /* horizontally center all children */
-    gap: 8px;                 /* space between card and buttons */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
 </style>
