@@ -16,7 +16,7 @@
     <BaseCard 
       :img-path="card.imgPath"
       :orientation="'vertical'"
-      :zoom-direction="'up'"
+      :zoom-direction="'out'"
     />
 
     <div class="button-row">

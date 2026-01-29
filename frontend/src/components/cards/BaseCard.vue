@@ -3,7 +3,7 @@
         imgPath: string;
         alt?: string;
         orientation: "vertical" | "horizontal";
-        zoomDirection: "up" | "down";
+        zoomDirection: "up" | "down" | "out";
     }>();
 </script>
 
@@ -54,6 +54,14 @@
     .base-card img.down:hover {
         transform: scale(1.5);
         transform-origin: top;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        z-index: 1000;
+        position: relative;
+    }
+
+    .base-card img.out:hover {
+        transform: scale(1.5);
+        transform-origin: center;
         box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         z-index: 1000;
         position: relative;
