@@ -5,25 +5,29 @@
   import PlayerDeck from "./components/piles/DeckPile.vue";
   import PlayerTableau from "./components/player-board/PlayerTableau.vue";
   import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme } from './types/card'
-  import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard } from "./cards/cardFactory";
+  import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion } from "./cards/cardFactory";
   import VillainBoard from "./components/villain-board/VillainBoard.vue";
   import DiscardPile from "./components/piles/DiscardPile.vue";
   import PlayerEncounterCards from "./components/player-board/PlayerEncounterCards.vue";
+  import PlayerEngagedMinions from "./components/player-board/PlayerEngagedMinions.vue";
 
   const idIncrementer = ref(0);
-  
+
+  const encounterPileIds = ref<number[]>([1, 2, 3]);
+  const revealedEncounterCard = ref<(Treachery | Attachment | Minion | SideScheme) | null>();
+
   const villainCard = ref<VillainIdentityCardInstance>(createVillainIdentityCard(1));
   const mainScheme = ref<MainSchemeInstance>(createMainSchemeCard(1));
   const villainDeckIds = ref<number[]>([8, 7, 6, 5, 4, 3, 2, 1]);
   const villainDiscardIds = ref<number[]>([]);
 
-  const idCardId = ref(1);
+  const engagedMinions = ref<Minion[]>([]);
+  const tableauCards = ref<(Ally | Upgrade | Support)[]>([]);
+
   const deckIds = ref<number[]>([ 8, 7, 6, 5, 4, 3, 2, 1]);
+  const idCardId = ref(1);
   const hand = ref<(Ally | Event | Upgrade | Support)[]>([]);
   const playerDiscardIds = ref<number[]>([]);
-  const encounterPileIds = ref<number[]>([]);
-  const revealedEncounterCard = ref<(Treachery | Attachment | Minion | SideScheme) | null>();
-  const tableauCards = ref<(Ally | Upgrade | Support)[]>([]);
 
   const playerCardBackImg = "/cards/misc/player-card-back.png";
   const villainCardBackImg = "/cards/misc/villain-card-back.png";
@@ -57,36 +61,44 @@
     if (encounterPileIds.value.length === 0)
       return;
 
-    const id = villainDeckIds.value.shift()!;
+    const id = encounterPileIds.value.shift()!;
     revealedEncounterCard.value = createVillainCard(id, ++idIncrementer.value)
   }
 </script>
 
 <template>
-  <main>
-    <div class="villain-wrapper">
-      <VillainBoard
-        :card-instance="villainCard"
-        :main-scheme-instance="mainScheme"
-        :deckIds="villainDeckIds"
-        :discard-ids="villainDiscardIds"
-        :card-back-img-path="villainCardBackImg"
-        :empty-pile-img-path="villainCardBackImg"
+  <main class="game-container">
+    <section class="villain-section">
+      <div class="villain-wrapper">
+        <PlayerEncounterCards class="encounter-component"
+          :card-back-img-path="villainCardBackImg"
+          :encounter-card-id-pile="encounterPileIds"
+          :revealed-card="revealedEncounterCard!"
+          @draw="drawEncounterCardFromPlayerPile"
+        />
+
+        <VillainBoard
+          :card-instance="villainCard"
+          :main-scheme-instance="mainScheme"
+          :deckIds="villainDeckIds"
+          :discard-ids="villainDiscardIds"
+          :card-back-img-path="villainCardBackImg"
+          :empty-pile-img-path="villainCardBackImg"
+        />
+      </div>
+    </section>
+
+    <section class="middle-section">
+      <PlayerEngagedMinions
+        :minions="engagedMinions"
       />
-    </div>
 
-    <PlayerEncounterCards
-      :card-back-img-path="villainCardBackImg"m
-      :encounter-card-id-pile="encounterPileIds"
-      :revealed-card="revealedEncounterCard!"
-      @draw="drawEncounterCardFromPlayerPile"
-    />
+      <PlayerTableau class="tableau-component"
+        :tableau-cards="tableauCards"
+      />
+    </section>
 
-    <PlayerTableau 
-      :tableau-cards="tableauCards"
-    />
-
-    <div class="bottom-bar">
+    <footer class="bottom-bar">
       <div class="left-group">
         <PlayerDeck 
           :deckIds="deckIds"
@@ -99,42 +111,70 @@
         />
       </div>
 
-      <PlayerHand
+      <PlayerHand class="hand"
         :hand="hand"
         @discard="discardPlayerCardsFromHand"
         @send-to-tableau="makeTableauCardFromHand"
         @destroy-hand-card="destroyHandCard"
-        class="hand"
       />
 
-      <DiscardPile
+      <DiscardPile class="PlayerDiscard"
         :pileIds="playerDiscardIds"
         :empty-image-path="playerCardBackImg"
       />
-    </div>
+    </footer>
   </main>
 </template>
 
 <style scoped>
-  main {
-    max-width: 100vw;
-    padding: 24px;
+  .game-container {
+    display: grid;
+    grid-template-rows: auto 1fr auto; 
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    overflow: hidden;
+    background-color: #cbcbcb;
+  }
+
+  .villain-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    position: relative;
+    min-height: 200px;
+  }
+
+  .middle-section {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .encounter-component {
+    position: absolute;
+    left: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .tableau-component {
+    width: 100%;
+    display: flex;
+    justify-content: center;
   }
 
   .bottom-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-
     display: flex;
     align-items: flex-end;
-
+    justify-content: space-between;
     padding: 12px;
     gap: 12px;
-
-    background: #5e5c66;
-    box-sizing: border-box;
+    background: #140c36;
   }
 
   .left-group {
@@ -143,22 +183,19 @@
     flex-shrink: 0;
   }
 
+  .hand {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+  }
+
   .PlayerDiscard {
     flex-shrink: 0;
   }
 
-  .hand {
-    flex: 1;
-    min-width: 0;
+  .villain-wrapper {
     display: flex;
     justify-content: center;
-  }
-
-  .villain-wrapper {
-    position: fixed;
-    top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1000;
   }
 </style>
