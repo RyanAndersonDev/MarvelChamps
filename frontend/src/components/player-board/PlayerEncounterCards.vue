@@ -20,13 +20,13 @@
 
 <template>
     <div class="encounter-card-container">
-        <DeckPile
+        <DeckPile class="encounter-deck"
             :deck-ids="encounterCardIdPile"
             :card-back-img-path="cardBackImgPath"
             @draw="revealEncounterCard"
         />
 
-        <VillainCard
+        <VillainCard class="revealed-area"
             v-if="props.revealedCard"
             :card="props.revealedCard"
         />
@@ -34,5 +34,15 @@
 </template>
 
 <style scoped>
+    .encounter-card-container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+        justify-content: flex-start; 
+    }
 
+    .encounter-card-container > * {
+        flex-shrink: 0;
+    }
 </style>

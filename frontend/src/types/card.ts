@@ -118,6 +118,7 @@ export interface VillainCard extends CardBase {
 
 export interface VillainCardInstance extends VillainCard {
     instanceId: number;
+    healthRemaining?: number;
 }
 
 export interface Minion extends VillainCardInstance {

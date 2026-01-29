@@ -17,11 +17,11 @@
         <BaseCard
         :img-path="card.imgPath"
         :orientation="cardOrientation"
-        :zoom-direction="'up'"
+        :zoom-direction="'down'"
         />
 
         <div class="button-row">
-
+            <button>Resolve</button>
         </div>
     </div>
 </template>
