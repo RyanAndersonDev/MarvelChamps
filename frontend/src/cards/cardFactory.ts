@@ -224,3 +224,33 @@ export function printVillainCard(blueprint: VillainCard, instanceId: number) : V
             throw new Error(`Unhandled card type: ${blueprint.type}`);
     }
 }
+
+// ************* ENGAGED MINION CARDS *************
+export function createEngagedMinion(cardId: number, instanceId: number) : Minion {
+    const blueprint : VillainCard | undefined = villainCardMap.get(cardId);
+
+    if (!blueprint || blueprint.type !== "minion")
+        throw new Error(`Minion with ID ${cardId} not found in the map or is not a minion.`)
+
+    blueprint!.storageId = cardId;
+    return printEngagedMinion(blueprint, instanceId);
+}
+
+function printEngagedMinion(blueprint: VillainCard, instanceId: number) : Minion {
+    const base = {
+        instanceId: instanceId,
+        storageId: blueprint.storageId,
+        name: blueprint.name,
+        side: blueprint.side,
+        type: blueprint.type,
+        boostIcons: blueprint.boostIcons,
+        imgPath: blueprint.imgPath,
+        tags: blueprint.tags,
+        flavorText: blueprint.flavorText
+    }
+
+    return {
+        ...base,
+        healthRemaining: blueprint.hitPoints
+    } as Minion;
+}

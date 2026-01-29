@@ -1,3 +1,9 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
 /* BUTTONS */
 .button-row {
     display: flex;
@@ -112,6 +118,24 @@
 }
 
 .tableau-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+    position: relative;
+}
+
+/* ENGAGED MINIONS CONTAINER */
+.engaged-minions-wrapper {
+    border: 3px solid #000000;
+    border-radius: 10px;
+    background-color: #2a17758c;
+    padding: 15px;           
+    display: inline-block;
+}
+
+.engaged-minion-container {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
