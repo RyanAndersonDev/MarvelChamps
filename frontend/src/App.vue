@@ -5,21 +5,23 @@
   import PlayerDeck from "./components/piles/DeckPile.vue";
   import PlayerTableau from "./components/player-board/PlayerTableau.vue";
   import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme } from './types/card'
-  import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion } from "./cards/cardFactory";
+  import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme } from "./cards/cardFactory";
   import VillainBoard from "./components/villain-board/VillainBoard.vue";
   import DiscardPile from "./components/piles/DiscardPile.vue";
   import PlayerEncounterCards from "./components/player-board/PlayerEncounterCards.vue";
   import PlayerEngagedMinions from "./components/player-board/PlayerEngagedMinions.vue";
+  import SideSchemes from "./components/villain-board/SideSchemes.vue";
 
   const idIncrementer = ref(0);
 
-  const encounterPileIds = ref<number[]>([1, 2, 3]);
+  const encounterPileIds = ref<number[]>([]);
   const revealedEncounterCard = ref<(Treachery | Attachment | Minion | SideScheme) | null>();
 
   const villainCard = ref<VillainIdentityCardInstance>(createVillainIdentityCard(1));
   const mainScheme = ref<MainSchemeInstance>(createMainSchemeCard(1));
-  const villainDeckIds = ref<number[]>([8, 7, 6, 5, 4, 3, 2, 1]);
+  const villainDeckIds = ref<number[]>([11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
   const villainDiscardIds = ref<number[]>([]);
+  const activeSideSchemes = ref<SideScheme[]>([]);
 
   const engagedMinions = ref<Minion[]>([]);
   const tableauCards = ref<(Ally | Upgrade | Support)[]>([]);
@@ -64,6 +66,41 @@
     const id = encounterPileIds.value.shift()!;
     revealedEncounterCard.value = createVillainCard(id, ++idIncrementer.value)
   }
+
+  function resolveCurrentEncounterCard(currentInstanceId : number) {
+    if (currentInstanceId === revealedEncounterCard.value?.instanceId) {
+      const idToUse = revealedEncounterCard.value.storageId!;
+
+      switch (revealedEncounterCard.value.type) {
+        case 'attachment':
+          // TODO: MAKE ATTACHMENT-SPECIFIC LOGIC TO ATTACH TO VILLAIN
+          villainDiscardIds.value.push(idToUse);
+          revealedEncounterCard.value = null;
+          break;
+
+      case 'minion':
+        engagedMinions.value.push(createEngagedMinion(idToUse, ++idIncrementer.value));
+        revealedEncounterCard.value = null;
+        break;
+
+      case 'side-scheme':
+        activeSideSchemes.value.push(createSideScheme(idToUse, ++idIncrementer.value));
+        revealedEncounterCard.value = null;
+        break;
+      
+      case 'treachery':
+        villainDiscardIds.value.push(idToUse);
+        revealedEncounterCard.value = null;
+        break;
+      }
+    }
+  }
+
+  function drawFromVillainDeckAsEncounterCard() {
+    if (villainDeckIds.value.length > 0) {
+      encounterPileIds.value.push(villainDeckIds.value.shift()!);
+    }
+  }
 </script>
 
 <template>
@@ -71,10 +108,14 @@
     <section class="villain-section">
       <div class="villain-wrapper">
         <PlayerEncounterCards class="encounter-component"
+          :class="{ 'hidden-deck': encounterPileIds.length === 0 
+            && (revealedEncounterCard === null || revealedEncounterCard === undefined) 
+          }"
           :card-back-img-path="villainCardBackImg"
           :encounter-card-id-pile="encounterPileIds"
           :revealed-card="revealedEncounterCard!"
           @draw="drawEncounterCardFromPlayerPile"
+          @resolve="resolveCurrentEncounterCard"
         />
 
         <VillainBoard
@@ -84,6 +125,11 @@
           :discard-ids="villainDiscardIds"
           :card-back-img-path="villainCardBackImg"
           :empty-pile-img-path="villainCardBackImg"
+          @draw-as-encounter="drawFromVillainDeckAsEncounterCard"
+        />
+
+        <SideSchemes class="side-scheme-component"
+          :side-schemes="activeSideSchemes"
         />
       </div>
     </section>
@@ -121,6 +167,7 @@
       <DiscardPile class="PlayerDiscard"
         :pileIds="playerDiscardIds"
         :empty-image-path="playerCardBackImg"
+        :image-type="'player'"
       />
     </footer>
   </main>
@@ -138,12 +185,9 @@
   }
 
   .villain-section {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
-    position: relative;
-    min-height: 200px;
+    width: 100%;
+    padding: 10px 20px;
+    box-sizing: border-box;
   }
 
   .middle-section {
@@ -156,10 +200,8 @@
   }
 
   .encounter-component {
-    position: absolute;
-    left: 24px;
-    top: 50%;
-    transform: translateY(-50%);
+    grid-column: 1;
+    justify-self: start;
   }
 
   .tableau-component {
@@ -195,7 +237,20 @@
   }
 
   .villain-wrapper {
-    display: flex;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr; 
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+  }
+
+  .side-scheme-component {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  .hidden-deck {
+    visibility: hidden;
+    pointer-events: none;
   }
 </style>

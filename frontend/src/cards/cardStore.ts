@@ -61,3 +61,13 @@ export function getCardImgPathById(cardId : number) : string {
 
     return "";
 };
+
+export function getVillainCardImgPathById(cardId : number) : string {
+    let imgPath = villainCardMap.get(cardId)?.imgPath;
+
+    if (imgPath != null) {
+        return imgPath;
+    }
+
+    return "";
+};

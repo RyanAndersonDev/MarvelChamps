@@ -254,3 +254,37 @@ function printEngagedMinion(blueprint: VillainCard, instanceId: number) : Minion
         healthRemaining: blueprint.hitPoints
     } as Minion;
 }
+
+// ************* SIDE SCHEME CARDS *************
+export function createSideScheme(cardId: number, instanceId: number) : SideScheme {
+    const blueprint : VillainCard | undefined = villainCardMap.get(cardId);
+
+    if (!blueprint || blueprint.type !== "side-scheme")
+        throw new Error(`Side scheme with ID ${cardId} not found in the map or is not a minion.`)
+
+    blueprint!.storageId = cardId;
+    return printSideScheme(blueprint, instanceId);
+}
+
+function printSideScheme(blueprint: VillainCard, instanceId: number) : SideScheme {
+    const base = {
+        instanceId: instanceId,
+        storageId: blueprint.storageId,
+        name: blueprint.name,
+        side: blueprint.side,
+        type: blueprint.type,
+        boostIcons: blueprint.boostIcons,
+        imgPath: blueprint.imgPath,
+        tags: blueprint.tags,
+        flavorText: blueprint.flavorText
+    }
+
+    const threatToAdd = blueprint.startingThreatIsPerPlayer 
+        ? (blueprint.startingThreat! * 1) // TODO: Add number of players!
+        : blueprint.startingThreat!;
+
+    return {
+        ...base,
+        threatRemaining: threatToAdd
+    } as SideScheme;
+}
