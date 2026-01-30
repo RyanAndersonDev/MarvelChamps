@@ -46,7 +46,7 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
         type: "treachery", boostIcons: 0 }],
     [9, { name: "Stampede", side: "villain", imgPath: "/cards/villains/rhino/Stampede-Treachery.png", tags: [], flavorText: "",
         type: "treachery", boostIcons: 1 }],
-    [10, { name: `Breakin' & Takin'`, side: "villain", imgPath: "/cards/villains/rhino/Breakin'&Takin'-SideScheme.png", tags: [], flavorText: "Rhino is breaking thigns and taking them.",
+    [10, { name: `Breakin' & Takin'`, side: "villain", imgPath: "/cards/villains/rhino/Breakin'&Takin'-SideScheme.png", tags: [], flavorText: "Rhino is breaking things and taking them.",
         type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: false }],
     [11, { name: "Crowd Control", side: "villain", imgPath: "/cards/villains/rhino/CrowdControl-SideScheme.png", tags: [], flavorText: "Panicked civilians crowd the area. It is difficult to confront Rhino without putting them at risk. Get the people to safety!",
         type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: true }]
