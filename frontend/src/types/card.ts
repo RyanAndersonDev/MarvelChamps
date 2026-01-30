@@ -123,6 +123,7 @@ export interface VillainCardInstance extends VillainCard {
 
 export interface Minion extends VillainCardInstance {
     healthRemaining: number;
+    attachments: (Upgrade | Attachment)[];
 }
 
 export interface Treachery extends VillainCardInstance {
