@@ -5,11 +5,17 @@
 
     const props = defineProps<{ card: Minion | Treachery | Attachment | SideScheme }>();
 
-    const emits = defineEmits<{}>();
+    const emit = defineEmits<{
+        (e: 'resolve', currentInstanceId: number): void;
+    }>();
 
     const cardOrientation = computed(() => 
         props.card.type === "side-scheme" ? "horizontal" : "vertical"
     )
+
+    function resolveEncounterCard() {
+        emit('resolve', props.card.instanceId);
+    }
 </script>
 
 <template>
@@ -21,7 +27,7 @@
         />
 
         <div class="button-row">
-            <button>Resolve</button>
+            <button @click="resolveEncounterCard">Resolve</button>
         </div>
     </div>
 </template>

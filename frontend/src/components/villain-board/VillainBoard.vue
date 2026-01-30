@@ -13,6 +13,10 @@
         cardBackImgPath: string,
         emptyPileImgPath: string
     }>();
+
+    const emit = defineEmits<{ 
+        (e: 'drawAsEncounter'): void;
+    }>();
 </script>
 
 <template>
@@ -20,6 +24,7 @@
         <DeckPile
             :deck-ids="deckIds"
             :card-back-img-path="emptyPileImgPath"
+            @draw="emit('drawAsEncounter')"
         />
 
         <MainScheme
@@ -33,6 +38,7 @@
         <DiscardPile
             :pile-ids="discardIds"
             :empty-image-path="emptyPileImgPath"
+            :image-type="'villain'"
         />
     </div>
 </template>

@@ -11,10 +11,19 @@
 
     const emit = defineEmits<{
         (e: "draw"): void
+        (e: "resolve", currentInstanceId : number): void
     }>();
 
     function revealEncounterCard() {
-        emit("draw");
+        if (props.revealedCard === undefined || props.revealedCard === null) {
+            emit("draw");
+        }
+    }
+
+    function resolveCurrentCard(currentInstanceId : number) {
+        if (currentInstanceId === props.revealedCard?.instanceId) {
+            emit('resolve', currentInstanceId);
+        }
     }
 </script>
 
@@ -29,6 +38,7 @@
         <VillainCard class="revealed-area"
             v-if="props.revealedCard"
             :card="props.revealedCard"
+            @resolve="resolveCurrentCard"
         />
     </div>
 </template>
