@@ -233,7 +233,8 @@ export function createEngagedMinion(cardId: number, instanceId: number) : Minion
         throw new Error(`Minion with ID ${cardId} not found in the map or is not a minion.`)
 
     blueprint!.storageId = cardId;
-    return printEngagedMinion(blueprint, instanceId);
+    const test = printEngagedMinion(blueprint, instanceId)
+    return test;
 }
 
 function printEngagedMinion(blueprint: VillainCard, instanceId: number) : Minion {
@@ -251,7 +252,8 @@ function printEngagedMinion(blueprint: VillainCard, instanceId: number) : Minion
 
     return {
         ...base,
-        healthRemaining: blueprint.hitPoints
+        healthRemaining: blueprint.hitPoints,
+        attachments: [ createHandCard(8, 1) as Upgrade ]
     } as Minion;
 }
 
