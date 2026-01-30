@@ -4,11 +4,12 @@
         alt?: string;
         orientation: "vertical" | "horizontal";
         zoomDirection: "up" | "down" | "out";
+        size?: "normal" | "small"
     }>();
 </script>
 
 <template>
-  <div class="base-card" :class="orientation ?? 'vertical'">
+  <div class="base-card" :class="orientation ?? 'vertical', size ?? 'normal'">
     <img :src="imgPath" 
     :alt="alt ?? 'Card'" 
     :class="zoomDirection"/>
@@ -25,15 +26,27 @@
         position: relative;
     }
 
-    .base-card.vertical {
+    .base-card.vertical.normal {
         width: 100%;
         max-width: 200px;
         aspect-ratio: 2 / 3;
     }
 
-    .base-card.horizontal {
+    .base-card.vertical.small {
+        width: 100%;
+        max-width: 150px;
+        aspect-ratio: 2 / 3;
+    }
+
+    .base-card.horizontal.normal {
         width: 100%;
         max-width: 300px;
+        aspect-ratio: 3 / 2;
+    }
+
+    .base-card.horizontal.small {
+        width: 100%;
+        max-width: 225px;
         aspect-ratio: 3 / 2;
     }
 

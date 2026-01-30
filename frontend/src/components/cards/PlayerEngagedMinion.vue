@@ -11,6 +11,7 @@
             :img-path="card.imgPath"
             :orientation="'vertical'"
             :zoom-direction="'out'"
+            :size="'small'"
         />
     </div>
 </template>
