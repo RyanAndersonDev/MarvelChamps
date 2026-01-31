@@ -76,23 +76,16 @@
                 }
             }
             else if (card?.type === "upgrade") {
-                if (card.attachmentLocation === "minion") {
+                const loc = card.attachmentLocation;
+
+                if (loc === "minion" || loc === "villain" || loc === "enemy") {
                     try {
-                        const targetId = await store.requestTarget(card, 'minion');
-                        store.attachToMinion(card as Upgrade, targetId);                        
+                        const targetId = await store.requestTarget(card, loc);
+                        store.attachToTarget(card as Upgrade, targetId);
                         emit('destroyHandCard', card.instanceId!);
                     } catch (error) {
-                        console.log("Targeting was cancelled or failed");
-                        return;
-                    }
-                }
-
-                if (card.attachmentLocation === "villain") {
-                    try {
-                        const targetId = await store.requestTarget(card, "villain");
-                    } catch (error) {
-                        console.log("Targeting on villain was cancelled or failed");
-                        return;
+                        console.log(`Targeting for ${loc} was cancelled or failed`);
+                        return; 
                     }
                 }
             }

@@ -1,7 +1,7 @@
-import { defineStore } from "pinia";
-import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme } 
-    from '../types/card'
-  import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme } from "../cards/cardFactory";
+    import { defineStore } from "pinia";
+    import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme } 
+        from '../types/card'
+    import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme } from "../cards/cardFactory";
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -9,7 +9,7 @@ export const useGameStore = defineStore('game', {
     idIncrementer: 0,
     
     // Villain Side
-    villainCard: createVillainIdentityCard(1) as VillainIdentityCardInstance,
+    villainCard: createVillainIdentityCard(1, 1) as VillainIdentityCardInstance,
     mainScheme: createMainSchemeCard(1) as MainSchemeInstance,
     villainDeckIds: [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
     villainDiscardIds: [] as number[],
@@ -85,7 +85,7 @@ export const useGameStore = defineStore('game', {
 
         switch (card.type) {
             case 'attachment':
-                this.villainDiscardIds.push(idToUse);
+                this.villainCard.attachments.push(createVillainCard(card.storageId!, 1));
                 break;
             case 'minion':
                 this.engagedMinions.push(createEngagedMinion(idToUse, this.getNextId()));
@@ -108,26 +108,25 @@ export const useGameStore = defineStore('game', {
         }
     },
 
-    attachToMinion(attachment: Upgrade, minionInstanceId: number) {
-        const targetMinion = this.engagedMinions.find(
-            (m) => m.instanceId === minionInstanceId
-        );
+    attachToTarget(attachment: Upgrade, targetId: number) {
+        const targetMinion = this.engagedMinions.find(m => m.instanceId === targetId);
+        const targetVillain = this.villainCard?.instanceId === targetId ? this.villainCard : null;
 
-        if (targetMinion) {
-            if (!targetMinion.attachments) {
-                targetMinion.attachments = [];
+        const finalTarget = targetMinion || targetVillain;
+
+        if (finalTarget) {
+            if (!finalTarget.attachments) {
+                finalTarget.attachments = [];
             }
-            
-            targetMinion.attachments.push(attachment);
-
-            console.log(`Attached ${attachment.name} to minion ${minionInstanceId}`);
+            finalTarget.attachments.push(attachment);
+            console.log(`Attached ${attachment.name} to target ${targetId}`);
         } else {
-            console.error(`Target minion with ID ${minionInstanceId} not found!`);
+            console.error(`Target with ID ${targetId} not found anywhere on board!`);
         }
     },
 
     // TARGETING ACTIONS
-    async requestTarget(sourceCard: any, type: "minion" | "villain" | "any") {
+    async requestTarget(sourceCard: any, type: "minion" | "villain" | "enemy" | "side-scheme") {
         this.targeting.isActive = true;
         this.targeting.sourceCard = sourceCard;
         this.targeting.targetType = type;

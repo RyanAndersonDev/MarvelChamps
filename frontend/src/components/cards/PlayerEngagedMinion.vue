@@ -10,7 +10,7 @@
 
     const isTargetable = computed(() => {
         return store.targeting.isActive
-            && (store.targeting.targetType === "minion" || store.targeting.targetType === "any");
+            && (store.targeting.targetType === "minion" || store.targeting.targetType === "enemy");
     });
 
     function handleClick() {

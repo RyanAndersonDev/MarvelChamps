@@ -99,6 +99,8 @@ export interface VillainIdentityCard extends CardBase {
 }
 
 export interface VillainIdentityCardInstance extends VillainIdentityCard {
+    instanceId: number;
+    attachments: (Upgrade | Attachment)[];
     hitPointsRemaining?: number;
     stunned?: boolean;
     confused?: boolean;

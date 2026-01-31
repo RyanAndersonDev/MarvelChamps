@@ -133,18 +133,20 @@ function printIdentityCard (blueprint: IdentityCardInstance): IdentityCardInstan
 }
 
 // ************* VILLAIN IDENTITY CARDS *************
-export function createVillainIdentityCard(cardId: number) : VillainIdentityCardInstance {
+export function createVillainIdentityCard(cardId: number, instanceId: number) : VillainIdentityCardInstance {
     const blueprint : VillainIdentityCard | undefined = villainIdCardMap.get(cardId);
 
     if (!blueprint)
         throw new Error(`Villain Card ID ${cardId} not found in the map.`)
 
-    return printVillainIdentityCard(blueprint);
+    return printVillainIdentityCard(blueprint, instanceId);
 }
 
-export function printVillainIdentityCard(blueprint: VillainIdentityCard) : VillainIdentityCardInstance {
+export function printVillainIdentityCard(blueprint: VillainIdentityCard, instanceId: number) : VillainIdentityCardInstance {
     return {
         ... blueprint,
+        instanceId: instanceId,
+        attachments: [],
         hitPointsRemaining: blueprint.hitPointsPerPlayer * 1, // TODO: Make number of players!
         stunned: false,
         confused: false,

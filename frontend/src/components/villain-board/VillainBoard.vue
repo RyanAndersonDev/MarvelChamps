@@ -4,6 +4,7 @@
     import DeckPile from '../piles/DeckPile.vue';
     import DiscardPile from '../piles/DiscardPile.vue';
     import MainScheme from './MainScheme.vue';
+    import VillainAttachments from './VillainAttachments.vue';
 
     const props = defineProps<{ 
         cardInstance: VillainIdentityCardInstance,
@@ -31,6 +32,10 @@
             :scheme-instance="props.mainSchemeInstance"
         />
 
+        <VillainAttachments
+            :attachments="props.cardInstance.attachments || []"
+        />
+
         <VillainIdentityCard
             :card-instance="props.cardInstance"
         />
@@ -47,7 +52,12 @@
     .villain-row {
         display: flex;
         flex-direction: row;
-        align-items: center;
+        align-items: stretch;
+        justify-content: center;
         gap: 16px;
+    }
+
+    :deep(.attachment-pile-container) {
+        max-height: 250px;
     }
 </style>
