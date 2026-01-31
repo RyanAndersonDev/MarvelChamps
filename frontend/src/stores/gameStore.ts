@@ -1,7 +1,7 @@
     import { defineStore } from "pinia";
     import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme } 
         from '../types/card'
-    import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme } from "../cards/cardFactory";
+    import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme, createIdentityCard } from "../cards/cardFactory";
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -10,7 +10,7 @@ export const useGameStore = defineStore('game', {
     
     // Villain Side
     villainCard: createVillainIdentityCard(1, 1) as VillainIdentityCardInstance,
-    mainScheme: createMainSchemeCard(1) as MainSchemeInstance,
+    mainScheme: createMainSchemeCard(1, 1) as MainSchemeInstance,
     villainDeckIds: [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
     villainDiscardIds: [] as number[],
     activeSideSchemes: [] as SideScheme[],
@@ -22,6 +22,7 @@ export const useGameStore = defineStore('game', {
 
     // Player Side
     idCardId: 1,
+    playerIdentity: createIdentityCard(1),
     hand: [] as (Ally | Event | Upgrade | Support)[],
     deckIds: [8, 7, 6, 5, 4, 3, 2, 1],
     playerDiscardIds: [] as number[],
@@ -125,8 +126,75 @@ export const useGameStore = defineStore('game', {
         }
     },
 
+    triggerIdentityCardAbility() {
+        // TODO: Implement ability trigger 
+        console.log(`Doing ${this.playerIdentity.name}'s ability.`)
+    },
+
+    toggleIdentityExhaust() {
+        this.playerIdentity.exhausted = !this.playerIdentity.exhausted;
+    },
+
+    flipIdentity() {
+        this.playerIdentity.identityStatus === "hero" 
+            ? this.playerIdentity.identityStatus = "alter-ego"
+            : this.playerIdentity.identityStatus = "hero"
+    },
+
+    healIdentity() {
+        if (!this.playerIdentity.hitPointsRemaining) {
+            console.log("HP remaining was not set.");
+            return;
+        }
+
+        const amtToAdjustBy = 0; // TODO: Check tableau for healing upgrades
+
+        this.playerIdentity.hitPointsRemaining! 
+            += (this.playerIdentity.healing + (amtToAdjustBy || 0));
+    },
+
+    thwartWithIdentity(id: number) {
+        // TODO: Implement thwart
+        console.log(`Thwarting for ${this.playerIdentity.thw}!`);
+        this.toggleIdentityExhaust();
+    },
+
+    attackWithIdentity(id: number) {
+        // TODO: Implement attack
+        console.log(`Attacking for ${this.playerIdentity.atk}!`);
+        this.toggleIdentityExhaust();
+    },
+
+    defend() {
+        // TODO: Implement defense
+        console.log(`Defending for ${this.playerIdentity.def}!`)
+        this.toggleIdentityExhaust();
+    },
+
+    discardFromEngagedMinions(instanceIdToDc: number) {
+        const minion = this.engagedMinions.find(m => m.instanceId === instanceIdToDc);
+
+        if (!minion) {
+            console.log(`Could not find minion with id ${instanceIdToDc} to discard.`);
+            return;
+        }
+
+        if (minion.attachments && minion.attachments.length > 0) {
+            minion.attachments.forEach((card) => {
+                if (card.type === 'upgrade') {
+                    this.playerDiscardIds.push(card.instanceId!);
+                } else {
+                    this.villainDiscardIds.push(card.instanceId!);
+                }
+            });
+        }
+
+        this.engagedMinions = this.engagedMinions.filter(m => m.instanceId !== instanceIdToDc);
+        this.villainDiscardIds.push(instanceIdToDc);
+    },
+
     // TARGETING ACTIONS
-    async requestTarget(sourceCard: any, type: "minion" | "villain" | "enemy" | "side-scheme") {
+    async requestTarget(sourceCard: any, type: "minion" | "villain" | "enemy" | "scheme" | "main-scheme") {
         this.targeting.isActive = true;
         this.targeting.sourceCard = sourceCard;
         this.targeting.targetType = type;
