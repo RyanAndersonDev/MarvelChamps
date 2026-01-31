@@ -34,7 +34,7 @@
 
     .base-card.vertical.small {
         width: 100%;
-        max-width: 150px;
+        max-width: 200px;
         aspect-ratio: 2 / 3;
     }
 

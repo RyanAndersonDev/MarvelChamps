@@ -132,16 +132,19 @@ html, body {
     border-radius: 10px;
     background-color: #2a17758c;
     padding: 15px;           
-    display: inline-block;
+    display: block; 
+    width: fit-content;
+    /* IMPORTANT: Remove overflow-x: auto if it's here */
+    overflow: visible; 
 }
 
 .engaged-minion-container {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap; /* Keep them in a line */
     gap: 10px;
     justify-content: center;
-    margin-top: 10px;
-    position: relative;
+    /* IMPORTANT: Must be visible for the zoom to pop out */
+    overflow: visible; 
 }
 
 /* SIDE SCHEMES CONTAINER */
