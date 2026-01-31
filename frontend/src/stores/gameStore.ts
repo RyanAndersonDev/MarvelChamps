@@ -4,7 +4,6 @@ import { type Ally, type Event, type Upgrade, type Support, type VillainIdentity
   import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme } from "../cards/cardFactory";
 
 export const useGameStore = defineStore('game', {
-  // 1. STATE: The "Data" (Like variables in a component)
   state: () => ({
     // Identification
     idIncrementer: 0,
@@ -32,16 +31,15 @@ export const useGameStore = defineStore('game', {
     playerCardBackImg: "/cards/misc/player-card-back.png",
     villainCardBackImg: "/cards/misc/villain-card-back.png",
 
-    // Targeting System (The new part!)
+    // Targeting
     targeting: {
       isActive: false,
       sourceCard: null,
       targetType: 'minion',
       resolve: null,
-    } as any // Simplified for now
+    } as any
   }),
 
-  // 2. ACTIONS: The "Methods" (How you change the data)
   actions: {
     getNextId() {
         return ++this.idIncrementer;
@@ -87,20 +85,19 @@ export const useGameStore = defineStore('game', {
 
         switch (card.type) {
             case 'attachment':
-            // We'll fix this targeting logic next!
-            this.villainDiscardIds.push(idToUse);
-            break;
+                this.villainDiscardIds.push(idToUse);
+                break;
             case 'minion':
-            this.engagedMinions.push(createEngagedMinion(idToUse, this.getNextId()));
-            break;
+                this.engagedMinions.push(createEngagedMinion(idToUse, this.getNextId()));
+                break;
             case 'side-scheme':
-            this.activeSideSchemes.push(createSideScheme(idToUse, this.getNextId()));
-            break;
+                this.activeSideSchemes.push(createSideScheme(idToUse, this.getNextId()));
+                break;
             case 'treachery':
-            this.villainDiscardIds.push(idToUse);
-            break;
+                this.villainDiscardIds.push(idToUse);
+                break;
         }
-        
+
         this.revealedEncounterCard = null;
         }
     },
@@ -108,6 +105,45 @@ export const useGameStore = defineStore('game', {
     drawFromVillainDeckAsEncounterCard() {
         if (this.villainDeckIds.length > 0) {
         this.encounterPileIds.push(this.villainDeckIds.shift()!);
+        }
+    },
+
+    attachToMinion(attachment: Upgrade, minionInstanceId: number) {
+        const targetMinion = this.engagedMinions.find(
+            (m) => m.instanceId === minionInstanceId
+        );
+
+        if (targetMinion) {
+            if (!targetMinion.attachments) {
+                targetMinion.attachments = [];
+            }
+            
+            targetMinion.attachments.push(attachment);
+
+            console.log(`Attached ${attachment.name} to minion ${minionInstanceId}`);
+        } else {
+            console.error(`Target minion with ID ${minionInstanceId} not found!`);
+        }
+    },
+
+    // TARGETING ACTIONS
+    async requestTarget(sourceCard: any, type: "minion" | "villain" | "any") {
+        this.targeting.isActive = true;
+        this.targeting.sourceCard = sourceCard;
+        this.targeting.targetType = type;
+
+        return new Promise<number>((resolve, reject) => {
+            this.targeting.resolve = resolve;
+        })
+    },
+
+    selectTarget(instanceId: number) {
+        if (this.targeting.resolve) {
+            this.targeting.resolve(instanceId);
+
+            this.targeting.isActive = false;
+            this.targeting.sourceCard = null;
+            this.targeting.resolve = null;
         }
     }
   }

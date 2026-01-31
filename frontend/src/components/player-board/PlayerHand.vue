@@ -1,5 +1,6 @@
 <script setup lang="ts">
     import { computed, ref } from 'vue';
+    import { useGameStore } from '../../stores/gameStore';
     import type { Ally, Event, Upgrade, Support } from '../../types/card';
     import HandCard from '../cards/HandCard.vue';
     import type { Resource } from '../../types/card';
@@ -10,6 +11,8 @@
         (e: 'sendToTableau', cardId: number): void;
         (e: 'destroyHandCard', cardId: number): void;
     }>();
+
+    const store = useGameStore();
     
     const activeCardId = ref<number | null>(null);
     const cardIdsToDiscard = ref<number[]>([]);
@@ -52,7 +55,7 @@
         handleAllResources(payload.resources, payload.instanceId, payload.storageId);
     }
 
-    function handleAllResources(rscArr: Resource[], instanceId: number, storageId: number) {
+    async function handleAllResources(rscArr: Resource[], instanceId: number, storageId: number) {
         rscArr.forEach(r => {
             const map = activeResources.value;
             if (!map) 
@@ -73,8 +76,24 @@
                 }
             }
             else if (card?.type === "upgrade") {
-                if (card.attachmentLocation !== "tableau") {
-                    // TODO: Implement targeting
+                if (card.attachmentLocation === "minion") {
+                    try {
+                        const targetId = await store.requestTarget(card, 'minion');
+                        store.attachToMinion(card as Upgrade, targetId);                        
+                        emit('destroyHandCard', card.instanceId!);
+                    } catch (error) {
+                        console.log("Targeting was cancelled or failed");
+                        return;
+                    }
+                }
+
+                if (card.attachmentLocation === "villain") {
+                    try {
+                        const targetId = await store.requestTarget(card, "villain");
+                    } catch (error) {
+                        console.log("Targeting on villain was cancelled or failed");
+                        return;
+                    }
                 }
             }
             else {
