@@ -72,6 +72,11 @@
                     cardIdsToDiscard.value.push(card?.storageId!);
                 }
             }
+            else if (card?.type === "upgrade") {
+                if (card.attachmentLocation !== "tableau") {
+                    // TODO: Implement targeting
+                }
+            }
             else {
                 sendToTableau(card?.storageId!);
                 emit('destroyHandCard', card?.instanceId!);

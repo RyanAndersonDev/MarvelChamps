@@ -49,7 +49,8 @@ function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event 
             return {
                 ...base,
                 exhausted: false,
-                counters: blueprint.counters ?? 0
+                counters: blueprint.counters ?? 0,
+                attachmentLocation: blueprint.attachmentLocation
             } as Upgrade;
 
         case 'support':
@@ -97,7 +98,8 @@ function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Al
             return {
                 ...base,
                 exhausted: false,
-                counters: blueprint.counters ?? 0
+                counters: blueprint.counters ?? 0,
+                attachmentLocation: blueprint.attachmentLocation
             } as Upgrade;
 
         case 'support':
@@ -253,7 +255,7 @@ function printEngagedMinion(blueprint: VillainCard, instanceId: number) : Minion
     return {
         ...base,
         healthRemaining: blueprint.hitPoints,
-        attachments: [ createHandCard(8, 1) as Upgrade ]
+        attachments: []
     } as Minion;
 }
 

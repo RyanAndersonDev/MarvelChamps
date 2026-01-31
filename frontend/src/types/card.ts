@@ -10,6 +10,8 @@ export type Aspect = "neutral" | "hero" | "aggression" | "justice" | "protection
 
 export type Resource = "physical" | "mental" | "energy" | "wild";
 
+export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "enemy";
+
 export interface CardBase {
     name: string;
     side: "player" | "villain";
@@ -53,6 +55,7 @@ export interface PlayerCard extends CardBase {
     atk?: number;
     atkPain?: number;
     health?: number;
+    attachmentLocation?: AttachmentLocation;
     // TODO: Configure: attackDesination?: prop for upgrades (ie spider tracer, webbed up)
 }
 
@@ -81,6 +84,7 @@ export interface Event extends PlayerCardInstance {
 export interface Upgrade extends PlayerCardInstance {
     exhausted: boolean;
     counters: number;
+    attachmentLocation: AttachmentLocation;
 }
 
 export interface Support extends PlayerCardInstance {
