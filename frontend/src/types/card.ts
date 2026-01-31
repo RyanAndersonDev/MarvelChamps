@@ -1,7 +1,5 @@
 export type IdentityStatus = "hero" | "alter-ego" | "dead";
 
-export type CardStatus = "ready" | "exhausted";
-
 export type PlayerCardType = "ally" | "event" | "support" | "upgrade" | "resource";
 
 export type VillainCardType = "minion" | "treachery" | "side-scheme" | "attachment";
@@ -36,7 +34,6 @@ export interface IdentityCardInstance extends IdentityCard {
     hitPointsRemaining?: number;
     exhausted?: boolean;
     identityStatus?: IdentityStatus;
-    status?: CardStatus;
     stunned?: boolean;
     confused?: boolean;
     tough?: boolean;
@@ -155,5 +152,6 @@ export interface MainScheme extends CardBase {
 }
 
 export interface MainSchemeInstance extends MainScheme {
+    instanceId: number;
     currentThreat: number;
 }

@@ -127,7 +127,6 @@ function printIdentityCard (blueprint: IdentityCardInstance): IdentityCardInstan
     blueprint.hitPointsRemaining = blueprint.hitPoints;
     blueprint.exhausted = false;
     blueprint.identityStatus = "alter-ego";
-    blueprint.status = "ready";
 
     return blueprint;
 }
@@ -155,18 +154,19 @@ export function printVillainIdentityCard(blueprint: VillainIdentityCard, instanc
 }
 
 // ************* VILLAIN MAIN SCHEME CARDS *************
-export function createMainSchemeCard(cardId: number) : MainSchemeInstance {
+export function createMainSchemeCard(cardId: number, instanceId: number) : MainSchemeInstance {
     const blueprint : MainScheme | undefined = villainMainSchemeMap.get(cardId);
 
     if (!blueprint)
         throw new Error(`Main Scheme Card ID ${cardId} not found in the map.`)
 
-    return printMainSchemeCard(blueprint);
+    return printMainSchemeCard(blueprint, instanceId);
 }
 
-export function printMainSchemeCard(blueprint: MainScheme) : MainSchemeInstance {
+export function printMainSchemeCard(blueprint: MainScheme, instanceId: number) : MainSchemeInstance {
     return {
         ... blueprint,
+        instanceId: instanceId,
         currentThreat: blueprint.startingThreatIsPerPlayer 
             ? blueprint.startingThreat * 1 // TODO: Make number of players!
             : blueprint.startingThreat
