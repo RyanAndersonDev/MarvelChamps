@@ -56,25 +56,39 @@
 
     <footer class="bottom-bar">
       <div class="left-group">
-        <PlayerDeck 
-          :deckIds="store.deckIds"
-          :card-back-img-path="store.playerCardBackImg"
-          @draw="store.drawCardFromDeck"
-        />
+        <div class="deck-wrapper">
+          <Transition name="fade">
+            <button 
+              v-if="store.currentPhase === 'PLAYER_TURN'" 
+              class="btn-end-turn"
+              @click="store.advanceGame"
+            >
+              END TURN
+            </button>
+          </Transition>
+
+          <PlayerDeck 
+            :deckIds="store.deckIds"
+            :card-back-img-path="store.playerCardBackImg"
+            @draw="store.drawCardFromDeck"
+          />
+        </div>
 
         <PlayerId 
           :id-card-id="store.idCardId"
         />
       </div>
 
-      <PlayerHand class="hand"
+      <PlayerHand 
+        class="hand"
         :hand="store.hand"
         @discard="store.discardPlayerCardsFromHand"
         @send-to-tableau="store.makeTableauCardFromHand"
         @destroy-hand-card="store.destroyHandCard"
       />
 
-      <DiscardPile class="PlayerDiscard"
+      <DiscardPile 
+        class="PlayerDiscard"
         :pileIds="store.playerDiscardIds"
         :empty-image-path="store.playerCardBackImg"
         :image-type="'player'"
@@ -133,6 +147,42 @@
     display: flex;
     gap: 12px;
     flex-shrink: 0;
+    align-items: flex-end; /* Keep deck and ID cards aligned at bottom */
+  }
+
+  /* Container to stack the Button over the Deck */
+  .deck-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 100px; /* Adjust to match your PlayerDeck width */
+  }
+
+  .btn-end-turn {
+    background: #e67e22;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    cursor: pointer;
+    width: 100%;
+    box-shadow: 0 3px 0 #a04000;
+    transition: all 0.1s ease;
+    white-space: nowrap;
+    z-index: 10;
+  }
+
+  .btn-end-turn:hover {
+    background: #f39c12;
+    transform: translateY(-1px);
+  }
+
+  .btn-end-turn:active {
+    transform: translateY(2px);
+    box-shadow: none;
   }
 
   .hand {
@@ -162,5 +212,14 @@
   .hidden-deck {
     visibility: hidden;
     pointer-events: none;
+  }
+
+  /* Transition for Button Appearance */
+  .fade-enter-active, .fade-leave-active {
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .fade-enter-from, .fade-leave-to {
+    opacity: 0;
+    transform: translateY(10px);
   }
 </style>

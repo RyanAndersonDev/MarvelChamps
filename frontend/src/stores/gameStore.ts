@@ -1,10 +1,15 @@
     import { defineStore } from "pinia";
     import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme } 
         from '../types/card'
+    import { GamePhase, type GamePhaseType } from "../types/phases";
     import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme, createIdentityCard } from "../cards/cardFactory";
 
 export const useGameStore = defineStore('game', {
   state: () => ({
+    // Game phase info
+    currentPhase: GamePhase.PLAYER_TURN as GamePhaseType,
+    encounterResolveSignal: null as (() => void) | null,
+
     // Identification
     idIncrementer: 0,
     
@@ -42,13 +47,118 @@ export const useGameStore = defineStore('game', {
   }),
 
   actions: {
+    // Game Phase Actions
+    async advanceGame() {
+        if (this.currentPhase === GamePhase.PLAYER_TURN) {
+            this.readyAllCards();
+            this.drawToHandSize();
+
+            this.currentPhase = GamePhase.VILLAIN_STEP_1_THREAT;
+            await this.processMainSchemeThreat();
+
+            this.currentPhase = GamePhase.VILLAIN_STEP_2_ACTIVATION;
+            await this.processVillainActivation();
+
+            this.currentPhase = GamePhase.VILLAIN_STEP_3_MINIONS;
+            await this.processMinionActivations();
+
+            this.currentPhase = GamePhase.VILLAIN_STEP_4_DEAL;
+            await this.dealEncounterCards();
+
+            this.currentPhase = GamePhase.VILLAIN_STEP_5_REVEAL;
+            while (this.encounterPileIds.length > 0 || this.revealedEncounterCard !== null) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            this.currentPhase = GamePhase.PLAYER_TURN;
+        }
+    },
+
+    async processMainSchemeThreat() {
+        const incrementAmt = this.mainScheme.threatIncrementIsPerPlayer
+            ? this.mainScheme.threatIncrement * 1 // TODO: Implement amount of players!
+            : this.mainScheme.threatIncrement;
+            
+        this.mainScheme.currentThreat += incrementAmt;
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    },
+
+    async processVillainActivation() {
+        if (this.playerIdentity.identityStatus === "alter-ego") {
+            this.villainActivationScheme();
+        }
+        else {
+            this.villainActivationAttack();
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    },
+
+    villainActivationScheme() {
+        this.mainScheme.currentThreat += this.villainCard.sch;
+    },
+
+    villainActivationAttack() {
+        this.playerIdentity.hitPointsRemaining! -= this.villainCard.atk
+    },
+
+    async processMinionActivations() {
+        this.engagedMinions.forEach(minion => {
+          if (this.playerIdentity.identityStatus === "alter-ego") {
+            this.minionActivationScheme(minion);
+            }
+            else {
+                this.minionActivationAttack(minion);
+            }  
+        })
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    },
+
+    minionActivationScheme(minion: Minion) {
+        this.mainScheme.currentThreat += minion.sch!;
+    },
+
+    minionActivationAttack(minion: Minion) {
+        this.playerIdentity.hitPointsRemaining! -= minion.atk!;
+    },
+
+    async dealEncounterCards() {
+        this.drawFromVillainDeckAsEncounterCard();
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    },
+
+    async readyAllCards() {
+        this.playerIdentity.exhausted = false;
+        this.tableauCards.forEach((card) => {
+            card.exhausted = false;
+        })
+    },
+
+    async drawToHandSize() {
+        const currentHandSize = this.playerIdentity.identityStatus! === "alter-ego"
+            ? this.playerIdentity.handsizeAe
+            : this.playerIdentity.handSizeHero
+
+        while (this.hand.length < currentHandSize) {
+            this.drawCardFromDeck();
+        }
+    },
+
+    // TODO: Organize the rest
+
     getNextId() {
         return ++this.idIncrementer;
     },
 
     drawCardFromDeck() {
-        if (this.deckIds.length === 0) 
-            return;
+        if (this.deckIds.length === 0) {
+            this.shuffleDiscardPileIntoDrawPile();
+        }
 
         const id = this.deckIds.shift()!;
         this.hand.push(createHandCard(id, this.getNextId()));
@@ -79,6 +189,19 @@ export const useGameStore = defineStore('game', {
         this.revealedEncounterCard = createVillainCard(id, this.getNextId());
     },
 
+    shuffleDiscardPileIntoDrawPile() {
+        this.deckIds.push(...this.playerDiscardIds);
+        this.playerDiscardIds = [];
+
+        for (let i = this.deckIds.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            
+            const temp = this.deckIds[i]!; 
+            this.deckIds[i] = this.deckIds[j]!;
+            this.deckIds[j] = temp;
+        }
+    },
+
     resolveCurrentEncounterCard(currentInstanceId: number) {
         if (currentInstanceId === this.revealedEncounterCard?.instanceId) {
         const card = this.revealedEncounterCard;
@@ -105,7 +228,7 @@ export const useGameStore = defineStore('game', {
 
     drawFromVillainDeckAsEncounterCard() {
         if (this.villainDeckIds.length > 0) {
-        this.encounterPileIds.push(this.villainDeckIds.shift()!);
+            this.encounterPileIds.push(this.villainDeckIds.shift()!);
         }
     },
 
@@ -147,10 +270,20 @@ export const useGameStore = defineStore('game', {
             return;
         }
 
+        if (this.playerIdentity.hitPointsRemaining >= this.playerIdentity.hitPoints) {
+            return;
+        }
+
         const amtToAdjustBy = 0; // TODO: Check tableau for healing upgrades
 
         this.playerIdentity.hitPointsRemaining! 
             += (this.playerIdentity.healing + (amtToAdjustBy || 0));
+
+        if (this.playerIdentity.hitPointsRemaining! > this.playerIdentity.hitPoints) {
+            this.playerIdentity.hitPointsRemaining! = this.playerIdentity.hitPoints;
+        }
+
+        this.toggleIdentityExhaust();
     },
 
     thwartWithIdentity(id: number) {
