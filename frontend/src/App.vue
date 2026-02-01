@@ -1,7 +1,6 @@
 <script setup lang="ts">
   import { useGameStore } from "./stores/gameStore";
   import PlayerHand from "./components/player-board/PlayerHand.vue";
-  import PlayerId from "./components/player-board/PlayerIdentity.vue";
   import PlayerDeck from "./components/piles/DeckPile.vue";
   import PlayerTableau from "./components/player-board/PlayerTableau.vue";
   import VillainBoard from "./components/villain-board/VillainBoard.vue";
@@ -9,6 +8,7 @@
   import PlayerEncounterCards from "./components/player-board/PlayerEncounterCards.vue";
   import PlayerEngagedMinions from "./components/player-board/PlayerEngagedMinions.vue";
   import SideSchemes from "./components/villain-board/SideSchemes.vue";
+  import PlayerIdentityCard from "./components/cards/PlayerIdentityCard.vue";
 
   const store = useGameStore();
 </script>
@@ -74,9 +74,7 @@
           />
         </div>
 
-        <PlayerId 
-          :id-card-id="store.idCardId"
-        />
+        <PlayerIdentityCard/>
       </div>
 
       <PlayerHand 

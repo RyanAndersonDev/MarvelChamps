@@ -65,19 +65,19 @@
             map.set(r, current + 1);
         });
 
-        cardIdsToDiscard.value.push(storageId);
+        cardIdsToDiscard.value.push(instanceId);
 
         if (resolvePlay()) {
             const card = props.hand.find(c => c.instanceId === activeCardId.value!);
+            if (!card) return;
 
-            if (card?.type === "event") {
-                if (!cardIdsToDiscard.value.includes(card?.storageId!)) {
-                    cardIdsToDiscard.value.push(card?.storageId!);
+            if (card.type === "event") {
+                if (!cardIdsToDiscard.value.includes(card.instanceId!)) {
+                    cardIdsToDiscard.value.push(card.instanceId!);
                 }
-            }
-            else if (card?.type === "upgrade" && card?.attachmentLocation !== "tableau") {
+            } 
+            else if (card.type === "upgrade" && card.attachmentLocation !== "tableau") {
                 const loc = card.attachmentLocation;
-
                 if (loc === "minion" || loc === "villain" || loc === "enemy") {
                     try {
                         const targetId = await store.requestTarget(card, loc);
@@ -88,10 +88,10 @@
                         return; 
                     }
                 }
-            }
+            } 
             else {
-                sendToTableau(card?.storageId!);
-                emit('destroyHandCard', card?.instanceId!);
+                sendToTableau(card.storageId!);
+                emit('destroyHandCard', card.instanceId!);
             }
 
             emit('discard', [...cardIdsToDiscard.value]);
@@ -101,7 +101,7 @@
             activeCardId.value = null;
 
             resolveCardEffect();
-            console.log("we did it!");
+            console.log("Play resolved successfully!");
         }
     }
 
@@ -161,7 +161,7 @@
         :class="{
           'card-active-play': activeCardId === card.instanceId,
           'card-is-resource': activeCardId !== null && activeCardId !== card.instanceId,
-          'card-selected-to-pay': cardIdsToDiscard.includes(card.storageId!)
+          'card-selected-to-pay': cardIdsToDiscard.includes(card.instanceId!)
         }"
         @play="handlePlay"
         @resource="handleAllResourcesFromEvent"

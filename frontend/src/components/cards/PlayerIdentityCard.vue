@@ -64,7 +64,7 @@
 
     <div class="compact-controls">
       <div class="row-main">
-        <button @click="store.flipIdentity" class="btn-sm btn-flip">FLIP</button>
+        <button :disabled="store.idCardHasFlippedThisTurn" @click="store.flipIdentity" class="btn-sm btn-flip">FLIP</button>
         <button 
           :disabled="player.exhausted" 
           @click="handleAbility" 

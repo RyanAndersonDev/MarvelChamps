@@ -26,10 +26,10 @@ export const useGameStore = defineStore('game', {
     revealedEncounterCard: null as (Treachery | Attachment | Minion | SideScheme) | null,
 
     // Player Side
-    idCardId: 1,
     playerIdentity: createIdentityCard(1),
+    idCardHasFlippedThisTurn: false,
     hand: [] as (Ally | Event | Upgrade | Support)[],
-    deckIds: [8, 7, 6, 5, 4, 3, 2, 1],
+    deckIds: [1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6, 7, 7, 8, 8],
     playerDiscardIds: [] as number[],
     tableauCards: [] as (Ally | Upgrade | Support)[],
 
@@ -73,6 +73,7 @@ export const useGameStore = defineStore('game', {
             await new Promise(resolve => setTimeout(resolve, 500));
 
             this.currentPhase = GamePhase.PLAYER_TURN;
+            this.idCardHasFlippedThisTurn = false;
         }
     },
 
@@ -168,9 +169,16 @@ export const useGameStore = defineStore('game', {
         this.tableauCards.push(createTableauCard(cardId, this.getNextId()));
     },
 
-    discardPlayerCardsFromHand(cardIds: number[]) {
-        this.playerDiscardIds.push(...cardIds);
-        this.hand = this.hand.filter(c => !cardIds.includes(c.storageId!));
+    discardPlayerCardsFromHand(instanceIds: number[]) {
+        instanceIds.forEach(instId => {
+            const index = this.hand.findIndex(c => c.instanceId === instId);
+            
+            if (index !== -1) {
+                const card = this.hand[index];
+                this.playerDiscardIds.push(card!.storageId!);
+                this.hand.splice(index, 1);
+            }
+        });
     },
 
     discardVillainCards(cardIds: number[]) {
@@ -262,6 +270,8 @@ export const useGameStore = defineStore('game', {
         this.playerIdentity.identityStatus === "hero" 
             ? this.playerIdentity.identityStatus = "alter-ego"
             : this.playerIdentity.identityStatus = "hero"
+
+        this.idCardHasFlippedThisTurn = !this.idCardHasFlippedThisTurn;
     },
 
     healIdentity() {
@@ -287,8 +297,31 @@ export const useGameStore = defineStore('game', {
     },
 
     thwartWithIdentity(id: number) {
-        // TODO: Implement thwart
-        console.log(`Thwarting for ${this.playerIdentity.thw}!`);
+        if (this.playerIdentity.exhausted) 
+            return;
+
+        if (this.playerIdentity.identityStatus === 'alter-ego') {
+            console.warn("You cannot thwart in Alter-Ego form!");
+            return;
+        }
+
+        const thwAmt = this.playerIdentity.thw;
+        console.log(`Thwarting for ${thwAmt}!`);
+
+        if (this.mainScheme.instanceId === id) {
+            this.mainScheme.currentThreat = Math.max(0, this.mainScheme.currentThreat - thwAmt);
+        } else {
+            const sideScheme = this.activeSideSchemes.find(ss => ss.instanceId === id);
+
+            if (sideScheme) {
+                sideScheme.threatRemaining = Math.max(0, sideScheme.threatRemaining - thwAmt);
+                
+                if (sideScheme.threatRemaining === 0) {
+                    this.discardSideScheme(id);
+                }
+            }
+        }
+
         this.toggleIdentityExhaust();
     },
 
@@ -322,8 +355,22 @@ export const useGameStore = defineStore('game', {
             });
         }
 
+        this.villainDiscardIds.push(minion.storageId!);
         this.engagedMinions = this.engagedMinions.filter(m => m.instanceId !== instanceIdToDc);
-        this.villainDiscardIds.push(instanceIdToDc);
+    },
+
+    discardSideScheme(instanceIdToDc: number) {
+        const sideScheme = this.activeSideSchemes.find(s => s.instanceId === instanceIdToDc);
+
+        if (!sideScheme) {
+            console.log(`Could not find side scheme with id ${instanceIdToDc} to discard.`);
+            return;
+        }
+
+        // TODO: add logic to handle discarding attachments
+
+        this.villainDiscardIds.push(sideScheme.storageId!)
+        this.activeSideSchemes = this.activeSideSchemes.filter(s => s.instanceId !== instanceIdToDc);
     },
 
     // TARGETING ACTIONS
