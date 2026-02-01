@@ -77,7 +77,7 @@
       <div class="row-actions">
         <button 
           v-if="player.identityStatus === 'alter-ego'" 
-          :disabled="player.exhausted"
+          :disabled="player.exhausted || player.hitPointsRemaining! >= player.hitPoints"
           @click="store.healIdentity" 
           class="btn-sm btn-heal"
         >
