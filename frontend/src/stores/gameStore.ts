@@ -1,8 +1,9 @@
 import { defineStore } from "pinia";
-import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme } 
+import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme, type PlayerCardInstance } 
     from '../types/card'
 import { GamePhase, type GamePhaseType } from "../types/phases";
 import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme, createIdentityCard } from "../cards/cardFactory";
+import { EffectLibrary } from "../engine/effectLibrary";
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -43,8 +44,41 @@ export const useGameStore = defineStore('game', {
       sourceCard: null,
       targetType: 'minion',
       resolve: null,
-    } as any
+    } as any,
+
+    activeCardId: null as number | null,
+    paymentBufferIds: [] as number[],
+
+    isTargeting: false,
+    targetType: null as string | null,
+    resolveTargetPromise: null as ((id: number) => void) | null
   }),
+
+  getters: {
+    activeCard(state): any {
+        return state.hand.find(c => c.instanceId === state.activeCardId);
+    },
+
+    committedResources(state): Record<string, number> {
+        const counts: Record<string, number> = { physical: 0, mental: 0, energy: 0, wild: 0 };
+        
+        state.paymentBufferIds.forEach(id => {
+            const card = state.hand.find(c => c.instanceId === id);
+
+            card?.resources?.forEach((r: string) => {
+                counts[r]!++;
+            });
+        });
+        return counts;
+    },
+
+    isCostMet(): boolean {
+        if (!this.activeCard) return false;
+        
+        const totalSpent = Object.values(this.committedResources).reduce((a, b) => a + b, 0);
+        return totalSpent >= (this.activeCard.cost || 0);
+    }
+  },
 
   actions: {
     // Game Phase Actions
@@ -361,9 +395,9 @@ export const useGameStore = defineStore('game', {
             const minion = this.engagedMinions.find(m => m.instanceId === id);
 
             if (minion) {
-                minion.healthRemaining = Math.max(0, minion.healthRemaining - atkAmt);
+                minion.hitPointsRemaining = Math.max(0, minion.hitPointsRemaining! - atkAmt);
 
-                if (minion.healthRemaining === 0) {
+                if (minion.hitPointsRemaining === 0) {
                     this.discardFromEngagedMinions(minion.instanceId);
                 }
             }
@@ -421,15 +455,76 @@ export const useGameStore = defineStore('game', {
         return this.engagedMinions.find(m => m.instanceId === id);
     },
 
-    // TARGETING ACTIONS
-    async requestTarget(sourceCard: any, type: "minion" | "villain" | "enemy" | "scheme" | "main-scheme") {
+    startPayment(cardId: number) {
+        const card = this.hand.find(c => c.instanceId === cardId);
+        if (!card) return;
+
+        this.activeCardId = cardId;
+
+        if (card.cost === 0) {
+            this.finalizePlay();
+        }
+    },
+
+    addResourceToPayment(instanceId: number) {
+        if (this.activeCardId === instanceId) return; 
+
+        if (!this.paymentBufferIds.includes(instanceId)) {
+            this.paymentBufferIds.push(instanceId);
+        }
+
+        if (this.isCostMet) {
+            this.finalizePlay();
+        }
+    },
+
+    async finalizePlay() {
+        const card = { ...this.activeCard } as (Upgrade | Event | Ally | Support);
+        if (!card) 
+            return;
+
+        this.discardPlayerCardsFromHand(this.paymentBufferIds);
+
+        if (card.type === "event") {
+            await this.executeCardEffect(card as any);
+            this.discardPlayerCardsFromHand([card.instanceId!]);
+        } 
+        else if (card.type === "upgrade" && card.attachmentLocation !== "tableau") {
+            try {
+                const targetId = await this.requestTarget(card, card.attachmentLocation!);
+                this.attachToTarget(card as any, targetId);
+                this.destroyHandCard(card.instanceId!);
+            } catch (error) {
+                console.warn("Play cancelled during targeting.");
+                return;
+            }
+        } 
+        else {
+            this.makeTableauCardFromHand(card.storageId!);
+            this.destroyHandCard(card.instanceId!);
+        }
+
+        if (card.logic?.timing === "afterPlay") {
+            await this.executeCardEffect(card as any);
+        }
+
+        this.resetPayment();
+    },
+
+    resetPayment() {
+        this.activeCardId = null;
+        this.paymentBufferIds = [];
+    },
+
+    // --- TARGETING ACTIONS ---
+    async requestTarget(sourceCard: any, type: string): Promise<number> {
         this.targeting.isActive = true;
         this.targeting.sourceCard = sourceCard;
         this.targeting.targetType = type;
 
-        return new Promise<number>((resolve, reject) => {
+        return new Promise<number>((resolve) => {
             this.targeting.resolve = resolve;
-        })
+        });
     },
 
     selectTarget(instanceId: number) {
@@ -438,8 +533,22 @@ export const useGameStore = defineStore('game', {
 
             this.targeting.isActive = false;
             this.targeting.sourceCard = null;
+            this.targeting.targetType = null;
             this.targeting.resolve = null;
         }
-    }
+    },
+
+    async executeCardEffect(card: any) {
+        const effectName = card.logic?.effectName;
+        const effect = EffectLibrary[effectName];
+
+        if (effect) {
+            let targetId = null;
+            if (card.logic.targetType && card.logic.targetType !== 'none') {
+                targetId = await this.requestTarget(card, card.logic.targetType);
+            }
+            effect(this, card.logic.effectValue, targetId);
+        }
+    },
   }
 });
