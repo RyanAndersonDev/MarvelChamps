@@ -256,6 +256,8 @@ function printEngagedMinion(blueprint: VillainCard, instanceId: number) : Minion
 
     return {
         ...base,
+        sch: blueprint.sch,
+        atk: blueprint.atk,
         healthRemaining: blueprint.hitPoints,
         attachments: []
     } as Minion;
