@@ -38,7 +38,7 @@
         const currentCard = props.hand.find(c => c.instanceId === cardId);
 
         if (currentCard?.cost === 0) {
-            cardIdsToDiscard.value.push(currentCard.storageId!);
+            cardIdsToDiscard.value.push(currentCard.instanceId!);
             emit('discard', [...cardIdsToDiscard.value]);
             resolveCardEffect();
 
