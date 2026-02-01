@@ -25,5 +25,20 @@ export const EffectLibrary: Record<string, EffectFn> = {
     } else {
       console.warn(`Target enemy with ID ${targetId} not found.`);
     }
+  },
+
+  healIdentity: (state, value = 0) => {
+    const hero = state.playerIdentity;
+
+    if (hero && hero.hitPointsRemaining !== undefined) {
+        const maxHP = hero.hitPoints;
+        const currentHP = hero.hitPointsRemaining;
+
+        hero.hitPointsRemaining = Math.min(maxHP, currentHP + value);
+
+        console.log(`${hero.name} healed for ${value}. Health is now ${hero.hitPointsRemaining}/${maxHP}`);
+    } else {
+        console.error("Effect Library: Could not find Hero Identity or HP property.");
+    }
   }
 };
