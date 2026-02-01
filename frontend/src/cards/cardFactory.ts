@@ -24,7 +24,8 @@ function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event 
         cost: blueprint.cost,
         aspect: blueprint.aspect,
         imgPath: blueprint.imgPath,
-        resources: blueprint.resources
+        resources: blueprint.resources,
+        logic: blueprint.logic
     };
 
     switch (blueprint.type) {
@@ -85,6 +86,7 @@ function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Al
         cost: blueprint.cost,
         aspect: blueprint.aspect,
         imgPath: blueprint.imgPath,
+        logic: blueprint.logic
     };
 
     switch (blueprint.type) {
@@ -210,7 +212,7 @@ export function printVillainCard(blueprint: VillainCard, instanceId: number) : V
         case "minion":
             return {
                 ...base,
-                healthRemaining: blueprint.hitPoints
+                hitPointsRemaining: blueprint.hitPoints
             } as Minion;
 
         case "side-scheme":
@@ -260,7 +262,7 @@ function printEngagedMinion(blueprint: VillainCard, instanceId: number) : Minion
         ...base,
         sch: blueprint.sch,
         atk: blueprint.atk,
-        healthRemaining: blueprint.hitPoints,
+        hitPointsRemaining: blueprint.hitPoints,
         attachments: []
     } as Minion;
 }

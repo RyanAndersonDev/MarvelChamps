@@ -12,10 +12,10 @@ export const EffectLibrary: Record<string, EffectFn> = {
     const enemy: (VillainCardInstance | Minion) = state.findEnemyById(targetId);
 
     if (enemy) {
-      enemy.healthRemaining! = Math.max(0, enemy.healthRemaining! -= value);
-      console.log(`${enemy.name} took ${value} damage. Health is now ${enemy.healthRemaining}`);
+      enemy.hitPointsRemaining = Math.max(0, enemy.hitPointsRemaining! -= value);
+      console.log(`${enemy.name} took ${value} damage. Health is now ${enemy.hitPointsRemaining}`);
       
-      if (enemy.healthRemaining! <= 0) {
+      if (enemy.hitPointsRemaining! <= 0) {
         if (enemy.type === "minion") {
             state.discardFromEngagedMinions(targetId);
         } else {
