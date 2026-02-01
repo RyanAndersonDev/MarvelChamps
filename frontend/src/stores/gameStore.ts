@@ -1,8 +1,8 @@
-    import { defineStore } from "pinia";
-    import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme } 
-        from '../types/card'
-    import { GamePhase, type GamePhaseType } from "../types/phases";
-    import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme, createIdentityCard } from "../cards/cardFactory";
+import { defineStore } from "pinia";
+import { type Ally, type Event, type Upgrade, type Support, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme } 
+    from '../types/card'
+import { GamePhase, type GamePhaseType } from "../types/phases";
+import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme, createIdentityCard } from "../cards/cardFactory";
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -14,8 +14,8 @@ export const useGameStore = defineStore('game', {
     idIncrementer: 0,
     
     // Villain Side
-    villainCard: createVillainIdentityCard(1, 1) as VillainIdentityCardInstance,
-    mainScheme: createMainSchemeCard(1, 1) as MainSchemeInstance,
+    villainCard: null as VillainIdentityCardInstance | null,
+    mainScheme: null as MainSchemeInstance | null,
     villainDeckIds: [] as number[],
     villainDiscardIds: [] as number[],
     activeSideSchemes: [] as SideScheme[],
@@ -49,8 +49,13 @@ export const useGameStore = defineStore('game', {
   actions: {
     // Game Phase Actions
     initializeGame() {
+        let initIdCounter = 0;
+
+        this.playerIdentity = createIdentityCard(1);
         this.deckIds = [1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6, 7, 7, 8, 8];
         this.shufflePile(this.deckIds);
+        this.villainCard = createVillainIdentityCard(1, ++initIdCounter);
+        this.mainScheme = createMainSchemeCard(1, ++initIdCounter);
         this.villainDeckIds = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
         this.shufflePile(this.villainDeckIds);
 
@@ -87,11 +92,11 @@ export const useGameStore = defineStore('game', {
     },
 
     async processMainSchemeThreat() {
-        const incrementAmt = this.mainScheme.threatIncrementIsPerPlayer
-            ? this.mainScheme.threatIncrement * 1 // TODO: Implement amount of players!
-            : this.mainScheme.threatIncrement;
+        const incrementAmt = this.mainScheme!.threatIncrementIsPerPlayer
+            ? this.mainScheme!.threatIncrement * 1 // TODO: Implement amount of players!
+            : this.mainScheme!.threatIncrement;
             
-        this.mainScheme.currentThreat += incrementAmt;
+        this.mainScheme!.currentThreat += incrementAmt;
 
         await new Promise(resolve => setTimeout(resolve, 1000));
     },
@@ -108,11 +113,11 @@ export const useGameStore = defineStore('game', {
     },
 
     villainActivationScheme() {
-        this.mainScheme.currentThreat += this.villainCard.sch;
+        this.mainScheme!.currentThreat += this.villainCard!.sch;
     },
 
     villainActivationAttack() {
-        this.playerIdentity.hitPointsRemaining! -= this.villainCard.atk
+        this.playerIdentity.hitPointsRemaining! -= this.villainCard!.atk
     },
 
     async processMinionActivations() {
@@ -129,7 +134,7 @@ export const useGameStore = defineStore('game', {
     },
 
     minionActivationScheme(minion: Minion) {
-        this.mainScheme.currentThreat += minion.sch!;
+        this.mainScheme!.currentThreat += minion.sch!;
     },
 
     minionActivationAttack(minion: Minion) {
@@ -230,7 +235,7 @@ export const useGameStore = defineStore('game', {
 
         switch (card.type) {
             case 'attachment':
-                this.villainCard.attachments.push(createVillainCard(card.storageId!, 1));
+                this.villainCard!.attachments.push(createVillainCard(card.storageId!, 1));
                 break;
             case 'minion':
                 this.engagedMinions.push(createEngagedMinion(idToUse, this.getNextId()));
@@ -321,8 +326,8 @@ export const useGameStore = defineStore('game', {
         const thwAmt = this.playerIdentity.thw;
         console.log(`Thwarting for ${thwAmt}!`);
 
-        if (this.mainScheme.instanceId === id) {
-            this.mainScheme.currentThreat = Math.max(0, this.mainScheme.currentThreat - thwAmt);
+        if (this.mainScheme!.instanceId === id) {
+            this.mainScheme!.currentThreat = Math.max(0, this.mainScheme!.currentThreat - thwAmt);
         } else {
             const sideScheme = this.activeSideSchemes.find(ss => ss.instanceId === id);
 
@@ -339,8 +344,30 @@ export const useGameStore = defineStore('game', {
     },
 
     attackWithIdentity(id: number) {
-        // TODO: Implement attack
+        if (this.playerIdentity.exhausted) 
+            return;
+
+        if (this.playerIdentity.identityStatus === 'alter-ego') {
+            console.warn("You cannot attack in Alter-Ego form!");
+            return;
+        }
+
+        const atkAmt = this.playerIdentity.atk;
         console.log(`Attacking for ${this.playerIdentity.atk}!`);
+
+        if (this.villainCard!.instanceId === id) {
+            this.villainCard!.hitPointsRemaining = Math.max(0, this.villainCard!.hitPointsRemaining! - atkAmt);
+        } else {
+            const minion = this.engagedMinions.find(m => m.instanceId === id);
+
+            if (minion) {
+                minion.healthRemaining = Math.max(0, minion.healthRemaining - atkAmt);
+
+                if (minion.healthRemaining === 0) {
+                    this.discardFromEngagedMinions(minion.instanceId);
+                }
+            }
+        }
         this.toggleIdentityExhaust();
     },
 

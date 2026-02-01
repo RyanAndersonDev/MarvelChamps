@@ -34,8 +34,9 @@
         />
 
         <VillainBoard
-          :card-instance="store.villainCard"
-          :main-scheme-instance="store.mainScheme"
+          v-if="store.villainCard"
+          :card-instance="store.villainCard!"
+          :main-scheme-instance="store.mainScheme!"
           :deckIds="store.villainDeckIds"
           :discard-ids="store.villainDiscardIds"
           :card-back-img-path="store.villainCardBackImg"
