@@ -66,17 +66,19 @@ function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event 
 
 // ************* TABLEAU CARDS *************
 export function createTableauCard(cardId: number, instanceId: number) : Ally | Upgrade | Support {
-    const blueprint : PlayerCardInstance | undefined = cardMap.get(cardId);
+    const blueprint : PlayerCard | undefined = cardMap.get(cardId);
 
     if (!blueprint)
         throw new Error(`Card ID ${cardId} not found in the map.`);
 
+    blueprint!.storageId = cardId;
     return printTableauCard(blueprint, instanceId);
 }
 
 function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Ally | Upgrade | Support {
     const base = {
         instanceId: instanceId,
+        storageId: blueprint.storageId,
         name: blueprint.name,
         side: blueprint.side,
         type: blueprint.type,

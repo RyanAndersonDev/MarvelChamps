@@ -1,3 +1,5 @@
+import { type GamePhaseType } from "./phases"; 
+
 export type IdentityStatus = "hero" | "alter-ego" | "dead";
 
 export type PlayerCardType = "ally" | "event" | "support" | "upgrade" | "resource";
@@ -9,6 +11,10 @@ export type Aspect = "neutral" | "hero" | "aggression" | "justice" | "protection
 export type Resource = "physical" | "mental" | "energy" | "wild";
 
 export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "enemy";
+
+export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
+
+export type TimingWindow = GamePhaseType | "any" | "villainAttack" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed";
 
 export interface CardBase {
     name: string;
@@ -46,6 +52,7 @@ export interface PlayerCard extends CardBase {
     aspect: Aspect;
     imgPath: string;
     resources: Resource[];
+    logic: CardLogic;
     storageId?: number,
     thw?: number;
     thwPain?: number;
@@ -53,7 +60,6 @@ export interface PlayerCard extends CardBase {
     atkPain?: number;
     health?: number;
     attachmentLocation?: AttachmentLocation;
-    // TODO: Configure: attackDesination?: prop for upgrades (ie spider tracer, webbed up)
 }
 
 export interface PlayerCardInstance extends PlayerCard {
@@ -127,6 +133,8 @@ export interface VillainCardInstance extends VillainCard {
 export interface Minion extends VillainCardInstance {
     healthRemaining: number;
     attachments: (Upgrade | Attachment)[];
+    sch: number;
+    atk: number;
 }
 
 export interface Treachery extends VillainCardInstance {
@@ -154,4 +162,15 @@ export interface MainScheme extends CardBase {
 export interface MainSchemeInstance extends MainScheme {
     instanceId: number;
     currentThreat: number;
+}
+
+export interface CardLogic {
+    type: CardActionKeywords;
+    forced: boolean;
+    formRequired: "hero" | "alter-ego" | "any";
+    timing: TimingWindow;
+    actionType?: "attack" | "thwart" | "defense";
+    effectName: string;
+    effectValue?: number;
+    targetType?: "enemy" | "minion" | "villain" | "scheme" | "identity" | "none";
 }

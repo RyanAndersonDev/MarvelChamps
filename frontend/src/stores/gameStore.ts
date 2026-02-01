@@ -122,8 +122,8 @@ export const useGameStore = defineStore('game', {
 
     async processMinionActivations() {
         this.engagedMinions.forEach(minion => {
-          if (this.playerIdentity.identityStatus === "alter-ego") {
-            this.minionActivationScheme(minion);
+            if (this.playerIdentity.identityStatus === "alter-ego") {
+                this.minionActivationScheme(minion);
             }
             else {
                 this.minionActivationAttack(minion);
@@ -411,6 +411,14 @@ export const useGameStore = defineStore('game', {
 
         this.villainDiscardIds.push(sideScheme.storageId!)
         this.activeSideSchemes = this.activeSideSchemes.filter(s => s.instanceId !== instanceIdToDc);
+    },
+
+    findEnemyById(id: number) {
+        if (this.villainCard && this.villainCard.instanceId === id) {
+            return this.villainCard;
+        }
+
+        return this.engagedMinions.find(m => m.instanceId === id);
     },
 
     // TARGETING ACTIONS

@@ -7,19 +7,89 @@ export const idCardMap: Map<number, IdentityCardInstance> = new Map<number, Iden
 
 export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     [1, { name: "Black Cat", side: "player", type: "ally", cost: 2, aspect: "hero", imgPath: "/cards/heroes/spider-man/BlackCat-Ally.png", tags: ["hero for hire"], resources: ["energy"], flavorText: "",
-        thw: 1, thwPain: 1, atk: 1, atkPain: 0, health: 2 }],
-    [2, { name: "Backflip", side: "player", type: "event", cost: 0, aspect: "hero", imgPath: "/cards/heroes/spider-man/Backflip-Event.png", tags: ["defense", "skill"], resources: ["physical"], flavorText: "" }],
-    [3, { name: "Enhanced Spider-Sense", side: "player", type: "event", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/EnhancedSpiderSense-Event.png", tags: ["superpower"], resources: ["mental"], flavorText: "" }],
-    [4, { name: "Swinging Web Kick", side: "player", type: "event", cost: 3, aspect: "hero", imgPath: "/cards/heroes/spider-man/SwingingWebKick-Event.png", tags: ["aerial", "attack", "superpower"], resources: ["mental"], flavorText: "" }],
-    [5, { name: "Aunt May", side: "player", type: "support", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/AuntMay-Support.png", tags: ["persona"], resources: ["energy"], flavorText: "" }],
+        thw: 1, thwPain: 1, atk: 1, atkPain: 0, health: 2, 
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "afterPlay",
+            effectName: "blackCatDiscard"
+        }
+    }],
+    [2, { name: "Backflip", side: "player", type: "event", cost: 0, aspect: "hero", imgPath: "/cards/heroes/spider-man/Backflip-Event.png", tags: ["defense", "skill"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "hero",
+            timing: "takeIdentityDamage",
+            actionType: "defense",
+            effectName: "preventDamage",
+            effectValue: 100
+        }
+     }],
+    [3, { name: "Enhanced Spider-Sense", side: "player", type: "event", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/EnhancedSpiderSense-Event.png", tags: ["superpower"], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "hero",
+            timing: "treacheryRevealed",
+            effectName: "cancelWhenRevealed"
+        }
+     }],
+    [4, { name: "Swinging Web Kick", side: "player", type: "event", cost: 3, aspect: "hero", imgPath: "/cards/heroes/spider-man/SwingingWebKick-Event.png", tags: ["aerial", "attack", "superpower"], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effectName: "dealDamage",
+            effectValue: 8,
+            targetType: "enemy"
+        }
+     }],
+    [5, { name: "Aunt May", side: "player", type: "support", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/AuntMay-Support.png", tags: ["persona"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "alter-ego",
+            timing: "PLAYER_TURN",
+            effectName: "healIdentity",
+            effectValue: 4
+        }
+     }],
     [6, { name: "Spider-Tracer", side: "player", type: "upgrade", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/SpiderTracer-Upgrade.png", tags: ["item", "tech"], resources: ["energy"], flavorText: "",
-        attachmentLocation: "minion"
+        attachmentLocation: "minion",
+        logic: {
+            type: "interrupt",
+            forced: true,
+            formRequired: "any",
+            timing: "attachedDefeated",
+            effectName: "removeThreat",
+            effectValue: 3,
+            targetType: "scheme"
+        }
      }],
     [7, { name: "Web-Shooter", side: "player", type: "upgrade", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/WebShooter-Upgrade.png", tags: ["item", "tech"], resources: ["physical"], flavorText: "",
-        "attachmentLocation": "tableau"
+        "attachmentLocation": "tableau",
+        logic: {
+            type: "resource",
+            forced: false,
+            formRequired: "hero",
+            timing: "paymentWindow",
+            effectName: "generateWildResource",
+            effectValue: 1
+        }
      }],
     [8, { name: "Webbed Up", side: "player", type: "upgrade", cost: 4, aspect: "hero", imgPath: "/cards/heroes/spider-man/WebbedUp-Upgrade.png", tags: ["aerial", "attack", "superpower"], resources: ["physical"], flavorText: "",
-        "attachmentLocation": "enemy"
+        "attachmentLocation": "enemy",
+        logic: {
+            type: "interrupt",
+            forced: true,
+            formRequired: "hero",
+            timing: "attachedAttacks",
+            effectName: "preventAttackThenStun"
+        }
      }]
 ]);
 
