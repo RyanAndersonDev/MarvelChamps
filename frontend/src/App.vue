@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import { onMounted } from "vue";
   import { useGameStore } from "./stores/gameStore";
   import PlayerHand from "./components/player-board/PlayerHand.vue";
   import PlayerDeck from "./components/piles/DeckPile.vue";
@@ -11,6 +12,10 @@
   import PlayerIdentityCard from "./components/cards/PlayerIdentityCard.vue";
 
   const store = useGameStore();
+
+  onMounted(() => {
+    store.initializeGame();
+  })
 </script>
 
 <template>

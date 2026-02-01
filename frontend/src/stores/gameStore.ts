@@ -16,7 +16,7 @@ export const useGameStore = defineStore('game', {
     // Villain Side
     villainCard: createVillainIdentityCard(1, 1) as VillainIdentityCardInstance,
     mainScheme: createMainSchemeCard(1, 1) as MainSchemeInstance,
-    villainDeckIds: [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+    villainDeckIds: [] as number[],
     villainDiscardIds: [] as number[],
     activeSideSchemes: [] as SideScheme[],
     engagedMinions: [] as Minion[],
@@ -29,7 +29,7 @@ export const useGameStore = defineStore('game', {
     playerIdentity: createIdentityCard(1),
     idCardHasFlippedThisTurn: false,
     hand: [] as (Ally | Event | Upgrade | Support)[],
-    deckIds: [1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6, 7, 7, 8, 8],
+    deckIds: [] as number[],
     playerDiscardIds: [] as number[],
     tableauCards: [] as (Ally | Upgrade | Support)[],
 
@@ -48,6 +48,15 @@ export const useGameStore = defineStore('game', {
 
   actions: {
     // Game Phase Actions
+    initializeGame() {
+        this.deckIds = [1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6, 7, 7, 8, 8];
+        this.shufflePile(this.deckIds);
+        this.villainDeckIds = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+        this.shufflePile(this.villainDeckIds);
+
+        this.drawToHandSize();
+    },
+
     async advanceGame() {
         if (this.currentPhase === GamePhase.PLAYER_TURN) {
             this.readyAllCards();
@@ -201,12 +210,16 @@ export const useGameStore = defineStore('game', {
         this.deckIds.push(...this.playerDiscardIds);
         this.playerDiscardIds = [];
 
-        for (let i = this.deckIds.length - 1; i > 0; i--) {
+        this.shufflePile(this.deckIds);
+    },
+
+    shufflePile(pile: number[]) {
+        for (let i = pile.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             
-            const temp = this.deckIds[i]!; 
-            this.deckIds[i] = this.deckIds[j]!;
-            this.deckIds[j] = temp;
+            const temp = pile[i]!; 
+            pile[i] = pile[j]!;
+            pile[j] = temp;
         }
     },
 
