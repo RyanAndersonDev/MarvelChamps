@@ -1,4 +1,4 @@
-import type { PlayerCardInstance, PlayerCard, Ally, Event, Upgrade, Support, IdentityCardInstance, VillainIdentityCard, VillainIdentityCardInstance, 
+import type { PlayerCardInstance, PlayerCard, Ally, Event, Upgrade, Support, IdentityCard, IdentityCardInstance, VillainIdentityCard, VillainIdentityCardInstance, 
     MainScheme, MainSchemeInstance, VillainCardInstance, VillainCard, Attachment, Treachery, Minion, SideScheme} from '../types/card';
 import { cardMap, idCardMap, villainIdCardMap, villainMainSchemeMap, villainCardMap } from './cardStore';
 
@@ -34,7 +34,7 @@ function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event 
                 ...base,
                 exhausted: false,
                 health: blueprint.health ?? 1000,
-                hpLeft: blueprint.health ?? 1000,
+                hitPointsRemaining: blueprint.health ?? 1000,
                 stunned: false,
                 confused: false,
                 tough: false
@@ -95,7 +95,7 @@ function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Al
                 ...base,
                 exhausted: false,
                 health: blueprint.health ?? 1000,
-                hpLeft: blueprint.health ?? 1000
+                hitPointsRemaining: blueprint.health ?? 1000
             } as Ally;
 
         case 'upgrade':
@@ -118,21 +118,24 @@ function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Al
 }
 
 // ************* IDENTITY CARDS *************
-export function createIdentityCard(cardId: number) : IdentityCardInstance {
-    const blueprint : IdentityCardInstance | undefined = idCardMap.get(cardId);
+export function createIdentityCard(cardId: number, instanceId: number) : IdentityCardInstance {
+    const blueprint : IdentityCard | undefined = idCardMap.get(cardId);
 
     if (!blueprint)
         throw new Error(`Card ID ${cardId} not found in the map.`);
 
-    return printIdentityCard(blueprint);
+    blueprint.storageId = cardId;
+    return printIdentityCard(blueprint, instanceId);
 }
 
-function printIdentityCard (blueprint: IdentityCardInstance): IdentityCardInstance {
-    blueprint.hitPointsRemaining = blueprint.hitPoints;
-    blueprint.exhausted = false;
-    blueprint.identityStatus = "alter-ego";
-
-    return blueprint;
+function printIdentityCard (blueprint: IdentityCard, instanceId: number): IdentityCardInstance {
+    return {
+        ... blueprint,
+        instanceId: instanceId,
+        hitPointsRemaining: blueprint.hitPoints,
+        exhausted: false,
+        identityStatus: "alter-ego"
+    }
 }
 
 // ************* VILLAIN IDENTITY CARDS *************
@@ -142,6 +145,7 @@ export function createVillainIdentityCard(cardId: number, instanceId: number) : 
     if (!blueprint)
         throw new Error(`Villain Card ID ${cardId} not found in the map.`)
 
+    blueprint.storageId = cardId;
     return printVillainIdentityCard(blueprint, instanceId);
 }
 

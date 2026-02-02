@@ -1,44 +1,58 @@
 import type { VillainCardInstance, Minion } from "../types/card";
-type EffectFn = (state: any, value?: number, targetId?: any) => void;
 
-export const EffectLibrary: Record<string, EffectFn> = {
+export interface BasePayload {
+    isCanceled?: boolean;
+    amount?: number;
+    card?: any;
+    [key: string]: any; 
+}
+
+type EffectFn = (
+    state: any, 
+    payload?: number | BasePayload,
+    targetId?: any, 
+    context?: any
+) => void | Promise<void>;
+
+export const EffectLibrary: Record<string, (state: any, context: any) => Promise<void> | void> = {
   
-  dealDamage: (state, value = 0, targetId) => {
-    if (targetId === undefined) {
-      console.error("No target selected for dealDamage");
-      return;
-    }
+  dealDamage: async (state, context) => {
+    const damagePayload = {
+      amount: context.amount || 0,
+      targetId: context.targetId,
+      isCanceled: false,
+      source: context.source || 'effect'
+    };
 
-    const enemy: (VillainCardInstance | Minion) = state.findEnemyById(targetId);
+    await state.emitEvent('ENTITY_TAKES_DAMAGE', damagePayload, async () => {
+      if (damagePayload.isCanceled || damagePayload.amount <= 0) return;
 
-    if (enemy) {
-      enemy.hitPointsRemaining = Math.max(0, enemy.hitPointsRemaining! -= value);
-      console.log(`${enemy.name} took ${value} damage. Health is now ${enemy.hitPointsRemaining}`);
-      
-      if (enemy.hitPointsRemaining! <= 0) {
-        if (enemy.type === "minion") {
-            state.discardFromEngagedMinions(targetId);
-        } else {
-            // TODO: Next villain phase or players win!
-        }
-      }
-    } else {
-      console.warn(`Target enemy with ID ${targetId} not found.`);
-    }
+      await state.applyDamageToEntity(damagePayload);
+    });
   },
 
-  healIdentity: (state, value = 0) => {
-    const hero = state.playerIdentity;
+  preventDamage: async (state, context) => {
+    const reductionPower = context.effectValue ?? context.sourceCard?.logic?.value ?? 0;
 
-    if (hero && hero.hitPointsRemaining !== undefined) {
-        const maxHP = hero.hitPoints;
-        const currentHP = hero.hitPointsRemaining;
-
-        hero.hitPointsRemaining = Math.min(maxHP, currentHP + value);
-
-        console.log(`${hero.name} healed for ${value}. Health is now ${hero.hitPointsRemaining}/${maxHP}`);
+    if (reductionPower === 100 || context.preventAll) {
+      context.amount = 0;
+      context.isCanceled = true;
+      console.log("Damage fully prevented by Backflip (or similar).");
     } else {
-        console.error("Effect Library: Could not find Hero Identity or HP property.");
+      context.amount = Math.max(0, context.amount - reductionPower);
+      console.log(`Damage reduced by ${reductionPower}. Remaining: ${context.amount}`);
+      
+      if (context.amount === 0) {
+        context.isCanceled = true;
+      }
     }
-  }
+
+    context.isResolved = true;
+  },
+
+  cancelWhenRevealed: (state, context) => {
+    context.isCanceled = true;
+    context.isResolved = true;
+    console.log("Effect canceled by library.");
+  },
 };
