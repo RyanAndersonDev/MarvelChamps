@@ -20,6 +20,51 @@
 
 <template>
   <main class="game-container">
+    <Transition name="fade">
+      <div v-if="store.activePrompt" class="prompt-overlay">
+        <div class="prompt-modal">
+          <header class="prompt-header">
+            <h2>{{ store.activePrompt.type === 'INTERRUPT_WINDOW' ? 'Interrupt Window' : 'Declare Defense' }}</h2>
+            <p>Current Event: <strong>{{ store.activePrompt.event }}</strong></p>
+          </header>
+
+          <div class="options-list">
+            <div 
+              v-for="option in store.activePrompt.cards" 
+              :key="option.instanceId || option.id" 
+              class="option-wrapper"
+            >
+              <div 
+                v-if="option.imgPath" 
+                class="option-card-wrapper" 
+                @click="store.selectInterruptCard(option)"
+              >
+                <img :src="option.imgPath" :alt="option.name" class="mini-card-art" />
+                <div class="card-label">
+                  <span class="card-name">{{ option.name }}</span>
+                  <span v-if="option.cost !== undefined" class="card-cost">Cost: {{ option.cost }}</span>
+                </div>
+              </div>
+
+              <button 
+                v-else 
+                class="btn-defense-choice" 
+                @click="store.activePrompt.resolve(option.id)"
+              >
+                {{ option.name }}
+              </button>
+            </div>
+          </div>
+
+          <footer class="prompt-footer">
+            <button class="btn-pass" @click="store.passInterrupt">
+              PASS / NO ACTION
+            </button>
+          </footer>
+        </div>
+      </div>
+    </Transition>
+
     <section class="villain-section">
       <div class="villain-wrapper">
         <PlayerEncounterCards class="encounter-component"
@@ -80,7 +125,9 @@
           />
         </div>
 
-        <PlayerIdentityCard/>
+        <PlayerIdentityCard
+          v-if="store.playerIdentity"
+        />
       </div>
 
       <PlayerHand 
@@ -151,16 +198,15 @@
     display: flex;
     gap: 12px;
     flex-shrink: 0;
-    align-items: flex-end; /* Keep deck and ID cards aligned at bottom */
+    align-items: flex-end;
   }
 
-  /* Container to stack the Button over the Deck */
   .deck-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    min-width: 100px; /* Adjust to match your PlayerDeck width */
+    min-width: 100px;
   }
 
   .btn-end-turn {
@@ -218,7 +264,6 @@
     pointer-events: none;
   }
 
-  /* Transition for Button Appearance */
   .fade-enter-active, .fade-leave-active {
     transition: opacity 0.2s, transform 0.2s;
   }
@@ -226,4 +271,92 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
+  .prompt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85); /* Heavy dimming for focus */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999; /* Top of the world */
+    backdrop-filter: blur(4px);
+  }
+
+  .prompt-modal {
+    background: #1a1a1a;
+    border: 3px solid #e74c3c;
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 90%;
+    width: 600px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  }
+
+  .options-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .btn-defense-choice {
+    background: #2c3e50;
+    color: white;
+    border: 2px solid #41b883;
+    padding: 1.5rem 2rem;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.2s;
+    min-width: 200px;
+  }
+
+  .btn-defense-choice:hover {
+    background: #3e5871;
+    transform: scale(1.05);
+  }
+
+  .btn-defense-choice:active {
+    transform: scale(0.95);
+  }
+
+  .option-card-wrapper {
+    width: 120px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    text-align: center;
+  }
+
+  .option-card-wrapper:hover {
+    transform: translateY(-10px) scale(1.1);
+  }
+
+  .mini-card-art {
+    width: 100%;
+    border-radius: 8px;
+    border: 2px solid #555;
+  }
+
+  .btn-pass {
+    background: #444;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  .btn-pass:hover {
+    background: #666;
+  }
+
+  .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+  .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

@@ -4,7 +4,7 @@
   import BaseCard from './BaseCard.vue';
 
   const store = useGameStore();
-  const player = computed(() => store.playerIdentity);
+  const player = computed(() => store.hero);
 
   const currentSideImg = computed(() => {
     return player.value.identityStatus === 'hero' 

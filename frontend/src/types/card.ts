@@ -34,9 +34,13 @@ export interface IdentityCard extends CardBase {
     handsizeAe: number;
     handSizeHero: number;
     heroTags: string[];
+    aeLogic: CardLogic;
+    heroLogic: CardLogic;
+    storageId?: number;
 }
 
 export interface IdentityCardInstance extends IdentityCard {
+    instanceId: number;
     hitPointsRemaining?: number;
     exhausted?: boolean;
     identityStatus?: IdentityStatus;
@@ -74,7 +78,7 @@ export interface Ally extends PlayerCardInstance {
     thwPain: number;
     atk: number;
     atkPain: number;
-    hpLeft: number;
+    hitPointsRemaining: number;
     stunned: boolean;
     confused: boolean;
     tough: boolean;
@@ -99,6 +103,8 @@ export interface VillainIdentityCard extends CardBase {
     hitPointsPerPlayer: number;
     sch: number;
     atk: number;
+    logic?: CardLogic;
+    storageId?: number;
 }
 
 export interface VillainIdentityCardInstance extends VillainIdentityCard {

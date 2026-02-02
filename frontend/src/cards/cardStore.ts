@@ -1,8 +1,25 @@
-import type { IdentityCardInstance, PlayerCard, VillainIdentityCard, MainScheme, VillainCard } from "../types/card";
+import type { IdentityCard, PlayerCard, VillainIdentityCard, MainScheme, VillainCard } from "../types/card";
 
-export const idCardMap: Map<number, IdentityCardInstance> = new Map<number, IdentityCardInstance>([
+export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard>([
     [1, {name: "Peter Parker/Spiderman", side: "player", imgPath: "/cards/heroes/spider-man/PeterParker-AE.png", heroImgPath: "/cards/heroes/spider-man/PeterParker-Hero.png", flavorText: "",
-        hitPoints: 10, healing: 3, thw: 1, atk: 2, def: 3, handsizeAe: 6, handSizeHero: 5, tags: ["genius"], heroTags: ["avenger"]}]
+        hitPoints: 10, healing: 3, thw: 1, atk: 2, def: 3, handsizeAe: 6, handSizeHero: 5, tags: ["genius"], heroTags: ["avenger"],
+        aeLogic: {
+            type: "resource",
+            forced: false,
+            formRequired: "alter-ego",
+            timing: "PLAYER_TURN",
+            effectName: "generateMentalResource",
+            effectValue: 1
+        },
+        heroLogic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "hero",
+            timing: "villainAttack",
+            effectName: "draw",
+            effectValue: 1
+        }
+    }]
 ]);
 
 export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
