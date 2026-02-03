@@ -73,7 +73,6 @@ export interface PlayerCardInstance extends PlayerCard {
 
 export interface Ally extends PlayerCardInstance {
     exhausted: boolean;
-    health: number;
     thw: number;
     thwPain: number;
     atk: number;

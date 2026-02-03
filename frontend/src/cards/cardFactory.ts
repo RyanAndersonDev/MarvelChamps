@@ -94,6 +94,8 @@ function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Al
             return {
                 ...base,
                 exhausted: false,
+                thw: blueprint.thw,
+                atk: blueprint.atk,
                 health: blueprint.health ?? 1000,
                 hitPointsRemaining: blueprint.health ?? 1000
             } as Ally;

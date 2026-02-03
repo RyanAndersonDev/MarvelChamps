@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useGameStore } from '../../stores/gameStore';
-import BaseCard from './BaseCard.vue';
-import type { VillainIdentityCardInstance } from '../../types/card';
+    import { computed } from 'vue';
+    import { useGameStore } from '../../stores/gameStore';
+    import BaseCard from './BaseCard.vue';
+    import type { VillainIdentityCardInstance } from '../../types/card';
 
-const props = defineProps<{ cardInstance: VillainIdentityCardInstance }>();
-const store = useGameStore();
+    const props = defineProps<{ cardInstance: VillainIdentityCardInstance }>();
+    const store = useGameStore();
 
-const isTargetable = computed(() => {
-    return store.targeting.isActive && 
-           (store.targeting.targetType === 'villain' || store.targeting.targetType === "enemy");
-});
+    const isTargetable = computed(() => {
+        return store.targeting.isActive && 
+            (store.targeting.targetType === 'villain' || store.targeting.targetType === "enemy");
+    });
 
-function handleClick() {
-    if (isTargetable.value) {
-        store.selectTarget(props.cardInstance.instanceId);
+    function handleClick() {
+        if (isTargetable.value) {
+            store.selectTarget(props.cardInstance.instanceId);
+        }
     }
-}
 </script>
 
 <template>
@@ -28,6 +28,12 @@ function handleClick() {
         }"
         @click="handleClick"
     >
+        <div class="stat-badges">
+            <div class="stat-badge blue">{{ props.cardInstance.sch }}</div>
+            <div class="stat-badge red">{{ props.cardInstance.atk }}</div>
+            <div class="stat-badge orange">{{ props.cardInstance.hitPointsRemaining }}</div>
+        </div>
+
         <BaseCard 
             :img-path="props.cardInstance.imgPath"
             :orientation="'vertical'"
@@ -45,6 +51,37 @@ function handleClick() {
         transition: all 0.3s ease;
         display: inline-block;
     }
+
+    .stat-badges {
+        position: absolute;
+        top: 10px;
+        right: -12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        z-index: 15;
+        pointer-events: none;
+    }
+
+    .stat-badge {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9rem;
+        color: white;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        border: 2px solid white;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+        font-family: sans-serif;
+    }
+
+    .stat-badge.blue { background-color: #2196F3; }
+    .stat-badge.red { background-color: #f44336; }
+    .stat-badge.orange { background-color: #FF9800; }
 
     .is-targetable {
         cursor: crosshair;
@@ -77,6 +114,7 @@ function handleClick() {
         pointer-events: none;
         white-space: nowrap;
         border: 2px solid white;
+        z-index: 20;
     }
 
     h2 {

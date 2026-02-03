@@ -31,6 +31,12 @@
         @mouseleave="isHovered = false"
         @click="handleClick"
     >
+        <div class="stat-badges">
+            <div class="stat-badge blue">{{ card.sch }}</div>
+            <div class="stat-badge red">{{ card.atk }}</div>
+            <div class="stat-badge orange">{{ card.hitPointsRemaining }}</div>
+        </div>
+
         <BaseCard
             :img-path="card.imgPath"
             :orientation="'vertical'"
@@ -38,24 +44,7 @@
             :size="'small'"
             :class="{ 'zoomed': isHovered && !store.targeting.isActive }"
         />
-
-        <div v-if="isHovered && card.attachments.length && !store.targeting.isActive" class="fixed-attachment-bar">
-            <div class="attachment-label">ATTACHMENTS</div>
-            <div class="attachment-list">
-                <BaseCard
-                    v-for="(attach, index) in card.attachments"
-                    :key="index"
-                    :img-path="attach.imgPath"
-                    :orientation="'vertical'"
-                    :zoom-direction="'out'"
-                    :size="'normal'"
-                />
-            </div>
-        </div>
-
-        <div v-if="isTargetable" class="target-overlay">
-            <span class="target-text">SELECT</span>
-        </div>
+        
     </div>
 </template>
 
@@ -64,7 +53,39 @@
         position: relative;
         cursor: pointer;
         transition: transform 0.2s, filter 0.2s;
+        display: inline-block;
     }
+
+    .stat-badges {
+        position: absolute;
+        top: 5px;
+        right: -8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    .stat-badge {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.8rem;
+        color: white;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        font-family: sans-serif;
+    }
+
+    .stat-badge.blue { background-color: #2196F3; }
+    .stat-badge.red { background-color: #f44336; }
+    .stat-badge.orange { background-color: #FF9800; }
 
     .fixed-attachment-bar {
         position: fixed;
@@ -102,6 +123,11 @@
         animation: pulse-target 1.5s infinite;
     }
 
+    .is-targetable .stat-badge {
+        opacity: 0.8;
+        border-color: #00ffcc;
+    }
+
     .is-targetable:hover {
         transform: scale(1.05);
         filter: drop-shadow(0 0 30px #00ffcc) brightness(1.2);
@@ -123,6 +149,7 @@
         align-items: center;
         justify-content: center;
         pointer-events: none;
+        z-index: 20;
     }
 
     .target-text {
@@ -132,6 +159,7 @@
         border-radius: 4px;
         font-weight: bold;
         font-size: 0.75rem;
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
     }
 
     @keyframes pulse-target {
