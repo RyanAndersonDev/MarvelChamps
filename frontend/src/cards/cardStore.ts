@@ -15,8 +15,8 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
             type: "interrupt",
             forced: false,
             formRequired: "hero",
-            timing: "villainAttack",
-            effectName: "draw",
+            timing: "VILLAIN_ATTACK",
+            effectName: "drawACard",
             effectValue: 1
         }
     }]

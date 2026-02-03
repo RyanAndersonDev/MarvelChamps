@@ -39,7 +39,7 @@
                 class="option-card-wrapper" 
                 @click="store.selectInterruptCard(option)"
               >
-                <img :src="option.imgPath" :alt="option.name" class="mini-card-art" />
+                <img :src="option.heroImgPath || option.imgPath" :alt="option.name" class="mini-card-art" />
                 <div class="card-label">
                   <span class="card-name">{{ option.name }}</span>
                   <span v-if="option.cost !== undefined" class="card-cost">Cost: {{ option.cost }}</span>

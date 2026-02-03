@@ -253,7 +253,6 @@ export const useGameStore = defineStore('game', {
                     await this.emitEvent('takeIdentityDamage', damagePayload, async () => {
                         
                         if (damagePayload.isCanceled || damagePayload.amount <= 0) {
-                            console.log("Backflip worked! Stopping damage application.");
                             return;
                         }
 
@@ -490,8 +489,7 @@ export const useGameStore = defineStore('game', {
             isCanceled: false 
         };
 
-        await this.emitEvent('TREACHERY_REVEALED', treacheryPayload, async () => {
-            
+        await this.emitEvent('treacheryRevealed', treacheryPayload, async () => {
             if (treacheryPayload.isCanceled) {
                 console.log(`${card.name} was canceled!`);
                 return; 
@@ -815,6 +813,8 @@ export const useGameStore = defineStore('game', {
 
     async checkTriggers(timing: string, eventName: string, payload: any) {
         const boardTriggers: any[] = [];
+        
+        if (!payload.usedInstanceIds) payload.usedInstanceIds = [];
 
         this.collectIdentityTriggers(timing, eventName, boardTriggers);
         this.collectTableauTriggers(timing, eventName, boardTriggers);
@@ -824,11 +824,10 @@ export const useGameStore = defineStore('game', {
         for (const card of boardTriggers.filter(c => c.logic.isForced)) {
             const effect = EffectLibrary[card.logic.effectName];
             if (effect) {
-                await effect(this, {
-                    ...payload,
-                    sourceCard: card,
-                    effectValue: card.logic.value
-                });
+                payload.sourceCard = card;
+                payload.effectValue = card.logic.effectValue || card.logic.value;
+                await effect(this, payload);
+                payload.usedInstanceIds.push(card.instanceId || 'identity');
             }
         }
 
@@ -839,9 +838,16 @@ export const useGameStore = defineStore('game', {
                 break;
             }
 
-            const optionalBoard = boardTriggers.filter(c => !c.logic.isForced && !c.isExhausted);
+            const optionalBoard = boardTriggers.filter(c => 
+                !c.logic.isForced && 
+                !c.isExhausted &&
+                !payload.usedInstanceIds.includes(c.instanceId || 'identity')
+            );
+
             const handCards = this.hand.filter(card => 
-                this.isValidTrigger(card, timing, eventName) && this.canAfford(card)
+                this.isValidTrigger(card, timing, eventName) && 
+                this.canAfford(card) &&
+                !payload.usedInstanceIds.includes(card.instanceId)
             );
             
             const allOptions = [...optionalBoard, ...handCards];
@@ -849,7 +855,7 @@ export const useGameStore = defineStore('game', {
             if (allOptions.length > 0) {
                 const result = await this.requestPlayerInterrupt(eventName, payload, allOptions);
 
-                if (result === 'passed') {
+                if (result === 'passed' || result === 'cancel') {
                     windowActive = false; 
                 }
             } else {
@@ -860,9 +866,19 @@ export const useGameStore = defineStore('game', {
 
     collectIdentityTriggers(timing: string, event: string, list: any[]) {
         const hero = this.playerIdentity;
+        if (!hero) return;
 
-        if (this.isValidTrigger(hero, timing, event)) {
-            list.push(hero);
+        const activeLogic = this.hero.identityStatus === 'hero' ? hero.heroLogic : hero.aeLogic;
+
+        if (activeLogic) {
+            const trigger = {
+                ...hero,
+                logic: activeLogic
+            };
+
+            if (this.isValidTrigger(trigger, timing, event)) {
+                list.push(trigger);
+            }
         }
     },
 
@@ -914,16 +930,15 @@ export const useGameStore = defineStore('game', {
     },
 
     isValidTrigger(card: any, timing: string, event: string): boolean {
-        const l = card?.logic;
-
-        if (!l) 
+        const logic = card.logic;
+        if (!logic) 
             return false;
 
-        const matchesTiming = (l.timing === timing || l.type === timing);
-        const matchesEvent = (l.trigger === event || l.timing === event);
-        const matchesForm = !l.formRequired || l.formRequired === this.hero.identityStatus;
-
-        return matchesTiming && matchesEvent && matchesForm;
+        return (
+            logic.timing === event && 
+            logic.type === timing && 
+            (!logic.formRequired || logic.formRequired === this.hero.identityStatus)
+        );
     },
 
     async handleDefenseStep(payload: any) {
@@ -975,7 +990,8 @@ export const useGameStore = defineStore('game', {
 
     async applyDamageToEntity(payload: { targetId: number, amount: number }) {
         const target = this.findTargetById(payload.targetId);
-        if (!target) return;
+        if (!target) 
+            return;
 
         const oldHp = target.hitPointsRemaining;
         target.hitPointsRemaining = Math.max(0, (target.hitPointsRemaining || 0) - payload.amount);
@@ -1050,21 +1066,30 @@ export const useGameStore = defineStore('game', {
     async selectInterruptCard(card: any) {
         if (!this.activePrompt) return;
 
-        const isFromHand = this.hand.some(c => c.instanceId === card.instanceId);
+        const isEventFromHand = card.type === 'event' && this.hand.some(c => c.instanceId === card.instanceId);
+        const isIdentityAbility = card.type === 'player' || card.type === 'identity';
 
-        if (isFromHand) {
-            this.discardPlayerCardsFromHand([card.instanceId])
-        } else {
+        if (isEventFromHand) {
+            this.discardPlayerCardsFromHand([card.instanceId]);
+        } else if (!isIdentityAbility) {
             card.isExhausted = true;
-        }
+        } 
 
-        const effect = EffectLibrary[card.logic.effectName];
+        const effectName = card.logic.effectName || card.storageId;
+        const effect = EffectLibrary[effectName];
+
         if (effect) {
             const context = this.activePrompt.payload;
+
+            if (!context.usedInstanceIds) context.usedInstanceIds = [];
+            context.usedInstanceIds.push(card.instanceId || 'identity');
+
             context.sourceCard = card;
-            context.effectValue = card.logic.effectValue;
+            context.effectValue = card.logic.effectValue || card.logic.value;
 
             await effect(this, context);
+        } else {
+            console.error(`Missing Library Effect: No key found for "${effectName}"`);
         }
 
         const resolve = this.activePrompt.resolve;

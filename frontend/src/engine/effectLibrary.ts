@@ -37,7 +37,7 @@ export const EffectLibrary: Record<string, (state: any, context: any) => Promise
     if (reductionPower === 100 || context.preventAll) {
       context.amount = 0;
       context.isCanceled = true;
-      console.log("Damage fully prevented by Backflip (or similar).");
+      console.log("Damage fully prevented.");
     } else {
       context.amount = Math.max(0, context.amount - reductionPower);
       console.log(`Damage reduced by ${reductionPower}. Remaining: ${context.amount}`);
@@ -55,4 +55,12 @@ export const EffectLibrary: Record<string, (state: any, context: any) => Promise
     context.isResolved = true;
     console.log("Effect canceled by library.");
   },
+
+  drawACard: async (state, context) => {
+    const amount = context.effectValue || 1;
+    
+    for (let i = 0; i < amount; i++) {
+      await state.drawCardFromDeck();
+    }
+  }
 };
