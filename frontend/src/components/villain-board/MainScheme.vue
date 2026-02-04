@@ -41,7 +41,7 @@
     <div class="stats-overlay">
       <div class="stat-badge threat">
         <span class="label">THREAT</span>
-        <span class="value">{{ schemeInstance.currentThreat }}</span>
+        <span class="value">{{ schemeInstance.threatRemaining }}</span>
       </div>
       <div class="stat-badge threshold">
         <span class="label">LIMIT</span>

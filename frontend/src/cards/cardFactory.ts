@@ -136,7 +136,10 @@ function printIdentityCard (blueprint: IdentityCard, instanceId: number): Identi
         instanceId: instanceId,
         hitPointsRemaining: blueprint.hitPoints,
         exhausted: false,
-        identityStatus: "alter-ego"
+        identityStatus: "alter-ego",
+        confused: false,
+        stunned: false,
+        tough: false
     }
 }
 
@@ -155,6 +158,7 @@ export function printVillainIdentityCard(blueprint: VillainIdentityCard, instanc
     return {
         ... blueprint,
         instanceId: instanceId,
+        type: "villain",
         attachments: [],
         hitPointsRemaining: blueprint.hitPointsPerPlayer * 1, // TODO: Make number of players!
         stunned: false,
@@ -177,7 +181,8 @@ export function printMainSchemeCard(blueprint: MainScheme, instanceId: number) :
     return {
         ... blueprint,
         instanceId: instanceId,
-        currentThreat: blueprint.startingThreatIsPerPlayer 
+        type: "main-scheme",
+        threatRemaining: blueprint.startingThreatIsPerPlayer 
             ? blueprint.startingThreat * 1 // TODO: Make number of players!
             : blueprint.startingThreat
     }

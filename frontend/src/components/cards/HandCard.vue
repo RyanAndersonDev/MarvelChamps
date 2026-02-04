@@ -34,16 +34,16 @@
     <div class="button-row">
       <button v-if="mode === 'play'" @click="playCard">Play</button>
       <button v-else-if="mode === 'resource'" @click="useAsResource">Resource</button>
-      <button v-else disabled>Used</button> <!-- visually indicate selected resources -->
+      <button v-else disabled>Used</button>
     </div>
   </div>
 </template>
 
 <style scoped>
   .hand-card-wrapper {
-    display: flex;            /* make this a flex container */
-    flex-direction: column;   /* stack children vertically: card first, buttons below */
-    align-items: center;      /* horizontally center all children */
-    gap: 8px;                 /* space between card and buttons */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
 </style>

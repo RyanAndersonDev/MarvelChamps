@@ -278,11 +278,11 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.85); /* Heavy dimming for focus */
+    background: rgba(0, 0, 0, 0.85);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 9999; /* Top of the world */
+    z-index: 9999;
     backdrop-filter: blur(4px);
   }
 

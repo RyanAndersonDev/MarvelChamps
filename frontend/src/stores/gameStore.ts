@@ -120,8 +120,8 @@ export const useGameStore = defineStore('game', {
         this.villainDeckIds = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
         this.shufflePile(this.villainDeckIds);
 
-        this.drawToHandSize();
         this.idIncrementer = initIdCounter;
+        this.drawToHandSize();
     },
 
     async advanceGame() {
@@ -217,10 +217,10 @@ export const useGameStore = defineStore('game', {
             if (threatPayload.isCanceled) 
                 return;
 
-            this.mainScheme!.currentThreat += threatPayload.amount;
+            this.mainScheme!.threatRemaining += threatPayload.amount;
 
             await this.emitEvent('THREAT_PLACED', threatPayload, async () => {
-                if (this.mainScheme!.currentThreat >= this.mainScheme!.threatThreshold) {
+                if (this.mainScheme!.threatRemaining >= this.mainScheme!.threatThreshold) {
                     // handle victory
                 }
             });
@@ -438,6 +438,109 @@ export const useGameStore = defineStore('game', {
         this.shufflePile(this.deckIds);
     },
 
+    // ****************************** ALLY ACTIONS ******************************
+    async thwartWithAlly(instanceId: number) {
+        const ally = this.findTableauCardById(instanceId) as Ally;
+        if (!ally || ally.exhausted) 
+            return;
+
+        const targetId = await this.requestTarget(null, 'scheme');
+        if (!targetId) 
+            return;
+
+        const target: MainSchemeInstance | SideScheme = this.findSchemeById(targetId); 
+        if (!target) 
+            return;
+
+        const thwartContext = { source: ally, target, value: ally.thw };
+
+        await this.emitEvent('ALLY_THWARTS', thwartContext, async () => {
+            const threatEventName = target.type === "side-scheme" ? 'SIDE_SCHEME_LOSES_THREAT' : 'MAIN_SCHEME_LOSES_THREAT';
+            const threatContext = { target, amount: thwartContext.value, source: ally };
+
+            await this.emitEvent(threatEventName, threatContext, async () => {
+                target.threatRemaining = Math.max(0, target.threatRemaining - threatContext.amount);
+                console.log(`${target.name} lost ${threatContext.amount} threat.`);
+            });
+
+            ally.exhausted = true;
+            
+            const consDamage = ally.thwPain ?? 0;
+            ally.hitPointsRemaining -= consDamage;
+
+            if (target.type === 'side-scheme' && target.threatRemaining === 0) {
+                this.discardSideScheme(target.instanceId);
+            }
+
+            // TODO: Handle death by consequential damage
+            // if (ally.hitPointsRemaining <= 0) {
+            //     this.discardFromTableau(ally.instanceId);
+            // }
+
+            console.log(`${ally.name} successfully thwarted ${target.name}.`);
+        });
+    },
+
+    async attackWithAlly(instanceId: number) {
+        const ally = this.findTableauCardById(instanceId) as Ally;
+        if (!ally || ally.exhausted) 
+            return;
+
+        const targetId = await this.requestTarget(null, 'enemy');
+        if (!targetId) 
+            return;
+
+        const target: VillainIdentityCardInstance | Minion = this.findEnemyById(targetId);
+        if (!target) 
+            return;
+
+        const attackContext = { source: ally, target, damage: ally.atk };
+
+        await this.emitEvent('ALLY_ATTACKS', attackContext, async () => {
+            
+            const damageEventName = target.type === "minion" ? 'MINION_TAKES_DAMAGE' : 'VILLAIN_TAKES_DAMAGE';
+            const damageContext = { target, amount: attackContext.damage, source: ally };
+
+            await this.emitEvent(damageEventName, damageContext, async () => {
+                target.hitPointsRemaining = Math.max(0, target.hitPointsRemaining! - damageContext.amount);
+                console.log(`${target.name} took ${damageContext.amount} damage.`);
+            });
+
+            ally.exhausted = true;
+            const consDamage = ally.atkPain ?? 0;
+            ally.hitPointsRemaining -= consDamage;
+
+            if (target.type === 'minion' && target.hitPointsRemaining === 0) {
+                this.discardFromEngagedMinions(target.instanceId);
+            }
+
+            // TODO: Handle consequential dmg from attacks
+            // if (ally.hitPointsRemaining <= 0) {
+            //     this.discardFromTableau(ally.instanceId);
+            // }
+        });
+    },
+
+    findTableauCardById(lookupId: number): PlayerCardInstance | undefined {
+        const cardToUse = this.tableauCards.find(c => c.instanceId === lookupId);
+
+        if (!cardToUse) {
+            console.log(`No tableau card found with instance ID ${lookupId}`);
+            return undefined;
+        }
+
+        return cardToUse;
+    },
+
+    tableauCardIsAlly(card: PlayerCardInstance | undefined): card is Ally {
+        if (!card || card.type !== "ally") {
+            return false;
+        }
+
+        return true;
+    },
+
+
     // ****************************** VILLAIN CARDS ******************************
 
     discardVillainCards(cardIds: number[]) {
@@ -562,18 +665,24 @@ export const useGameStore = defineStore('game', {
             if (minion.attachments && minion.attachments.length > 0) {
                 minion.attachments.forEach((card) => {
                     const dest = card.type === 'upgrade' ? this.playerDiscardIds : this.villainDiscardIds;
-                    dest.push(card.instanceId!);
+                    
+                    if (card.storageId) {
+                        dest.push(card.storageId);
+                    }
                 });
             }
 
-            this.villainDiscardIds.push(minion.storageId!);
+            if (minion.storageId) {
+                this.villainDiscardIds.push(minion.storageId);
+            }
+            
             this.engagedMinions = this.engagedMinions.filter(m => m.instanceId !== instanceIdToDc);
             
             console.log(`${minion.name} has been removed from the board.`);
         });
     },
 
-    discardSideScheme(instanceIdToDc: number) {
+    async discardSideScheme(instanceIdToDc: number) {
         const sideScheme = this.activeSideSchemes.find(s => s.instanceId === instanceIdToDc);
 
         if (!sideScheme) {
@@ -581,18 +690,38 @@ export const useGameStore = defineStore('game', {
             return;
         }
 
-        // TODO: add logic to handle discarding attachments
+        const context = { scheme: sideScheme };
 
-        this.villainDiscardIds.push(sideScheme.storageId!)
-        this.activeSideSchemes = this.activeSideSchemes.filter(s => s.instanceId !== instanceIdToDc);
+        await this.emitEvent('SIDE_SCHEME_DEFEATED', context, async () => {
+            
+            // TODO: Check for attachments
+            
+            if (sideScheme.storageId) {
+                this.villainDiscardIds.push(sideScheme.storageId);
+            }
+
+            this.activeSideSchemes = this.activeSideSchemes.filter(
+                s => s.instanceId !== instanceIdToDc
+            );
+
+            console.log(`Side Scheme ${sideScheme.name} has been defeated and discarded.`);
+        });
     },
 
-    findEnemyById(id: number) {
+    findEnemyById(id: number): VillainIdentityCardInstance | Minion {
         if (this.villainCard && this.villainCard.instanceId === id) {
-            return this.villainCard;
+            return this.villainCard as VillainIdentityCardInstance;
         }
 
-        return this.engagedMinions.find(m => m.instanceId === id);
+        return this.engagedMinions.find(m => m.instanceId === id) as Minion;
+    },
+
+    findSchemeById(id: number): MainSchemeInstance | SideScheme {
+        if (this.mainScheme && this.mainScheme.instanceId === id) {
+            return this.mainScheme as MainSchemeInstance;
+        }
+
+        return this.activeSideSchemes.find(s => s.instanceId === id) as SideScheme;
     },
 
     // ****************************** GENERAL UTILS ******************************
@@ -678,7 +807,7 @@ export const useGameStore = defineStore('game', {
         console.log(`Thwarting for ${thwAmt}!`);
 
         if (this.mainScheme!.instanceId === id) {
-            this.mainScheme!.currentThreat = Math.max(0, this.mainScheme!.currentThreat - thwAmt);
+            this.mainScheme!.threatRemaining = Math.max(0, this.mainScheme!.threatRemaining - thwAmt);
         } else {
             const sideScheme = this.activeSideSchemes.find(ss => ss.instanceId === id);
 

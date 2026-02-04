@@ -11,6 +11,7 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
             effectName: "generateMentalResource",
             effectValue: 1
         },
+        aeAbilityExhausts: false,
         heroLogic: {
             type: "interrupt",
             forced: false,
@@ -18,13 +19,14 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
             timing: "VILLAIN_ATTACK",
             effectName: "drawACard",
             effectValue: 1
-        }
+        },
+        heroAbilityExhausts: false
     }]
 ]);
 
 export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     [1, { name: "Black Cat", side: "player", type: "ally", cost: 2, aspect: "hero", imgPath: "/cards/heroes/spider-man/BlackCat-Ally.png", tags: ["hero for hire"], resources: ["energy"], flavorText: "",
-        thw: 1, thwPain: 1, atk: 1, atkPain: 0, health: 2, 
+        thw: 1, thwPain: 1, atk: 1, atkPain: 0, health: 2, abilityExhausts: false,
         logic: {
             type: "response",
             forced: true,
@@ -65,7 +67,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             targetType: "enemy"
         }
      }],
-    [5, { name: "Aunt May", side: "player", type: "support", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/AuntMay-Support.png", tags: ["persona"], resources: ["energy"], flavorText: "",
+    [5, { name: "Aunt May", side: "player", type: "support", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/AuntMay-Support.png", tags: ["persona"], resources: ["energy"], flavorText: "", abilityExhausts: true,
         logic: {
             type: "action",
             forced: false,
@@ -88,7 +90,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
         }
      }],
     [7, { name: "Web-Shooter", side: "player", type: "upgrade", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/WebShooter-Upgrade.png", tags: ["item", "tech"], resources: ["physical"], flavorText: "",
-        "attachmentLocation": "tableau",
+        "attachmentLocation": "tableau", abilityExhausts: true,
         logic: {
             type: "resource",
             forced: false,

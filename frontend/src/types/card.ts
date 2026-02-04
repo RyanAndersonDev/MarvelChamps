@@ -36,17 +36,19 @@ export interface IdentityCard extends CardBase {
     heroTags: string[];
     aeLogic: CardLogic;
     heroLogic: CardLogic;
+    aeAbilityExhausts: boolean;
+    heroAbilityExhausts: boolean;
     storageId?: number;
 }
 
 export interface IdentityCardInstance extends IdentityCard {
     instanceId: number;
-    hitPointsRemaining?: number;
-    exhausted?: boolean;
-    identityStatus?: IdentityStatus;
-    stunned?: boolean;
-    confused?: boolean;
-    tough?: boolean;
+    hitPointsRemaining: number;
+    exhausted: boolean;
+    identityStatus: IdentityStatus;
+    stunned: boolean;
+    confused: boolean;
+    tough: boolean;
 }
 
 export interface PlayerCard extends CardBase {
@@ -64,6 +66,7 @@ export interface PlayerCard extends CardBase {
     atkPain?: number;
     health?: number;
     attachmentLocation?: AttachmentLocation;
+    abilityExhausts?: boolean;
 }
 
 export interface PlayerCardInstance extends PlayerCard {
@@ -113,6 +116,7 @@ export interface VillainIdentityCardInstance extends VillainIdentityCard {
     stunned?: boolean;
     confused?: boolean;
     tough?: boolean;
+    type: "villain";
 }
 
 export interface VillainCard extends CardBase {
@@ -152,6 +156,7 @@ export interface Attachment extends VillainCardInstance {
 
 export interface SideScheme extends VillainCardInstance {
     threatRemaining: number;
+    type: "side-scheme";
 }
 
 export interface MainScheme extends CardBase {
@@ -166,7 +171,8 @@ export interface MainScheme extends CardBase {
 
 export interface MainSchemeInstance extends MainScheme {
     instanceId: number;
-    currentThreat: number;
+    threatRemaining: number;
+    type: "main-scheme"
 }
 
 export interface CardLogic {
