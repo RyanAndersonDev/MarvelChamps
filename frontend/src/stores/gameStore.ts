@@ -328,7 +328,8 @@ export const useGameStore = defineStore('game', {
         };
 
         await this.emitEvent('MINION_ATTACK', attackPayload, async () => {
-            if (attackPayload.isCanceled) return;
+            if (attackPayload.isCanceled) 
+                return;
 
             if (this.canAnyoneDefend) {
                 await this.handleDefenseStep(attackPayload);
@@ -943,7 +944,8 @@ export const useGameStore = defineStore('game', {
     async checkTriggers(timing: string, eventName: string, payload: any) {
         const boardTriggers: any[] = [];
         
-        if (!payload.usedInstanceIds) payload.usedInstanceIds = [];
+        if (!payload.usedInstanceIds) 
+            payload.usedInstanceIds = [];
 
         this.collectIdentityTriggers(timing, eventName, boardTriggers);
         this.collectTableauTriggers(timing, eventName, boardTriggers);
@@ -1097,8 +1099,27 @@ export const useGameStore = defineStore('game', {
             payload.targetType = 'ally';
             payload.targetId = choice.id;
             
-            const ally = this.tableauCards.find(c => c.instanceId === choice.id);
-            if (ally) ally.exhausted = true;
+            const ally = this.tableauCards.find(c => c.instanceId === choice.id) as Ally | undefined;
+
+            if (ally) {
+                const defenseAction = async () => {
+                    ally.exhausted = true;
+                };
+
+                await this.emitEvent(
+                    "ALLY_DEFENDS", 
+                    { name: ally.name, instanceId: ally.instanceId }, 
+                    defenseAction
+                );
+
+                if (payload.isCanceled) 
+                    return;
+
+                await this.applyDamageToEntity({ 
+                    targetId: ally.instanceId!, 
+                    amount: payload.attackValue 
+                });
+            }
         }
     },
 
@@ -1117,27 +1138,39 @@ export const useGameStore = defineStore('game', {
         });
     },
 
-    async applyDamageToEntity(payload: { targetId: number, amount: number }) {
-        const target = this.findTargetById(payload.targetId);
+    async applyDamageToEntity(damageData: { targetId: number, amount: number }) {
+        const target = this.findTargetById(damageData.targetId);
         if (!target) 
             return;
 
-        const oldHp = target.hitPointsRemaining;
-        target.hitPointsRemaining = Math.max(0, (target.hitPointsRemaining || 0) - payload.amount);
-        
-        console.log(`Worker: Subtracted ${payload.amount} from ${target.name}.`);
+        const performDamage = () => {
+            target.hitPointsRemaining = Math.max(0, (target.hitPointsRemaining || 0) - damageData.amount);
+        };
+
+        await this.emitEvent(
+            "ENTITY_DAMAGED", 
+            { targetId: damageData.targetId, amount: damageData.amount }, 
+            performDamage
+        );
     },
 
-    findTargetById(instanceId: number) {
-        if (this.hero?.instanceId === instanceId) return this.hero;
+    findTargetById(instanceId: number): IdentityCardInstance | VillainIdentityCardInstance | Minion | Ally | undefined {
+        if (this.hero?.instanceId === instanceId) 
+            return this.hero;
 
-        if (this.villainCard?.instanceId === instanceId) return this.villainCard;
+        if (this.villainCard?.instanceId === instanceId) 
+            return this.villainCard;
 
         const minion = this.engagedMinions.find(m => m.instanceId === instanceId);
-        if (minion) return minion;
+        if (minion) 
+            return minion;
+
+        const ally = this.tableauCards.find(a => a.instanceId === instanceId && a.type === "ally");
+        if (ally) 
+            return ally as Ally;
 
         console.warn(`Entity with instanceId ${instanceId} not found in active zones.`);
-        return null;
+        return undefined;
     },
 
     // --- TARGETING ACTIONS ---

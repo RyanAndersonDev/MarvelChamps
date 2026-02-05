@@ -25,7 +25,8 @@ export const EffectLibrary: Record<string, (state: any, context: any) => Promise
     };
 
     await state.emitEvent('ENTITY_TAKES_DAMAGE', damagePayload, async () => {
-      if (damagePayload.isCanceled || damagePayload.amount <= 0) return;
+      if (damagePayload.isCanceled || damagePayload.amount <= 0) 
+        return;
 
       await state.applyDamageToEntity(damagePayload);
     });
