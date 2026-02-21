@@ -63,6 +63,10 @@ export const useGameStore = defineStore('game', {
     paymentBufferIds: [] as number[],
     generatedResources: [] as Resource[],
 
+    pendingInterruptCard: null as any,
+    pendingInterruptPayload: null as any,
+    pendingInterruptResolve: null as ((value: string) => void) | null,
+
     isTargeting: false,
     targetType: null as string | null,
     resolveTargetPromise: null as ((id: number) => void) | null,
@@ -125,6 +129,30 @@ export const useGameStore = defineStore('game', {
 
     hasCrisisScheme(): boolean {
         return this.activeSideSchemes.some(ss => ss.crisis);
+    },
+
+    isHandCardPlayable: (state) => (card: any): boolean => {
+        if (!card?.logic) return false;
+
+        // Non-events (allies, supports, upgrades) can always be played from hand during player turn.
+        // formRequired only restricts their tableau ABILITY, not playing them from hand.
+        if (card.type !== 'event') {
+            if (state.currentPhase !== 'PLAYER_TURN') return false;
+            if (card.attachmentLocation === 'minion') return state.engagedMinions.length > 0;
+            if (card.attachmentLocation === 'enemy') return state.engagedMinions.length > 0 || !!state.villainCard;
+            return true;
+        }
+
+        // Events: playing IS using, so form restriction applies here.
+        const form = card.logic.formRequired;
+        const identityStatus = state.playerIdentity?.identityStatus;
+        if (form && form !== 'any' && form !== identityStatus) return false;
+
+        // Action events are directly playable during player turn
+        if (card.logic.type === 'action') return state.currentPhase === 'PLAYER_TURN';
+
+        // Interrupt/response events only appear via the interrupt window
+        return false;
     }
   },
 
@@ -493,6 +521,15 @@ export const useGameStore = defineStore('game', {
                     // TODO await this.handleEmptyVillainDeck();
                 }
             }
+
+            // Hazard: each active Hazard side scheme deals one additional encounter card
+            for (const scheme of this.activeSideSchemes.filter(ss => ss.hazard)) {
+                const cardId = this.villainDeckIds.pop();
+                if (cardId) {
+                    this.encounterPileIds.push(cardId);
+                    this.addLog(`${scheme.name} (Hazard) dealt an additional encounter card.`, 'villain');
+                }
+            }
         });
 
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -766,12 +803,6 @@ export const useGameStore = defineStore('game', {
 
             this.activeSideSchemes.push(sideScheme);
             this.addLog(`Side Scheme ${card.name} entered with ${sideScheme.threatRemaining} threat.`, 'villain');
-
-            // Hazard: deal an additional encounter card
-            if (sideScheme.hazard) {
-                this.addLog(`${card.name} has Hazard — drawing additional encounter card.`, 'villain');
-                this.drawFromVillainDeckAsEncounterCard();
-            }
 
             await this.emitEvent('SIDE_SCHEME_ENTERED', payload, async () => {});
         });
@@ -1048,8 +1079,30 @@ export const useGameStore = defineStore('game', {
     },
 
     async finalizePlay() {
+        // Pending paid interrupt — execute the interrupt effect then resume the interrupt promise
+        if (this.pendingInterruptCard) {
+            const card = this.pendingInterruptCard;
+            const context = this.pendingInterruptPayload;
+            const resolve = this.pendingInterruptResolve;
+
+            this.pendingInterruptCard = null;
+            this.pendingInterruptPayload = null;
+            this.pendingInterruptResolve = null;
+
+            this.discardPlayerCardsFromHand(this.paymentBufferIds);
+            this.discardPlayerCardsFromHand([card.instanceId]);
+            this.resetPayment();
+
+            if (card.logic?.effects) {
+                await executeEffects(card.logic.effects, this, context);
+            }
+
+            if (resolve) resolve("played");
+            return;
+        }
+
         const card = { ...this.activeCard } as (Upgrade | Event | Ally | Support);
-        if (!card) 
+        if (!card)
             return;
 
         this.discardPlayerCardsFromHand(this.paymentBufferIds);
@@ -1084,6 +1137,14 @@ export const useGameStore = defineStore('game', {
         this.activeCardId = null;
         this.paymentBufferIds = [];
         this.generatedResources = [];
+        // If cancelling a pending paid interrupt, resolve the suspended promise as "passed"
+        if (this.pendingInterruptResolve) {
+            const resolve = this.pendingInterruptResolve;
+            this.pendingInterruptCard = null;
+            this.pendingInterruptPayload = null;
+            this.pendingInterruptResolve = null;
+            resolve("passed");
+        }
     },
 
     canAfford(card: any): boolean {
@@ -1417,12 +1478,16 @@ export const useGameStore = defineStore('game', {
     },
 
     async executeCardEffect(card: any) {
-        if (card.logic?.effects) {
-            await executeEffects(card.logic.effects, this, {
-                sourceCard: card,
-                playerForm: this.hero.identityStatus
-            });
+        if (!card.logic?.effects) return;
+        const form = card.logic.formRequired;
+        if (form && form !== 'any' && form !== this.hero.identityStatus) {
+            this.addLog(`${card.name} requires ${form} form.`, 'system');
+            return;
         }
+        await executeEffects(card.logic.effects, this, {
+            sourceCard: card,
+            playerForm: this.hero.identityStatus
+        });
     },
 
     async requestPlayerInterrupt(event: string, payload: any, playableCards: any[]) {
@@ -1443,11 +1508,27 @@ export const useGameStore = defineStore('game', {
         const isEventFromHand = card.type === 'event' && this.hand.some(c => c.instanceId === card.instanceId);
         const isIdentityAbility = card.type === 'player' || card.type === 'identity';
 
+        // Paid event interrupt — enter payment mode; resume in finalizePlay
+        if (isEventFromHand && card.cost > 0) {
+            const context = this.activePrompt.payload;
+            if (!context.usedInstanceIds) context.usedInstanceIds = [];
+            context.usedInstanceIds.push(card.instanceId);
+            context.sourceCard = card;
+
+            this.pendingInterruptCard = card;
+            this.pendingInterruptPayload = context;
+            this.pendingInterruptResolve = this.activePrompt.resolve;
+            this.activePrompt = null;
+
+            this.startPayment(card.instanceId);
+            return;
+        }
+
         if (isEventFromHand) {
             this.discardPlayerCardsFromHand([card.instanceId]);
         } else if (!isIdentityAbility) {
             card.exhausted = true;
-        } 
+        }
 
         if (card.logic?.effects) {
             const context = this.activePrompt.payload;
@@ -1463,7 +1544,7 @@ export const useGameStore = defineStore('game', {
         }
 
         const resolve = this.activePrompt.resolve;
-        this.activePrompt = null; 
+        this.activePrompt = null;
         resolve("played");
     },
 
