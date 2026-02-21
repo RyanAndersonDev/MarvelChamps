@@ -203,6 +203,7 @@ export interface Treachery extends VillainCardInstance {
 export interface Attachment extends VillainCardInstance {
     atkMod?: number;
     schMod?: number;
+    thwMod?: number;
     logic?: CardLogic;
     damageAccumulated?: number;
     overkill?: boolean;
