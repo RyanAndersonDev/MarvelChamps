@@ -1130,11 +1130,6 @@ export const useGameStore = defineStore('game', {
 
         await executeEffects(logic.effects, this, context);
 
-        // Exhaust if needed
-        if (instanceId !== 'identity' && card.abilityExhausts) {
-            card.exhausted = true;
-        }
-
         // Add generated resource to payment
         if (context.generatedResource) {
             this.generatedResources.push(context.generatedResource);

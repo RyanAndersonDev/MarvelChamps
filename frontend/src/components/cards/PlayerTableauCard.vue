@@ -3,7 +3,6 @@
   import { useGameStore } from "../../stores/gameStore";
   import BaseCard from './BaseCard.vue';
   import type { Ally, Upgrade, Support } from '../../types/card';
-  import type { PlayerCardType } from '../../types/card';
     
   const store = useGameStore();
   const props = defineProps<{ card: Ally | Upgrade | Support }>();
@@ -16,9 +15,12 @@
       return null;
   });
 
-  function doAction() : void {
-    const cardType : PlayerCardType = props.card.type;
-    console.log("test");
+  function doAction(): void {
+    if (props.card.logic.type === 'resource') {
+      store.useResourceAbility(props.card.instanceId!);
+    } else {
+      store.executeCardEffect(props.card);
+    }
   }
 </script>
 
@@ -53,9 +55,9 @@
         @click="store.attackWithAlly(card.instanceId!)"
       >ATK</button>
       
-      <button 
+      <button
         v-if="!card.logic.forced && store.currentPhase === 'PLAYER_TURN'"
-        :disabled="!card.abilityExhausts"
+        :disabled="card.abilityExhausts && card.exhausted"
         @click="doAction">Action</button>
     </div>
   </div>

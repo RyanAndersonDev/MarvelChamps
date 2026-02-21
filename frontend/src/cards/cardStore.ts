@@ -23,7 +23,7 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
 ]);
 
 export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
-    [1, { name: "Black Cat", side: "player", type: "ally", cost: 2, aspect: "hero", imgPath: "/cards/heroes/spider-man/BlackCat-Ally.png", tags: ["hero for hire"], resources: ["energy"], flavorText: "", abilityExhausts: false,
+    [1, { name: "Black Cat", side: "player", type: "ally", cost: 2, aspect: "hero", imgPath: "/cards/heroes/spider-man/BlackCat-Ally.png", tags: ["hero for hire"], resources: ["energy"], flavorText: "", abilityExhausts: false, thw: 1, atk: 1, thwPain: 1, atkPain: 1, health: 2,
         logic: {
             type: "response",
             forced: true,
@@ -67,7 +67,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             forced: false,
             formRequired: "alter-ego",
             timing: "PLAYER_TURN",
-            effects: [{ op: 'heal', target: 'identity', amount: 4 }]
+            effects: [{ op: 'heal', target: 'identity', amount: 4 }, { op: 'exhaust' }]
         }
     }],
     [6, { name: "Spider-Tracer", side: "player", type: "upgrade", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/SpiderTracer-Upgrade.png", tags: ["item", "tech"], resources: ["energy"], flavorText: "",
@@ -90,7 +90,8 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             effects: [{
                 op: 'sequence', effects: [
                     { op: 'decrementCounter', discardIfEmpty: true },
-                    { op: 'generateResource', resourceType: 'wild' }
+                    { op: 'generateResource', resourceType: 'wild' },
+                    { op: 'exhaust' }
                 ]
             }]
         }

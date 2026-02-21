@@ -48,6 +48,7 @@ export type EffectDef =
   | { op: 'discardSelf' }
   | { op: 'discardTopDeck';   amount: number; addToHandIfHasResource?: Resource }
   | { op: 'decrementCounter'; discardIfEmpty?: boolean }
+  | { op: 'exhaust' }
   | { op: 'surge' }
   | { op: 'redirectDamage';   discardAt?: number }
   | { op: 'if';       condition: EffectCondition; then: EffectDef | EffectDef[]; else?: EffectDef | EffectDef[] }

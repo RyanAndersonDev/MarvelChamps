@@ -90,7 +90,11 @@ function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Al
         cost: blueprint.cost,
         aspect: blueprint.aspect,
         imgPath: blueprint.imgPath,
-        logic: blueprint.logic
+        logic: blueprint.logic,
+        abilityExhausts: blueprint.abilityExhausts ?? false,
+        tags: blueprint.tags ?? [],
+        resources: blueprint.resources ?? [],
+        flavorText: blueprint.flavorText ?? ''
     };
 
     switch (blueprint.type) {

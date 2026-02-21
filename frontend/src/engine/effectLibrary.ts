@@ -194,6 +194,14 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             break;
         }
 
+        case 'exhaust': {
+            if (context.sourceCard) {
+                context.sourceCard.exhausted = true;
+                state.addLog(`${context.sourceCard.name} exhausted.`, 'status');
+            }
+            break;
+        }
+
         case 'surge': {
             context.surge = true;
             state.addLog("Surge triggered.", 'surge');
