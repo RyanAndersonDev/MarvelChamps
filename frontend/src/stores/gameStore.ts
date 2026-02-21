@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
-import { type Ally, type Event, type Upgrade, type Support, type IdentityCardInstance, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme, type PlayerCardInstance } 
+import { type Ally, type Event, type Upgrade, type Support, type IdentityCardInstance, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme, type PlayerCardInstance, type Resource }
     from '../types/card'
+import { villainCardMap } from "../cards/cardStore";
 import { GamePhase, type GamePhaseType } from "../types/phases";
 import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme, createIdentityCard } from "../cards/cardFactory";
 import { EffectLibrary } from "../engine/effectLibrary";
@@ -59,6 +60,7 @@ export const useGameStore = defineStore('game', {
 
     activeCardId: null as number | null,
     paymentBufferIds: [] as number[],
+    generatedResources: [] as Resource[],
 
     isTargeting: false,
     targetType: null as string | null,
@@ -81,7 +83,7 @@ export const useGameStore = defineStore('game', {
 
     committedResources(state): Record<string, number> {
         const counts: Record<string, number> = { physical: 0, mental: 0, energy: 0, wild: 0 };
-        
+
         state.paymentBufferIds.forEach(id => {
             const card = state.hand.find(c => c.instanceId === id);
 
@@ -89,6 +91,11 @@ export const useGameStore = defineStore('game', {
                 counts[r]!++;
             });
         });
+
+        state.generatedResources.forEach((r: string) => {
+            counts[r]!++;
+        });
+
         return counts;
     },
 
@@ -102,8 +109,16 @@ export const useGameStore = defineStore('game', {
     canAnyoneDefend(): boolean {
         const heroCanDefend = !this.hero.exhausted;
         const alliesCanDefend = this.tableauCards.some(c => c.type === 'ally' && !c.exhausted);
-        
+
         return heroCanDefend || alliesCanDefend;
+    },
+
+    hasGuardMinion(): boolean {
+        return this.engagedMinions.some(m => m.guard);
+    },
+
+    hasCrisisScheme(): boolean {
+        return this.activeSideSchemes.some(ss => ss.crisis);
     }
   },
 
@@ -168,7 +183,19 @@ export const useGameStore = defineStore('game', {
     },
 
     async processVillainActivation() {
+        if (this.villainCard?.stunned) {
+            console.log(`${this.villainCard.name} is stunned — activation skipped, stun removed.`);
+            this.villainCard.stunned = false;
+            return;
+        }
+
         if (this.hero.identityStatus === "alter-ego") {
+            if (this.villainCard?.confused) {
+                console.log(`${this.villainCard.name} is confused — scheme skipped, confused removed.`);
+                this.villainCard.confused = false;
+                return;
+            }
+
             const initialPayload = {
                 attacker: this.villainCard?.name || 'Villain',
                 baseThreat: this.villainCard?.sch || 0,
@@ -179,14 +206,18 @@ export const useGameStore = defineStore('game', {
             await this.villainActivationScheme(initialPayload);
         }
         else {
+            const atkBonus = (this.villainCard?.attachments || [])
+                .reduce((sum, att) => sum + ((att as Attachment).atkMod || 0), 0);
+
             const initialPayload = {
                 attacker: this.villainCard?.name || 'Villain',
-                baseDamage: this.villainCard?.atk || 0,
+                baseDamage: (this.villainCard?.atk || 0) + atkBonus,
                 boostDamage: 0,
                 isDefended: false,
                 targetType: 'identity',
                 targetId: 'hero',
-                isCanceled: false
+                isCanceled: false,
+                overkill: (this.villainCard?.attachments || []).some(att => (att as Attachment).overkill)
             };
 
             await this.villainActivationAttack(initialPayload);
@@ -228,6 +259,23 @@ export const useGameStore = defineStore('game', {
     },
 
     async villainActivationAttack(attackPayload: any) {
+        // Check for player attachments that trigger when this enemy attacks (e.g. Webbed Up)
+        const playerAttachments = (this.villainCard?.attachments || []).filter(a => a.side === 'player');
+        for (const att of playerAttachments) {
+            await this.emitEvent('attachedAttacks', {
+                attachment: att,
+                attacker: this.villainCard,
+                sourceCard: att,
+                attackPayload
+            }, async () => {});
+        }
+
+        if (attackPayload.isCanceled) return;
+
+        // Emit ENEMY_ATTACK so Spider-Sense can trigger on both villain and minion attacks
+        await this.emitEvent('ENEMY_ATTACK', attackPayload, async () => {});
+        if (attackPayload.isCanceled) return;
+
         await this.emitEvent('VILLAIN_ATTACK', attackPayload, async () => {
             if (attackPayload.isCanceled) return;
 
@@ -244,51 +292,82 @@ export const useGameStore = defineStore('game', {
 
             if (attackPayload.targetType === 'identity') {
                 if (finalDamage > 0) {
-                    const damagePayload = { 
+                    const damagePayload = {
                         amount: finalDamage,
                         isCanceled: false,
-                        targetId: this.hero.instanceId 
+                        targetId: this.hero.instanceId
                     };
 
                     await this.emitEvent('takeIdentityDamage', damagePayload, async () => {
-                        
                         if (damagePayload.isCanceled || damagePayload.amount <= 0) {
                             return;
                         }
 
                         await this.applyDamageToEntity(damagePayload);
+                        attackPayload.damageWasDealt = true;
                     });
                 }
             }
             else if (attackPayload.targetType === 'ally') {
-                const damagePayload = { 
-                    amount: finalDamage, 
+                const ally = this.tableauCards.find(c => c.instanceId === attackPayload.targetId) as Ally | undefined;
+                const allyHpBefore = ally?.hitPointsRemaining ?? 0;
+
+                const damagePayload = {
+                    amount: finalDamage,
                     isCanceled: false,
-                    targetId: attackPayload.targetId 
+                    targetId: attackPayload.targetId
                 };
 
                 await this.emitEvent('takeAllyDamage', damagePayload, async () => {
                     if (damagePayload.isCanceled || damagePayload.amount <= 0) {
-                        console.log("Ally damage was prevented.");
                         return;
                     }
-                    
+
                     await this.applyDamageToEntity(damagePayload);
+                    attackPayload.damageWasDealt = true;
                 });
+
+                // Overkill: excess damage spills to hero
+                if (attackPayload.overkill && ally) {
+                    const excess = finalDamage - allyHpBefore;
+                    if (excess > 0) {
+                        console.log(`Overkill! ${excess} excess damage dealt to hero.`);
+                        await this.applyDamageToEntity({ targetId: this.hero.instanceId, amount: excess });
+                    }
+                }
+
+                // Check if ally was defeated
+                if (ally && ally.hitPointsRemaining <= 0) {
+                    this.discardFromTableau(ally.instanceId!);
+                }
             }
-            
+
             await this.emitEvent('VILLAIN_ATTACK_CONCLUDED', attackPayload, async () => {});
         });
     },
 
     async processMinionActivations() {
         for (const minion of this.engagedMinions) {
+            if (minion.stunned) {
+                console.log(`${minion.name} is stunned — activation skipped, stun removed.`);
+                minion.stunned = false;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                continue;
+            }
+
             if (this.hero.identityStatus === "alter-ego") {
+                if (minion.confused) {
+                    console.log(`${minion.name} is confused — scheme skipped, confused removed.`);
+                    minion.confused = false;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    continue;
+                }
+
                 await this.minionActivationScheme(minion);
             } else {
                 await this.minionActivationAttack(minion);
             }
-            
+
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
     },
@@ -324,11 +403,29 @@ export const useGameStore = defineStore('game', {
             isDefended: false,
             targetType: 'identity',
             targetId: 'hero',
-            isCanceled: false
+            isCanceled: false,
+            damageWasDealt: false
         };
 
+        // Check for player attachments on this minion (e.g. Webbed Up)
+        const playerAttachments = (minion.attachments || []).filter(a => a.side === 'player');
+        for (const att of playerAttachments) {
+            await this.emitEvent('attachedAttacks', {
+                attachment: att,
+                attacker: minion,
+                sourceCard: att,
+                attackPayload
+            }, async () => {});
+        }
+
+        if (attackPayload.isCanceled) return;
+
+        // Emit ENEMY_ATTACK so Spider-Sense triggers
+        await this.emitEvent('ENEMY_ATTACK', attackPayload, async () => {});
+        if (attackPayload.isCanceled) return;
+
         await this.emitEvent('MINION_ATTACK', attackPayload, async () => {
-            if (attackPayload.isCanceled) 
+            if (attackPayload.isCanceled)
                 return;
 
             if (this.canAnyoneDefend) {
@@ -343,10 +440,13 @@ export const useGameStore = defineStore('game', {
             const finalDamage = Math.max(0, attackPayload.baseDamage - reduction);
 
             if (finalDamage > 0) {
-                const damagePayload = { amount: finalDamage, isCanceled: false };
-                
+                const damagePayload = { amount: finalDamage, isCanceled: false, targetId: this.hero.instanceId };
+
                 await this.emitEvent('takeIdentityDamage', damagePayload, async () => {
-                    this.hero.hitPointsRemaining! -= damagePayload.amount;
+                    if (damagePayload.isCanceled || damagePayload.amount <= 0) return;
+
+                    await this.applyDamageToEntity(damagePayload);
+                    attackPayload.damageWasDealt = true;
                 });
             }
         });
@@ -442,16 +542,22 @@ export const useGameStore = defineStore('game', {
     // ****************************** ALLY ACTIONS ******************************
     async thwartWithAlly(instanceId: number) {
         const ally = this.findTableauCardById(instanceId) as Ally;
-        if (!ally || ally.exhausted) 
+        if (!ally || ally.exhausted)
             return;
 
         const targetId = await this.requestTarget(null, 'scheme');
-        if (!targetId) 
+        if (!targetId)
             return;
 
-        const target: MainSchemeInstance | SideScheme = this.findSchemeById(targetId); 
-        if (!target) 
+        const target: MainSchemeInstance | SideScheme = this.findSchemeById(targetId);
+        if (!target)
             return;
+
+        // Crisis: can't remove threat from main scheme while a crisis side scheme is active
+        if (target.type === 'main-scheme' && this.hasCrisisScheme) {
+            console.warn("Cannot remove threat from main scheme while a Crisis side scheme is in play!");
+            return;
+        }
 
         const thwartContext = { source: ally, target, value: ally.thw };
 
@@ -465,7 +571,7 @@ export const useGameStore = defineStore('game', {
             });
 
             ally.exhausted = true;
-            
+
             const consDamage = ally.thwPain ?? 0;
             ally.hitPointsRemaining -= consDamage;
 
@@ -473,10 +579,9 @@ export const useGameStore = defineStore('game', {
                 this.discardSideScheme(target.instanceId);
             }
 
-            // TODO: Handle death by consequential damage
-            // if (ally.hitPointsRemaining <= 0) {
-            //     this.discardFromTableau(ally.instanceId);
-            // }
+            if (ally.hitPointsRemaining <= 0) {
+                this.discardFromTableau(ally.instanceId!);
+            }
 
             console.log(`${ally.name} successfully thwarted ${target.name}.`);
         });
@@ -484,28 +589,27 @@ export const useGameStore = defineStore('game', {
 
     async attackWithAlly(instanceId: number) {
         const ally = this.findTableauCardById(instanceId) as Ally;
-        if (!ally || ally.exhausted) 
+        if (!ally || ally.exhausted)
             return;
 
+        // Guard: must target guard minions before the villain
         const targetId = await this.requestTarget(null, 'enemy');
-        if (!targetId) 
+        if (!targetId)
             return;
 
         const target: VillainIdentityCardInstance | Minion = this.findEnemyById(targetId);
-        if (!target) 
+        if (!target)
             return;
+
+        if (target.type === 'villain' && this.hasGuardMinion) {
+            console.warn("Cannot attack the villain while a Guard minion is engaged!");
+            return;
+        }
 
         const attackContext = { source: ally, target, damage: ally.atk };
 
         await this.emitEvent('ALLY_ATTACKS', attackContext, async () => {
-            
-            const damageEventName = target.type === "minion" ? 'MINION_TAKES_DAMAGE' : 'VILLAIN_TAKES_DAMAGE';
-            const damageContext = { target, amount: attackContext.damage, source: ally };
-
-            await this.emitEvent(damageEventName, damageContext, async () => {
-                target.hitPointsRemaining = Math.max(0, target.hitPointsRemaining! - damageContext.amount);
-                console.log(`${target.name} took ${damageContext.amount} damage.`);
-            });
+            await this.applyDamageToEntity({ targetId: target.instanceId, amount: attackContext.damage });
 
             ally.exhausted = true;
             const consDamage = ally.atkPain ?? 0;
@@ -515,10 +619,9 @@ export const useGameStore = defineStore('game', {
                 this.discardFromEngagedMinions(target.instanceId);
             }
 
-            // TODO: Handle consequential dmg from attacks
-            // if (ally.hitPointsRemaining <= 0) {
-            //     this.discardFromTableau(ally.instanceId);
-            // }
+            if (ally.hitPointsRemaining <= 0) {
+                this.discardFromTableau(ally.instanceId!);
+            }
         });
     },
 
@@ -588,45 +691,73 @@ export const useGameStore = defineStore('game', {
     },
 
     async handleTreacheryResolution(card: any) {
-        const treacheryPayload = { 
-            card, 
-            isCanceled: false 
+        const treacheryPayload: any = {
+            card,
+            isCanceled: false,
+            surge: false
         };
 
         await this.emitEvent('treacheryRevealed', treacheryPayload, async () => {
             if (treacheryPayload.isCanceled) {
                 console.log(`${card.name} was canceled!`);
-                return; 
+                return;
             }
 
             console.log(`Executing Treachery: ${card.name}`);
-            
+
             const effect = EffectLibrary[card.storageId];
 
             if (effect) {
-                await effect(this, treacheryPayload); 
+                await effect(this, treacheryPayload);
             }
         });
 
         this.villainDiscardIds.push(card.storageId);
+
+        // Surge: reveal an additional encounter card
+        if (treacheryPayload.surge) {
+            console.log(`${card.name} surges! Drawing additional encounter card.`);
+            this.drawFromVillainDeckAsEncounterCard();
+        }
     },
 
     async handleMinionEntry(card: any) {
         const minion = createEngagedMinion(card.storageId, this.getNextId());
         this.engagedMinions.push(minion);
 
+        // Check for When Revealed effect on the minion
+        const blueprint = villainCardMap.get(card.storageId);
+        if (blueprint?.whenRevealedEffect) {
+            const effect = EffectLibrary[blueprint.whenRevealedEffect];
+            if (effect) {
+                await effect(this, { minion });
+            }
+        }
+
         await this.emitEvent('MINION_ENTERED_PLAY', { minion }, async () => {});
     },
 
     async handleSideSchemeEntry(card: any) {
         const sideScheme = createSideScheme(card.storageId, this.getNextId());
+        const blueprint = villainCardMap.get(card.storageId);
         const payload = { sideScheme, isCanceled: false };
 
         await this.emitEvent('SIDE_SCHEME_ENTERING', payload, async () => {
             if (payload.isCanceled) return;
 
+            // When Revealed: place additional threat
+            if (blueprint?.whenRevealedThreat) {
+                sideScheme.threatRemaining += blueprint.whenRevealedThreat;
+            }
+
             this.activeSideSchemes.push(sideScheme);
             console.log(`Side Scheme ${card.name} entered with ${sideScheme.threatRemaining} threat.`);
+
+            // Hazard: deal an additional encounter card
+            if (sideScheme.hazard) {
+                console.log(`${card.name} has Hazard — drawing additional encounter card.`);
+                this.drawFromVillainDeckAsEncounterCard();
+            }
 
             await this.emitEvent('SIDE_SCHEME_ENTERED', payload, async () => {});
         });
@@ -664,9 +795,20 @@ export const useGameStore = defineStore('game', {
 
         await this.emitEvent('MINION_DEFEATED', { minion }, async () => {
             if (minion.attachments && minion.attachments.length > 0) {
+                // Fire attachedDefeated for player upgrades (e.g. Spider-Tracer)
+                for (const att of minion.attachments.filter(a => a.side === 'player')) {
+                    await this.emitEvent('attachedDefeated', {
+                        attachment: att,
+                        minion,
+                        sourceCard: att,
+                        effectValue: (att as Upgrade).logic?.effectValue,
+                        isCanceled: false
+                    }, async () => {});
+                }
+
                 minion.attachments.forEach((card) => {
                     const dest = card.type === 'upgrade' ? this.playerDiscardIds : this.villainDiscardIds;
-                    
+
                     if (card.storageId) {
                         dest.push(card.storageId);
                     }
@@ -796,11 +938,17 @@ export const useGameStore = defineStore('game', {
     },
 
     thwartWithIdentity(id: number) {
-        if (this.hero.exhausted) 
+        if (this.hero.exhausted)
             return;
 
         if (this.hero.identityStatus === 'alter-ego') {
             console.warn("You cannot thwart in Alter-Ego form!");
+            return;
+        }
+
+        // Crisis: can't remove threat from main scheme
+        if (this.mainScheme!.instanceId === id && this.hasCrisisScheme) {
+            console.warn("Cannot remove threat from main scheme while a Crisis side scheme is in play!");
             return;
         }
 
@@ -814,7 +962,7 @@ export const useGameStore = defineStore('game', {
 
             if (sideScheme) {
                 sideScheme.threatRemaining = Math.max(0, sideScheme.threatRemaining - thwAmt);
-                
+
                 if (sideScheme.threatRemaining === 0) {
                     this.discardSideScheme(id);
                 }
@@ -824,8 +972,8 @@ export const useGameStore = defineStore('game', {
         this.toggleIdentityExhaust();
     },
 
-    attackWithIdentity(id: number) {
-        if (this.hero.exhausted) 
+    async attackWithIdentity(id: number) {
+        if (this.hero.exhausted)
             return;
 
         if (this.hero.identityStatus === 'alter-ego') {
@@ -833,22 +981,25 @@ export const useGameStore = defineStore('game', {
             return;
         }
 
+        // Guard: must defeat guard minions before attacking villain
+        if (this.villainCard!.instanceId === id && this.hasGuardMinion) {
+            console.warn("Cannot attack the villain while a Guard minion is engaged!");
+            return;
+        }
+
         const atkAmt = this.hero.atk;
-        console.log(`Attacking for ${this.hero.atk}!`);
+        console.log(`Attacking for ${atkAmt}!`);
 
-        if (this.villainCard!.instanceId === id) {
-            this.villainCard!.hitPointsRemaining = Math.max(0, this.villainCard!.hitPointsRemaining! - atkAmt);
-        } else {
-            const minion = this.engagedMinions.find(m => m.instanceId === id);
+        await this.applyDamageToEntity({ targetId: id, amount: atkAmt });
 
-            if (minion) {
-                minion.hitPointsRemaining = Math.max(0, minion.hitPointsRemaining! - atkAmt);
-
-                if (minion.hitPointsRemaining === 0) {
-                    this.discardFromEngagedMinions(minion.instanceId);
-                }
+        const target = this.findTargetById(id);
+        if (target && 'type' in target && target.type === 'minion') {
+            const minion = target as Minion;
+            if (minion.hitPointsRemaining <= 0) {
+                await this.discardFromEngagedMinions(minion.instanceId);
             }
         }
+
         this.toggleIdentityExhaust();
     },
 
@@ -919,6 +1070,7 @@ export const useGameStore = defineStore('game', {
     resetPayment() {
         this.activeCardId = null;
         this.paymentBufferIds = [];
+        this.generatedResources = [];
     },
 
     canAfford(card: any): boolean {
@@ -932,6 +1084,57 @@ export const useGameStore = defineStore('game', {
         const cardsInHand = this.hand.length - 1;
         const totalAvailable = cardsInHand; // TODO: + boardResources
         return totalAvailable >= card.cost;
+    },
+
+    discardFromTableau(instanceId: number) {
+        const card = this.tableauCards.find(c => c.instanceId === instanceId);
+        if (!card) return;
+        if (card.storageId) this.playerDiscardIds.push(card.storageId);
+        this.tableauCards = this.tableauCards.filter(c => c.instanceId !== instanceId);
+        console.log(`${card.name} was discarded from the tableau.`);
+    },
+
+    async useResourceAbility(instanceId: number | string) {
+        let card: any;
+        let logic: any;
+
+        if (instanceId === 'identity') {
+            card = this.playerIdentity;
+            logic = this.hero.identityStatus === 'hero' ? card.heroLogic : card.aeLogic;
+        } else {
+            card = this.tableauCards.find(c => c.instanceId === instanceId);
+            logic = card?.logic;
+        }
+
+        if (!card || !logic || logic.type !== 'resource') return;
+
+        // Check exhaustion requirement
+        if (instanceId !== 'identity' && card.abilityExhausts && card.exhausted) return;
+
+        const effect = EffectLibrary[logic.effectName];
+        if (!effect) return;
+
+        const context: any = {
+            sourceCard: card,
+            effectValue: logic.effectValue
+        };
+
+        await effect(this, context);
+
+        // Exhaust if needed
+        if (instanceId !== 'identity' && card.abilityExhausts) {
+            card.exhausted = true;
+        }
+
+        // Add generated resource to payment
+        if (context.generatedResource) {
+            this.generatedResources.push(context.generatedResource);
+        }
+
+        // Check if cost is now met
+        if (this.activeCardId && this.isCostMet) {
+            await this.finalizePlay();
+        }
     },
 
     // ****************************** TIMING WINDOWS ******************************
@@ -952,7 +1155,7 @@ export const useGameStore = defineStore('game', {
         this.collectEnemyTriggers(timing, eventName, boardTriggers);
         this.collectSchemeTriggers(timing, eventName, boardTriggers);
 
-        for (const card of boardTriggers.filter(c => c.logic.isForced)) {
+        for (const card of boardTriggers.filter(c => c.logic.forced)) {
             const effect = EffectLibrary[card.logic.effectName];
             if (effect) {
                 payload.sourceCard = card;
@@ -969,9 +1172,9 @@ export const useGameStore = defineStore('game', {
                 break;
             }
 
-            const optionalBoard = boardTriggers.filter(c => 
-                !c.logic.isForced && 
-                !c.isExhausted &&
+            const optionalBoard = boardTriggers.filter(c =>
+                !c.logic.forced &&
+                !c.exhausted &&
                 !payload.usedInstanceIds.includes(c.instanceId || 'identity')
             );
 
@@ -1026,6 +1229,13 @@ export const useGameStore = defineStore('game', {
             list.push(this.villainCard);
         }
 
+        // Check villain attachments for triggers (e.g. Armored Rhino Suit)
+        this.villainCard?.attachments?.forEach(att => {
+            if (this.isValidTrigger(att, timing, event)) {
+                list.push(att);
+            }
+        });
+
         this.engagedMinions.forEach(minion => {
             if (this.isValidTrigger(minion, timing, event)) {
                 list.push(minion);
@@ -1061,14 +1271,14 @@ export const useGameStore = defineStore('game', {
     },
 
     isValidTrigger(card: any, timing: string, event: string): boolean {
-        const logic = card.logic;
-        if (!logic) 
+        const logic = card?.logic;
+        if (!logic)
             return false;
 
         return (
-            logic.timing === event && 
-            logic.type === timing && 
-            (!logic.formRequired || logic.formRequired === this.hero.identityStatus)
+            logic.timing === event &&
+            logic.type === timing &&
+            (!logic.formRequired || logic.formRequired === 'any' || logic.formRequired === this.hero.identityStatus)
         );
     },
 
@@ -1117,7 +1327,7 @@ export const useGameStore = defineStore('game', {
 
                 await this.applyDamageToEntity({ 
                     targetId: ally.instanceId!, 
-                    amount: payload.attackValue 
+                    amount: payload.baseDamage
                 });
             }
         }
@@ -1140,16 +1350,25 @@ export const useGameStore = defineStore('game', {
 
     async applyDamageToEntity(damageData: { targetId: number, amount: number }) {
         const target = this.findTargetById(damageData.targetId);
-        if (!target) 
+        if (!target)
             return;
+
+        // Tough status absorbs the hit
+        if ('tough' in target && target.tough) {
+            target.tough = false;
+            console.log(`${target.name} lost Tough status — damage prevented.`);
+            return;
+        }
+
+        const eventName = target === this.villainCard ? 'VILLAIN_TAKES_DAMAGE' : 'ENTITY_DAMAGED';
 
         const performDamage = () => {
             target.hitPointsRemaining = Math.max(0, (target.hitPointsRemaining || 0) - damageData.amount);
         };
 
         await this.emitEvent(
-            "ENTITY_DAMAGED", 
-            { targetId: damageData.targetId, amount: damageData.amount }, 
+            eventName,
+            { targetId: damageData.targetId, amount: damageData.amount, isCanceled: false },
             performDamage
         );
     },
@@ -1234,7 +1453,7 @@ export const useGameStore = defineStore('game', {
         if (isEventFromHand) {
             this.discardPlayerCardsFromHand([card.instanceId]);
         } else if (!isIdentityAbility) {
-            card.isExhausted = true;
+            card.exhausted = true;
         } 
 
         const effectName = card.logic.effectName || card.storageId;

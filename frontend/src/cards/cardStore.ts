@@ -16,7 +16,7 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
             type: "interrupt",
             forced: false,
             formRequired: "hero",
-            timing: "VILLAIN_ATTACK",
+            timing: "ENEMY_ATTACK",
             effectName: "drawACard",
             effectValue: 1
         },
@@ -90,7 +90,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
         }
      }],
     [7, { name: "Web-Shooter", side: "player", type: "upgrade", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/WebShooter-Upgrade.png", tags: ["item", "tech"], resources: ["physical"], flavorText: "",
-        "attachmentLocation": "tableau", abilityExhausts: true,
+        "attachmentLocation": "tableau", abilityExhausts: true, counters: 3,
         logic: {
             type: "resource",
             forced: false,
@@ -124,17 +124,21 @@ export const villainMainSchemeMap: Map<number, MainScheme> = new Map<number, Mai
 
 export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainCard>([
     [1, { name: "Armored Rhino Suit", side: "villain", imgPath: "/cards/villains/rhino/ArmoredRhinoSuit-Attachment.png", tags: ["armor"], flavorText: "",
-        type: "attachment", boostIcons: 0 }],
+        type: "attachment", boostIcons: 0,
+        logic: { type: "interrupt", forced: true, formRequired: "any", timing: "VILLAIN_TAKES_DAMAGE", effectName: "armoredRhinoSuitRedirect" }
+    }],
     [2, { name: "Charge", side: "villain", imgPath: "/cards/villains/rhino/Charge-Attachment.png", tags: [], flavorText: "",
-        type: "attachment", boostIcons: 2, atkMod: 3 }],
+        type: "attachment", boostIcons: 2, atkMod: 3, overkill: true,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "VILLAIN_ATTACK_CONCLUDED", effectName: "chargeDiscard" }
+    }],
     [3, { name: "Enhanced Ivory Horn", side: "villain", imgPath: "/cards/villains/rhino/EnhancedIvoryHorn-Attachment.png", tags: ["weapon"], flavorText: "",
         type: "attachment", boostIcons: 2, atkMod: 1 }],
     [4, { name: "Hydra Mercenary", side: "villain", imgPath: "/cards/villains/rhino/HydraMercenary-Minion.png", tags: ["hydra"], flavorText: `"What is Hydra doing here?" - Carol Danvers`,
-        type: "minion", boostIcons: 1, sch: 0, atk: 1, hitPoints: 3 }],
+        type: "minion", boostIcons: 1, sch: 0, atk: 1, hitPoints: 3, guard: true }],
     [5, { name: "Sandman", side: "villain", imgPath: "/cards/villains/rhino/Sandman-Minion.png", tags: ["criminal", "elite"], flavorText: `"I just wanna get paid!"`,
-        type: "minion", boostIcons: 2, sch: 2, atk: 3, hitPoints: 4 }],
+        type: "minion", boostIcons: 2, sch: 2, atk: 3, hitPoints: 4, toughOnEntry: true }],
     [6, { name: "Shocker", side: "villain", imgPath: "/cards/villains/rhino/Shocker-Minion.png", tags: ["criminal"], flavorText: `"I bet you're shocked to see me."`,
-        type: "minion", boostIcons: 2, sch: 1, atk: 2, hitPoints: 3 }],
+        type: "minion", boostIcons: 2, sch: 1, atk: 2, hitPoints: 3, whenRevealedEffect: "shockerWhenRevealed" }],
     [7, { name: "Hard To Keep Down", side: "villain", imgPath: "/cards/villains/rhino/HardToKeepDown-Treachery.png", tags: [], flavorText: `"You think you can stop me? What a joke" - Rhino`,
         type: "treachery", boostIcons: 0 }],
     [8, { name: `"I'm Tough!"`, side: "villain", imgPath: "/cards/villains/rhino/ImTough!-Treachery.png", tags: [], flavorText: `"Bring it!" - Rhino`,
@@ -142,9 +146,9 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
     [9, { name: "Stampede", side: "villain", imgPath: "/cards/villains/rhino/Stampede-Treachery.png", tags: [], flavorText: "",
         type: "treachery", boostIcons: 1 }],
     [10, { name: `Breakin' & Takin'`, side: "villain", imgPath: "/cards/villains/rhino/Breakin'&Takin'-SideScheme.png", tags: [], flavorText: "Rhino is breaking things and taking them.",
-        type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: false }],
+        type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: false, hazard: true, whenRevealedThreat: 1 }],
     [11, { name: "Crowd Control", side: "villain", imgPath: "/cards/villains/rhino/CrowdControl-SideScheme.png", tags: [], flavorText: "Panicked civilians crowd the area. It is difficult to confront Rhino without putting them at risk. Get the people to safety!",
-        type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: true }]
+        type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: true, crisis: true }]
 ])
 
 export function getCardImgPathById(cardId : number) : string {

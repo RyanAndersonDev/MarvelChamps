@@ -14,7 +14,7 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
-export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed";
+export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed";
 
 export interface CardBase {
     name: string;
@@ -67,11 +67,11 @@ export interface PlayerCard extends CardBase {
     health?: number;
     attachmentLocation?: AttachmentLocation;
     abilityExhausts?: boolean;
+    counters?: number;
 }
 
 export interface PlayerCardInstance extends PlayerCard {
     instanceId?: number;
-    counters?: number;
 }
 
 export interface Ally extends PlayerCardInstance {
@@ -131,7 +131,14 @@ export interface VillainCard extends CardBase {
     atk?: number;
     schMod?: number;
     atkMod?: number;
-    // TODO: How to store discard conditions for attachments?
+    logic?: CardLogic;
+    guard?: boolean;
+    toughOnEntry?: boolean;
+    overkill?: boolean;
+    whenRevealedEffect?: string;
+    whenRevealedThreat?: number;
+    crisis?: boolean;
+    hazard?: boolean;
 }
 
 export interface VillainCardInstance extends VillainCard {
@@ -144,6 +151,10 @@ export interface Minion extends VillainCardInstance {
     attachments: (Upgrade | Attachment)[];
     sch: number;
     atk: number;
+    stunned: boolean;
+    confused: boolean;
+    tough: boolean;
+    guard: boolean;
 }
 
 export interface Treachery extends VillainCardInstance {
@@ -151,12 +162,18 @@ export interface Treachery extends VillainCardInstance {
 }
 
 export interface Attachment extends VillainCardInstance {
-
+    atkMod?: number;
+    schMod?: number;
+    logic?: CardLogic;
+    damageAccumulated?: number;
+    overkill?: boolean;
 }
 
 export interface SideScheme extends VillainCardInstance {
     threatRemaining: number;
     type: "side-scheme";
+    crisis: boolean;
+    hazard: boolean;
 }
 
 export interface MainScheme extends CardBase {

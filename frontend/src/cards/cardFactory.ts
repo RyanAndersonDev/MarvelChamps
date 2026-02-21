@@ -33,6 +33,10 @@ function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event 
             return {
                 ...base,
                 exhausted: false,
+                thw: blueprint.thw,
+                atk: blueprint.atk,
+                thwPain: blueprint.thwPain ?? 0,
+                atkPain: blueprint.atkPain ?? 0,
                 health: blueprint.health ?? 1000,
                 hitPointsRemaining: blueprint.health ?? 1000,
                 stunned: false,
@@ -96,8 +100,13 @@ function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Al
                 exhausted: false,
                 thw: blueprint.thw,
                 atk: blueprint.atk,
+                thwPain: blueprint.thwPain ?? 0,
+                atkPain: blueprint.atkPain ?? 0,
                 health: blueprint.health ?? 1000,
-                hitPointsRemaining: blueprint.health ?? 1000
+                hitPointsRemaining: blueprint.health ?? 1000,
+                stunned: false,
+                confused: false,
+                tough: false
             } as Ally;
 
         case 'upgrade':
@@ -217,7 +226,10 @@ export function printVillainCard(blueprint: VillainCard, instanceId: number) : V
             return {
                 ...base,
                 schMod: blueprint.schMod,
-                atkMod: blueprint.atkMod
+                atkMod: blueprint.atkMod,
+                logic: blueprint.logic,
+                damageAccumulated: 0,
+                overkill: blueprint.overkill || false
             } as Attachment;
 
         case "minion":
@@ -274,7 +286,12 @@ function printEngagedMinion(blueprint: VillainCard, instanceId: number) : Minion
         sch: blueprint.sch,
         atk: blueprint.atk,
         hitPointsRemaining: blueprint.hitPoints,
-        attachments: []
+        attachments: [],
+        stunned: false,
+        confused: false,
+        tough: blueprint.toughOnEntry || false,
+        guard: blueprint.guard || false,
+        logic: blueprint.logic
     } as Minion;
 }
 
@@ -308,6 +325,8 @@ function printSideScheme(blueprint: VillainCard, instanceId: number) : SideSchem
 
     return {
         ...base,
-        threatRemaining: threatToAdd
+        threatRemaining: threatToAdd,
+        crisis: blueprint.crisis || false,
+        hazard: blueprint.hazard || false
     } as SideScheme;
 }
