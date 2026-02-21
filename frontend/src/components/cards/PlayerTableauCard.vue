@@ -2,17 +2,27 @@
   import { computed } from "vue";
   import { useGameStore } from "../../stores/gameStore";
   import BaseCard from './BaseCard.vue';
+  import StatusPips from './StatusPips.vue';
   import type { Ally, Upgrade, Support } from '../../types/card';
     
   const store = useGameStore();
   const props = defineProps<{ card: Ally | Upgrade | Support }>();
 
   const allyStats = computed(() => {
-      if (props.card.type === 'ally') {
-          return props.card as Ally;
-      }
-      
+      if (props.card.type === 'ally') return props.card as Ally;
       return null;
+  });
+
+  const effectiveThw = computed(() => {
+      if (!allyStats.value) return 0;
+      const attachments: any[] = (allyStats.value as any).attachments ?? [];
+      return (allyStats.value.thw ?? 0) + attachments.reduce((sum, att) => sum + (att.thwMod ?? 0), 0);
+  });
+
+  const effectiveAtk = computed(() => {
+      if (!allyStats.value) return 0;
+      const attachments: any[] = (allyStats.value as any).attachments ?? [];
+      return (allyStats.value.atk ?? 0) + attachments.reduce((sum, att) => sum + (att.atkMod ?? 0), 0);
   });
 
   function doAction(): void {
@@ -26,9 +36,13 @@
 
 <template>
   <div class="tableau-card-wrapper">
+    <div v-if="card.type === 'upgrade' && (card as any).counters > 0" class="counter-badge">
+        {{ (card as any).counters }}
+    </div>
+
     <div v-if="card.type === 'ally'" class="stat-badges">
-        <div class="stat-badge blue">{{ allyStats!.thw }}</div>
-        <div class="stat-badge red">{{ allyStats!.atk }}</div>
+        <div class="stat-badge blue">{{ effectiveThw }}</div>
+        <div class="stat-badge red">{{ effectiveAtk }}</div>
         <div class="stat-badge orange">{{ allyStats!.hitPointsRemaining }}</div>
     </div>
 
@@ -38,6 +52,13 @@
       :zoom-direction="'out'"
       :size="'small'"
       :class="{ 'is-exhausted': card.exhausted }"
+    />
+
+    <StatusPips
+      v-if="card.type === 'ally'"
+      :stunned="allyStats?.stunned"
+      :confused="allyStats?.confused"
+      :tough="allyStats?.tough"
     />
 
     <div class="button-row">
@@ -56,7 +77,7 @@
       >ATK</button>
       
       <button
-        v-if="!card.logic.forced && store.currentPhase === 'PLAYER_TURN'"
+        v-if="!card.logic.forced && (store.currentPhase === 'PLAYER_TURN' || store.activeCardId !== null)"
         :disabled="card.abilityExhausts && card.exhausted"
         @click="doAction">Action</button>
     </div>
@@ -107,6 +128,26 @@
     
     border: 2px solid white !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .counter-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e6ac00;
+    color: white;
+    font-weight: bold;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    z-index: 99;
+    pointer-events: none;
   }
 
   .stat-badge.blue { background-color: #2196F3 !important; }
