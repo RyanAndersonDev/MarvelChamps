@@ -4,7 +4,7 @@ import { type Ally, type Event, type Upgrade, type Support, type IdentityCardIns
 import { villainCardMap } from "../cards/cardStore";
 import { GamePhase, type GamePhaseType } from "../types/phases";
 import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme, createIdentityCard } from "../cards/cardFactory";
-import { EffectLibrary } from "../engine/effectLibrary";
+import { executeEffects } from "../engine/effectLibrary";
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -705,10 +705,8 @@ export const useGameStore = defineStore('game', {
 
             console.log(`Executing Treachery: ${card.name}`);
 
-            const effect = EffectLibrary[card.storageId];
-
-            if (effect) {
-                await effect(this, treacheryPayload);
+            if (card.logic?.effects) {
+                await executeEffects(card.logic.effects, this, treacheryPayload);
             }
         });
 
@@ -726,12 +724,8 @@ export const useGameStore = defineStore('game', {
         this.engagedMinions.push(minion);
 
         // Check for When Revealed effect on the minion
-        const blueprint = villainCardMap.get(card.storageId);
-        if (blueprint?.whenRevealedEffect) {
-            const effect = EffectLibrary[blueprint.whenRevealedEffect];
-            if (effect) {
-                await effect(this, { minion });
-            }
+        if (minion.logic?.effects) {
+            await executeEffects(minion.logic.effects, this, { minion, sourceCard: minion });
         }
 
         await this.emitEvent('MINION_ENTERED_PLAY', { minion }, async () => {});
@@ -801,7 +795,6 @@ export const useGameStore = defineStore('game', {
                         attachment: att,
                         minion,
                         sourceCard: att,
-                        effectValue: (att as Upgrade).logic?.effectValue,
                         isCanceled: false
                     }, async () => {});
                 }
@@ -1111,15 +1104,11 @@ export const useGameStore = defineStore('game', {
         // Check exhaustion requirement
         if (instanceId !== 'identity' && card.abilityExhausts && card.exhausted) return;
 
-        const effect = EffectLibrary[logic.effectName];
-        if (!effect) return;
+        if (!logic.effects) return;
 
-        const context: any = {
-            sourceCard: card,
-            effectValue: logic.effectValue
-        };
+        const context: any = { sourceCard: card };
 
-        await effect(this, context);
+        await executeEffects(logic.effects, this, context);
 
         // Exhaust if needed
         if (instanceId !== 'identity' && card.abilityExhausts) {
@@ -1156,11 +1145,9 @@ export const useGameStore = defineStore('game', {
         this.collectSchemeTriggers(timing, eventName, boardTriggers);
 
         for (const card of boardTriggers.filter(c => c.logic.forced)) {
-            const effect = EffectLibrary[card.logic.effectName];
-            if (effect) {
+            if (card.logic.effects) {
                 payload.sourceCard = card;
-                payload.effectValue = card.logic.effectValue || card.logic.value;
-                await effect(this, payload);
+                await executeEffects(card.logic.effects, this, payload);
                 payload.usedInstanceIds.push(card.instanceId || 'identity');
             }
         }
@@ -1415,19 +1402,10 @@ export const useGameStore = defineStore('game', {
     },
 
     async executeCardEffect(card: any) {
-        const effectName = card.logic?.effectName;
-        const effect = EffectLibrary[effectName];
-
-        if (effect) {
-            let targetId = null;
-            if (card.logic.targetType && card.logic.targetType !== 'none') {
-                targetId = await this.requestTarget(card, card.logic.targetType);
-            }
-            await effect(this, {
-                amount: card.logic.effectValue, 
-                targetId: targetId,
+        if (card.logic?.effects) {
+            await executeEffects(card.logic.effects, this, {
                 sourceCard: card,
-                playerForm: this.hero.identityStatus 
+                playerForm: this.hero.identityStatus
             });
         }
     },
@@ -1456,21 +1434,17 @@ export const useGameStore = defineStore('game', {
             card.exhausted = true;
         } 
 
-        const effectName = card.logic.effectName || card.storageId;
-        const effect = EffectLibrary[effectName];
-
-        if (effect) {
+        if (card.logic?.effects) {
             const context = this.activePrompt.payload;
 
             if (!context.usedInstanceIds) context.usedInstanceIds = [];
             context.usedInstanceIds.push(card.instanceId || 'identity');
 
             context.sourceCard = card;
-            context.effectValue = card.logic.effectValue || card.logic.value;
 
-            await effect(this, context);
+            await executeEffects(card.logic.effects, this, context);
         } else {
-            console.error(`Missing Library Effect: No key found for "${effectName}"`);
+            console.error(`No effects defined on card: "${card.name}"`);
         }
 
         const resolve = this.activePrompt.resolve;

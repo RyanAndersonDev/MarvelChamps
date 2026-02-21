@@ -1,4 +1,4 @@
-import { type GamePhaseType } from "./phases"; 
+import { type GamePhaseType } from "./phases";
 
 export type IdentityStatus = "hero" | "alter-ego" | "dead";
 
@@ -15,6 +15,45 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
 export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed";
+
+// ======================== EFFECT DSL ========================
+
+export type EffectTarget =
+  | 'identity'       // player hero
+  | 'villain'        // main villain
+  | 'attachedEnemy'  // the entity this card is attached to (context.attacker)
+  | 'attacker'       // the attacking entity in event context
+  | 'chooseEnemy'    // player selects any enemy
+  | 'chooseScheme';  // player selects a scheme
+
+export type EffectCondition =
+  | { type: 'identityStatus'; value: 'hero' | 'alter-ego' }
+  | { type: 'targetHpFull'; target: EffectTarget }
+  | { type: 'targetHasTough'; target: EffectTarget }
+  | { type: 'damageWasDealt' };
+
+export type EffectDef =
+  | { op: 'dealDamage';       target: EffectTarget; amount: number }
+  | { op: 'heal';             target: EffectTarget; amount: number }
+  | { op: 'drawCards';        amount: number }
+  | { op: 'stun';             target: EffectTarget }
+  | { op: 'giveTough';        target: EffectTarget }
+  | { op: 'removeThreat';     target: EffectTarget; amount: number }
+  | { op: 'generateResource'; resourceType: Resource }
+  | { op: 'villainAttack';    stunOnHit?: boolean }
+  | { op: 'preventAttack' }
+  | { op: 'cancelDamage' }
+  | { op: 'reduceDamage';     amount: number }
+  | { op: 'cancelEffect' }
+  | { op: 'discardSelf' }
+  | { op: 'discardTopDeck';   amount: number; addToHandIfHasResource?: Resource }
+  | { op: 'decrementCounter'; discardIfEmpty?: boolean }
+  | { op: 'surge' }
+  | { op: 'redirectDamage';   discardAt?: number }
+  | { op: 'if';       condition: EffectCondition; then: EffectDef | EffectDef[]; else?: EffectDef | EffectDef[] }
+  | { op: 'sequence'; effects: EffectDef[] };
+
+// ======================== CARD INTERFACES ========================
 
 export interface CardBase {
     name: string;
@@ -87,7 +126,7 @@ export interface Ally extends PlayerCardInstance {
 }
 
 export interface Event extends PlayerCardInstance {
-    
+
 }
 
 export interface Upgrade extends PlayerCardInstance {
@@ -135,7 +174,6 @@ export interface VillainCard extends CardBase {
     guard?: boolean;
     toughOnEntry?: boolean;
     overkill?: boolean;
-    whenRevealedEffect?: string;
     whenRevealedThreat?: number;
     crisis?: boolean;
     hazard?: boolean;
@@ -198,7 +236,5 @@ export interface CardLogic {
     formRequired: "hero" | "alter-ego" | "any";
     timing: TimingWindow;
     actionType?: "attack" | "thwart" | "defense";
-    effectName: string;
-    effectValue?: number;
-    targetType?: "enemy" | "minion" | "villain" | "scheme" | "identity" | "none";
+    effects: EffectDef[];
 }
