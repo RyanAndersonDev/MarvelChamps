@@ -36,7 +36,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             const maxHp = target.hitPoints ?? target.hitPointsPerPlayer ?? 0;
             const before = target.hitPointsRemaining ?? 0;
             target.hitPointsRemaining = Math.min(maxHp, before + effect.amount);
-            console.log(`Healed ${target.hitPointsRemaining - before} on ${target.name}.`);
+            state.addLog(`Healed ${target.hitPointsRemaining - before} on ${target.name}.`, 'heal');
             break;
         }
 
@@ -51,7 +51,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             const target = resolveTargetEntity(effect.target, state, context);
             if (target) {
                 target.stunned = true;
-                console.log(`${target.name} is stunned.`);
+                state.addLog(`${target.name} is stunned.`, 'status');
             }
             break;
         }
@@ -60,7 +60,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             const target = resolveTargetEntity(effect.target, state, context);
             if (target) {
                 target.tough = true;
-                console.log(`${target.name} gained Tough.`);
+                state.addLog(`${target.name} gained Tough.`, 'status');
             }
             break;
         }
@@ -71,11 +71,11 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             const scheme = state.findSchemeById(targetId);
             if (!scheme) return;
             if (scheme.type === 'main-scheme' && state.hasCrisisScheme) {
-                console.warn("Cannot remove threat from main scheme while Crisis is active.");
+                state.addLog("Cannot remove threat from main scheme while Crisis is active.", 'system');
                 return;
             }
             scheme.threatRemaining = Math.max(0, scheme.threatRemaining - effect.amount);
-            console.log(`Removed ${effect.amount} threat from ${scheme.name}. Remaining: ${scheme.threatRemaining}`);
+            state.addLog(`Removed ${effect.amount} threat from ${scheme.name}. Remaining: ${scheme.threatRemaining}`, 'threat');
             if (scheme.type === 'side-scheme' && scheme.threatRemaining === 0)
                 await state.discardSideScheme(scheme.instanceId);
             break;
@@ -83,7 +83,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
 
         case 'generateResource': {
             context.generatedResource = effect.resourceType;
-            console.log(`Generated ${effect.resourceType} resource.`);
+            state.addLog(`Generated ${effect.resourceType} resource.`, 'system');
             break;
         }
 
@@ -105,10 +105,10 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             if (effect.stunOnHit && attackPayload.damageWasDealt) {
                 if (attackPayload.targetType === 'identity') {
                     state.hero.stunned = true;
-                    console.log("Hero was stunned by villain attack.");
+                    state.addLog("Hero was stunned by villain attack.", 'status');
                 } else if (attackPayload.targetType === 'ally') {
                     const ally = state.tableauCards.find((c: any) => c.instanceId === attackPayload.targetId);
-                    if (ally) { ally.stunned = true; console.log(`${ally.name} was stunned.`); }
+                    if (ally) { ally.stunned = true; state.addLog(`${ally.name} was stunned.`, 'status'); }
                 }
             }
             break;
@@ -124,7 +124,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             context.amount = 0;
             context.isCanceled = true;
             context.isResolved = true;
-            console.log("Damage canceled.");
+            state.addLog("Damage canceled.", 'damage');
             break;
         }
 
@@ -132,14 +132,14 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             context.amount = Math.max(0, (context.amount ?? 0) - effect.amount);
             if (context.amount === 0) context.isCanceled = true;
             context.isResolved = true;
-            console.log(`Damage reduced by ${effect.amount}. Remaining: ${context.amount}`);
+            state.addLog(`Damage reduced by ${effect.amount}. Remaining: ${context.amount}`, 'damage');
             break;
         }
 
         case 'cancelEffect': {
             context.isCanceled = true;
             context.isResolved = true;
-            console.log("Effect canceled.");
+            state.addLog("Effect canceled.", 'system');
             break;
         }
 
@@ -150,7 +150,6 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             if (attacker?.attachments) {
                 attacker.attachments = attacker.attachments.filter((a: any) => a.instanceId !== card.instanceId);
             }
-            // Remove from villain attachments if present
             if (state.villainCard?.attachments) {
                 state.villainCard.attachments = state.villainCard.attachments.filter(
                     (a: any) => a.instanceId !== card.instanceId
@@ -160,7 +159,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
                 if (card.side === 'villain') state.villainDiscardIds.push(card.storageId);
                 else state.playerDiscardIds.push(card.storageId);
             }
-            console.log(`${card.name} discarded.`);
+            state.addLog(`${card.name} discarded.`, 'discard');
             break;
         }
 
@@ -174,10 +173,10 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
                 const blueprint = cardMap.get(cardId);
                 if (effect.addToHandIfHasResource && blueprint?.resources?.includes(effect.addToHandIfHasResource)) {
                     state.hand.push(createHandCard(cardId, state.getNextId()));
-                    console.log(`${blueprint.name} has ${effect.addToHandIfHasResource} — added to hand.`);
+                    state.addLog(`${blueprint.name} has ${effect.addToHandIfHasResource} — added to hand.`, 'draw');
                 } else {
                     state.playerDiscardIds.push(cardId);
-                    console.log(`${blueprint?.name ?? cardId} discarded.`);
+                    state.addLog(`${blueprint?.name ?? cardId} discarded.`, 'discard');
                 }
             }
             break;
@@ -187,17 +186,17 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             const card = context.sourceCard;
             if (!card || card.counters <= 0) return;
             card.counters--;
-            console.log(`${card.name} counter decremented. Remaining: ${card.counters}`);
+            state.addLog(`${card.name} counter decremented. Remaining: ${card.counters}`, 'system');
             if (effect.discardIfEmpty && card.counters <= 0) {
                 state.discardFromTableau(card.instanceId);
-                console.log(`${card.name} discarded — no counters left.`);
+                state.addLog(`${card.name} discarded — no counters left.`, 'discard');
             }
             break;
         }
 
         case 'surge': {
             context.surge = true;
-            console.log("Surge triggered.");
+            state.addLog("Surge triggered.", 'surge');
             break;
         }
 
@@ -210,7 +209,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             suit.damageAccumulated = (suit.damageAccumulated ?? 0) + amount;
             context.amount = 0;
             context.isCanceled = true;
-            console.log(`${suit.name} absorbed ${amount} damage. Total: ${suit.damageAccumulated}`);
+            state.addLog(`${suit.name} absorbed ${amount} damage. Total: ${suit.damageAccumulated}`, 'damage');
             if (effect.discardAt != null && suit.damageAccumulated >= effect.discardAt) {
                 if (state.villainCard?.attachments) {
                     state.villainCard.attachments = state.villainCard.attachments.filter(
@@ -218,7 +217,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
                     );
                 }
                 if (suit.storageId != null) state.villainDiscardIds.push(suit.storageId);
-                console.log(`${suit.name} broke apart and was discarded.`);
+                state.addLog(`${suit.name} broke apart and was discarded.`, 'discard');
             }
             break;
         }
@@ -239,7 +238,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
 
         default: {
             const _exhaustive: never = effect;
-            console.error("Unknown effect op:", (_exhaustive as any).op);
+            state.addLog(`Unknown effect op: ${(_exhaustive as any).op}`, 'system');
         }
     }
 }

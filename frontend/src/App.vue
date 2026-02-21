@@ -10,6 +10,7 @@
   import PlayerEngagedMinions from "./components/player-board/PlayerEngagedMinions.vue";
   import SideSchemes from "./components/villain-board/SideSchemes.vue";
   import PlayerIdentityCard from "./components/cards/PlayerIdentityCard.vue";
+  import GameLog from "./components/GameLog.vue";
 
   const store = useGameStore();
 
@@ -146,6 +147,8 @@
       />
     </footer>
   </main>
+
+  <GameLog />
 </template>
 
 <style scoped>

@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { type Ally, type Event, type Upgrade, type Support, type IdentityCardInstance, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme, type PlayerCardInstance, type Resource }
     from '../types/card'
+import type { LogEntry, LogType } from '../types/log';
 import { villainCardMap } from "../cards/cardStore";
 import { GamePhase, type GamePhaseType } from "../types/phases";
 import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme, createIdentityCard } from "../cards/cardFactory";
@@ -64,7 +65,12 @@ export const useGameStore = defineStore('game', {
 
     isTargeting: false,
     targetType: null as string | null,
-    resolveTargetPromise: null as ((id: number) => void) | null
+    resolveTargetPromise: null as ((id: number) => void) | null,
+
+    // Game Log
+    roundNumber: 1,
+    logIdCounter: 0,
+    gameLog: [] as LogEntry[],
   }),
 
   // ****************************** GETTERS ******************************
@@ -123,6 +129,17 @@ export const useGameStore = defineStore('game', {
   },
 
   actions: {
+    // ****************************** LOGGING ******************************
+    addLog(message: string, type: LogType = 'system') {
+        console.log(`[R${this.roundNumber}][${type}] ${message}`);
+        this.gameLog.push({
+            id: ++this.logIdCounter,
+            round: this.roundNumber,
+            type,
+            message
+        });
+    },
+
     // ****************************** Game Phase Actions ******************************
     initializeGame() {
         let initIdCounter = 0;
@@ -137,6 +154,7 @@ export const useGameStore = defineStore('game', {
 
         this.idIncrementer = initIdCounter;
         this.drawToHandSize();
+        this.addLog('--- Round 1 ---', 'phase');
     },
 
     async advanceGame() {
@@ -163,6 +181,8 @@ export const useGameStore = defineStore('game', {
 
             await new Promise(resolve => setTimeout(resolve, 500));
 
+            this.roundNumber++;
+            this.addLog(`--- Round ${this.roundNumber} ---`, 'phase');
             this.currentPhase = GamePhase.PLAYER_TURN;
             this.idCardHasFlippedThisTurn = false;
         }
@@ -184,14 +204,14 @@ export const useGameStore = defineStore('game', {
 
     async processVillainActivation() {
         if (this.villainCard?.stunned) {
-            console.log(`${this.villainCard.name} is stunned — activation skipped, stun removed.`);
+            this.addLog(`${this.villainCard.name} is stunned — activation skipped, stun removed.`, 'status');
             this.villainCard.stunned = false;
             return;
         }
 
         if (this.hero.identityStatus === "alter-ego") {
             if (this.villainCard?.confused) {
-                console.log(`${this.villainCard.name} is confused — scheme skipped, confused removed.`);
+                this.addLog(`${this.villainCard.name} is confused — scheme skipped, confused removed.`, 'status');
                 this.villainCard.confused = false;
                 return;
             }
@@ -331,7 +351,7 @@ export const useGameStore = defineStore('game', {
                 if (attackPayload.overkill && ally) {
                     const excess = finalDamage - allyHpBefore;
                     if (excess > 0) {
-                        console.log(`Overkill! ${excess} excess damage dealt to hero.`);
+                        this.addLog(`Overkill! ${excess} excess damage dealt to hero.`, 'damage');
                         await this.applyDamageToEntity({ targetId: this.hero.instanceId, amount: excess });
                     }
                 }
@@ -349,7 +369,7 @@ export const useGameStore = defineStore('game', {
     async processMinionActivations() {
         for (const minion of this.engagedMinions) {
             if (minion.stunned) {
-                console.log(`${minion.name} is stunned — activation skipped, stun removed.`);
+                this.addLog(`${minion.name} is stunned — activation skipped, stun removed.`, 'status');
                 minion.stunned = false;
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 continue;
@@ -357,7 +377,7 @@ export const useGameStore = defineStore('game', {
 
             if (this.hero.identityStatus === "alter-ego") {
                 if (minion.confused) {
-                    console.log(`${minion.name} is confused — scheme skipped, confused removed.`);
+                    this.addLog(`${minion.name} is confused — scheme skipped, confused removed.`, 'status');
                     minion.confused = false;
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     continue;
@@ -467,7 +487,7 @@ export const useGameStore = defineStore('game', {
 
                 if (cardId) {
                     this.encounterPileIds.push(cardId);
-                    console.log(`Dealt 1 encounter card to the player.`);
+                    this.addLog(`Dealt 1 encounter card to the player.`, 'villain');
                 } else {
                     // Logic for deck running out (Acceleration tokens)
                     // TODO await this.handleEmptyVillainDeck();
@@ -555,7 +575,7 @@ export const useGameStore = defineStore('game', {
 
         // Crisis: can't remove threat from main scheme while a crisis side scheme is active
         if (target.type === 'main-scheme' && this.hasCrisisScheme) {
-            console.warn("Cannot remove threat from main scheme while a Crisis side scheme is in play!");
+            this.addLog("Cannot remove threat from main scheme while a Crisis side scheme is in play!", 'system');
             return;
         }
 
@@ -567,7 +587,7 @@ export const useGameStore = defineStore('game', {
 
             await this.emitEvent(threatEventName, threatContext, async () => {
                 target.threatRemaining = Math.max(0, target.threatRemaining - threatContext.amount);
-                console.log(`${target.name} lost ${threatContext.amount} threat.`);
+                this.addLog(`${target.name} lost ${threatContext.amount} threat.`, 'threat');
             });
 
             ally.exhausted = true;
@@ -583,7 +603,7 @@ export const useGameStore = defineStore('game', {
                 this.discardFromTableau(ally.instanceId!);
             }
 
-            console.log(`${ally.name} successfully thwarted ${target.name}.`);
+            this.addLog(`${ally.name} successfully thwarted ${target.name}.`, 'play');
         });
     },
 
@@ -602,7 +622,7 @@ export const useGameStore = defineStore('game', {
             return;
 
         if (target.type === 'villain' && this.hasGuardMinion) {
-            console.warn("Cannot attack the villain while a Guard minion is engaged!");
+            this.addLog("Cannot attack the villain while a Guard minion is engaged!", 'system');
             return;
         }
 
@@ -629,7 +649,7 @@ export const useGameStore = defineStore('game', {
         const cardToUse = this.tableauCards.find(c => c.instanceId === lookupId);
 
         if (!cardToUse) {
-            console.log(`No tableau card found with instance ID ${lookupId}`);
+            this.addLog(`No tableau card found with instance ID ${lookupId}`, 'system');
             return undefined;
         }
 
@@ -699,11 +719,11 @@ export const useGameStore = defineStore('game', {
 
         await this.emitEvent('treacheryRevealed', treacheryPayload, async () => {
             if (treacheryPayload.isCanceled) {
-                console.log(`${card.name} was canceled!`);
+                this.addLog(`${card.name} was canceled!`, 'system');
                 return;
             }
 
-            console.log(`Executing Treachery: ${card.name}`);
+            this.addLog(`Executing Treachery: ${card.name}`, 'villain');
 
             if (card.logic?.effects) {
                 await executeEffects(card.logic.effects, this, treacheryPayload);
@@ -714,7 +734,7 @@ export const useGameStore = defineStore('game', {
 
         // Surge: reveal an additional encounter card
         if (treacheryPayload.surge) {
-            console.log(`${card.name} surges! Drawing additional encounter card.`);
+            this.addLog(`${card.name} surges! Drawing additional encounter card.`, 'surge');
             this.drawFromVillainDeckAsEncounterCard();
         }
     },
@@ -745,11 +765,11 @@ export const useGameStore = defineStore('game', {
             }
 
             this.activeSideSchemes.push(sideScheme);
-            console.log(`Side Scheme ${card.name} entered with ${sideScheme.threatRemaining} threat.`);
+            this.addLog(`Side Scheme ${card.name} entered with ${sideScheme.threatRemaining} threat.`, 'villain');
 
             // Hazard: deal an additional encounter card
             if (sideScheme.hazard) {
-                console.log(`${card.name} has Hazard — drawing additional encounter card.`);
+                this.addLog(`${card.name} has Hazard — drawing additional encounter card.`, 'villain');
                 this.drawFromVillainDeckAsEncounterCard();
             }
 
@@ -766,7 +786,7 @@ export const useGameStore = defineStore('game', {
 
             if (this.villainCard) {
                 this.villainCard.attachments.push(attachment);
-                console.log(`Attached ${card.name} to ${this.villainCard.name}.`);
+                this.addLog(`Attached ${card.name} to ${this.villainCard.name}.`, 'villain');
             }
 
             await this.emitEvent('ATTACHMENT_ENTERED', payload, async () => {});
@@ -783,7 +803,7 @@ export const useGameStore = defineStore('game', {
         const minion = this.engagedMinions.find(m => m.instanceId === instanceIdToDc);
 
         if (!minion) {
-            console.log(`Could not find minion with id ${instanceIdToDc} to discard.`);
+            this.addLog(`Could not find minion with id ${instanceIdToDc} to discard.`, 'system');
             return;
         }
 
@@ -813,8 +833,8 @@ export const useGameStore = defineStore('game', {
             }
             
             this.engagedMinions = this.engagedMinions.filter(m => m.instanceId !== instanceIdToDc);
-            
-            console.log(`${minion.name} has been removed from the board.`);
+
+            this.addLog(`${minion.name} has been removed from the board.`, 'discard');
         });
     },
 
@@ -822,7 +842,7 @@ export const useGameStore = defineStore('game', {
         const sideScheme = this.activeSideSchemes.find(s => s.instanceId === instanceIdToDc);
 
         if (!sideScheme) {
-            console.log(`Could not find side scheme with id ${instanceIdToDc} to discard.`);
+            this.addLog(`Could not find side scheme with id ${instanceIdToDc} to discard.`, 'system');
             return;
         }
 
@@ -840,7 +860,7 @@ export const useGameStore = defineStore('game', {
                 s => s.instanceId !== instanceIdToDc
             );
 
-            console.log(`Side Scheme ${sideScheme.name} has been defeated and discarded.`);
+            this.addLog(`Side Scheme ${sideScheme.name} has been defeated and discarded.`, 'discard');
         });
     },
 
@@ -883,17 +903,17 @@ export const useGameStore = defineStore('game', {
                 finalTarget.attachments = [];
             }
             finalTarget.attachments.push(attachment);
-            console.log(`Attached ${attachment.name} to target ${targetId}`);
+            this.addLog(`Attached ${attachment.name} to target ${targetId}`, 'play');
         } else {
-            console.error(`Target with ID ${targetId} not found anywhere on board!`);
+            this.addLog(`Target with ID ${targetId} not found anywhere on board!`, 'system');
         }
     },
 
     // ****************************** IDENTITY UTILS ******************************
 
     triggerIdentityCardAbility() {
-        // TODO: Implement ability trigger 
-        console.log(`Doing ${this.hero.name}'s ability.`)
+        // TODO: Implement ability trigger
+        this.addLog(`Doing ${this.hero.name}'s ability.`, 'play');
     },
 
     toggleIdentityExhaust() {
@@ -910,7 +930,7 @@ export const useGameStore = defineStore('game', {
 
     healIdentity() {
         if (!this.hero.hitPointsRemaining) {
-            console.log("HP remaining was not set.");
+            this.addLog("HP remaining was not set.", 'system');
             return;
         }
 
@@ -935,18 +955,18 @@ export const useGameStore = defineStore('game', {
             return;
 
         if (this.hero.identityStatus === 'alter-ego') {
-            console.warn("You cannot thwart in Alter-Ego form!");
+            this.addLog("You cannot thwart in Alter-Ego form!", 'system');
             return;
         }
 
         // Crisis: can't remove threat from main scheme
         if (this.mainScheme!.instanceId === id && this.hasCrisisScheme) {
-            console.warn("Cannot remove threat from main scheme while a Crisis side scheme is in play!");
+            this.addLog("Cannot remove threat from main scheme while a Crisis side scheme is in play!", 'system');
             return;
         }
 
         const thwAmt = this.hero.thw;
-        console.log(`Thwarting for ${thwAmt}!`);
+        this.addLog(`Thwarting for ${thwAmt}!`, 'play');
 
         if (this.mainScheme!.instanceId === id) {
             this.mainScheme!.threatRemaining = Math.max(0, this.mainScheme!.threatRemaining - thwAmt);
@@ -970,18 +990,18 @@ export const useGameStore = defineStore('game', {
             return;
 
         if (this.hero.identityStatus === 'alter-ego') {
-            console.warn("You cannot attack in Alter-Ego form!");
+            this.addLog("You cannot attack in Alter-Ego form!", 'system');
             return;
         }
 
         // Guard: must defeat guard minions before attacking villain
         if (this.villainCard!.instanceId === id && this.hasGuardMinion) {
-            console.warn("Cannot attack the villain while a Guard minion is engaged!");
+            this.addLog("Cannot attack the villain while a Guard minion is engaged!", 'system');
             return;
         }
 
         const atkAmt = this.hero.atk;
-        console.log(`Attacking for ${atkAmt}!`);
+        this.addLog(`Attacking for ${atkAmt}!`, 'play');
 
         await this.applyDamageToEntity({ targetId: id, amount: atkAmt });
 
@@ -998,7 +1018,7 @@ export const useGameStore = defineStore('game', {
 
     defend() {
         // TODO: Implement defense
-        console.log(`Defending for ${this.hero.def}!`)
+        this.addLog(`Defending for ${this.hero.def}!`, 'play');
         this.toggleIdentityExhaust();
     },
 
@@ -1044,7 +1064,7 @@ export const useGameStore = defineStore('game', {
                 this.attachToTarget(card as any, targetId);
                 this.destroyHandCard(card.instanceId!);
             } catch (error) {
-                console.warn("Play cancelled during targeting.");
+                this.addLog("Play cancelled during targeting.", 'system');
                 return;
             }
         } 
@@ -1084,7 +1104,7 @@ export const useGameStore = defineStore('game', {
         if (!card) return;
         if (card.storageId) this.playerDiscardIds.push(card.storageId);
         this.tableauCards = this.tableauCards.filter(c => c.instanceId !== instanceId);
-        console.log(`${card.name} was discarded from the tableau.`);
+        this.addLog(`${card.name} was discarded from the tableau.`, 'discard');
     },
 
     async useResourceAbility(instanceId: number | string) {
@@ -1343,7 +1363,7 @@ export const useGameStore = defineStore('game', {
         // Tough status absorbs the hit
         if ('tough' in target && target.tough) {
             target.tough = false;
-            console.log(`${target.name} lost Tough status — damage prevented.`);
+            this.addLog(`${target.name} lost Tough status — damage prevented.`, 'status');
             return;
         }
 
@@ -1375,7 +1395,7 @@ export const useGameStore = defineStore('game', {
         if (ally) 
             return ally as Ally;
 
-        console.warn(`Entity with instanceId ${instanceId} not found in active zones.`);
+        this.addLog(`Entity with instanceId ${instanceId} not found in active zones.`, 'system');
         return undefined;
     },
 
@@ -1444,7 +1464,7 @@ export const useGameStore = defineStore('game', {
 
             await executeEffects(card.logic.effects, this, context);
         } else {
-            console.error(`No effects defined on card: "${card.name}"`);
+            this.addLog(`No effects defined on card: "${card.name}"`, 'system');
         }
 
         const resolve = this.activePrompt.resolve;
