@@ -5,7 +5,7 @@
     
   const props = defineProps<{ 
     card: Ally | Event | Upgrade | Support;
-    mode: 'play' | 'resource' | 'used';
+    mode: 'play' | 'resource' | 'used' | 'none';
   }>();
 
   const emit = defineEmits<{
@@ -34,7 +34,7 @@
     <div class="button-row">
       <button v-if="mode === 'play'" @click="playCard">Play</button>
       <button v-else-if="mode === 'resource'" @click="useAsResource">Resource</button>
-      <button v-else disabled>Used</button>
+      <button v-else-if="mode === 'used'" disabled>Used</button>
     </div>
   </div>
 </template>
