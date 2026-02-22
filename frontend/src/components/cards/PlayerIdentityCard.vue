@@ -20,6 +20,12 @@
     return 'hp-critical';
   });
 
+  const currentLogic = computed(() =>
+    player.value.identityStatus === 'hero' ? store.playerIdentity.heroLogic : store.playerIdentity.aeLogic
+  );
+
+  const hasManualAbility = computed(() => currentLogic.value?.type !== 'interrupt');
+
   const handleAbility = () => {
     if (!player.value.exhausted) {
       store.triggerIdentityCardAbility();
@@ -39,17 +45,28 @@
 
 <template>
   <div class="identity-compact">
-    <div 
-      class="aura-wrapper" 
+    <div
+      class="aura-wrapper"
       :class="player.exhausted ? 'aura-exhausted' : 'aura-ready'"
     >
-      <BaseCard 
-        :img-path="currentSideImg" 
+      <BaseCard
+        :img-path="currentSideImg"
         :orientation="'vertical'"
         :zoom-direction="'up'"
         class="mini-identity"
         :class="{ 'is-dimmed': player.exhausted }"
       />
+
+      <div class="stat-badges">
+        <template v-if="player.identityStatus === 'hero'">
+          <div class="stat-badge blue">{{ player.thw }}</div>
+          <div class="stat-badge red">{{ player.atk }}</div>
+          <div class="stat-badge green">{{ player.def }}</div>
+        </template>
+        <template v-else>
+          <div class="stat-badge yellow">{{ player.healing }}</div>
+        </template>
+      </div>
     </div>
 
     <div class="hp-container">
@@ -67,10 +84,11 @@
 
     <div class="compact-controls">
       <div class="row-main">
-        <button :disabled="store.idCardHasFlippedThisTurn" @click="store.flipIdentity" class="btn-sm btn-flip">FLIP</button>
-        <button 
-          :disabled="player.exhausted" 
-          @click="handleAbility" 
+        <button :disabled="store.currentPhase !== 'PLAYER_TURN' || store.idCardHasFlippedThisTurn" @click="store.flipIdentity" class="btn-sm btn-flip">FLIP</button>
+        <button
+          v-if="hasManualAbility"
+          :disabled="store.currentPhase !== 'PLAYER_TURN' || player.exhausted || (currentLogic.type === 'resource' && !store.activeCardId) || (currentLogic.limit != null && (store.abilityUseCounts['identity'] ?? 0) >= currentLogic.limit.uses)"
+          @click="handleAbility"
           class="btn-sm btn-ability"
         >
           ABILITY
@@ -78,19 +96,18 @@
       </div>
 
       <div class="row-actions">
-        <button 
-          v-if="player.identityStatus === 'alter-ego'" 
-          :disabled="player.exhausted || player.hitPointsRemaining! >= player.hitPoints"
-          @click="store.healIdentity" 
+        <button
+          v-if="player.identityStatus === 'alter-ego'"
+          :disabled="store.currentPhase !== 'PLAYER_TURN' || player.exhausted || player.hitPointsRemaining! >= player.hitPoints"
+          @click="store.healIdentity"
           class="btn-sm btn-heal"
         >
           RECOVER
         </button>
 
         <template v-else>
-          <button :disabled="player.exhausted" @click="handleThwart" class="btn-sm btn-thw">THW</button>
-          <button :disabled="player.exhausted" @click="handleAttack" class="btn-sm btn-atk">ATK</button>
-          <button :disabled="player.exhausted" @click="store.defend" class="btn-sm btn-def">DEF</button>
+          <button :disabled="store.currentPhase !== 'PLAYER_TURN' || player.exhausted" @click="handleThwart" class="btn-sm btn-thw">THW</button>
+          <button :disabled="store.currentPhase !== 'PLAYER_TURN' || player.exhausted" @click="handleAttack" class="btn-sm btn-atk">ATK</button>
         </template>
       </div>
     </div>
@@ -111,7 +128,39 @@
     border-radius: 8px;
     transition: box-shadow 0.3s ease;
     width: 100%;
+    position: relative;
   }
+
+  .stat-badges {
+    position: absolute;
+    top: 6px;
+    right: -2px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 15;
+    pointer-events: none;
+  }
+
+  .stat-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.75rem;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    border: 2px solid white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+  }
+
+  .stat-badge.blue   { background-color: #2196F3; }
+  .stat-badge.red    { background-color: #f44336; }
+  .stat-badge.green  { background-color: #27ae60; }
+  .stat-badge.yellow { background-color: #e6ac00; }
   .aura-ready { box-shadow: 0 0 12px rgba(0, 255, 100, 0.7); }
   .aura-exhausted { box-shadow: 0 0 12px rgba(255, 0, 0, 0.7); }
 
@@ -188,7 +237,6 @@
   .btn-heal { background: #f0cc58; color: black; font-weight: 900; }
   .btn-thw { background: #2980b9; }
   .btn-atk { background: #c0392b; }
-  .btn-def { background: #27ae60; }
 
   button:hover:not(:disabled) { filter: brightness(1.2); }
 </style>
