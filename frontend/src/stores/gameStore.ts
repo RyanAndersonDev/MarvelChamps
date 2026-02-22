@@ -150,7 +150,8 @@ export const useGameStore = defineStore('game', {
         if (!this.activeCard) return false;
         if (this.pendingRemoval?.resourceType) {
             const typed = this.committedResources[this.pendingRemoval.resourceType] ?? 0;
-            return typed >= this.pendingRemoval.cost;
+            const wild = this.committedResources['wild'] ?? 0;
+            return (typed + wild) >= this.pendingRemoval.cost;
         }
         const totalSpent = Object.values(this.committedResources).reduce((a, b) => a + b, 0);
         return totalSpent >= (this.activeCard.cost || 0);
