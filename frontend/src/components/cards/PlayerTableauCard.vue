@@ -50,11 +50,12 @@
         <div class="stat-badge orange">{{ allyStats!.hitPointsRemaining }}</div>
     </div>
 
-    <BaseCard 
+    <BaseCard
       :img-path="card.imgPath"
       :orientation="'vertical'"
       :zoom-direction="'out'"
       :size="'small'"
+      :no-zoom="store.targeting.isActive"
       :class="{ 'is-exhausted': card.exhausted }"
     />
 

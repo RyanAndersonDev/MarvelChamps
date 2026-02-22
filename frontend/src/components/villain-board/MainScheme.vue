@@ -30,6 +30,7 @@
         :img-path="props.schemeInstance.imgPath"
         :orientation="'horizontal'"
         :zoom-direction="'down'"
+        :no-zoom="store.targeting.isActive"
         class="scheme-card"
       />
       

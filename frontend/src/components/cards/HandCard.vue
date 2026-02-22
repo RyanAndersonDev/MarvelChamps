@@ -1,7 +1,9 @@
 <script setup lang="ts">
   import BaseCard from './BaseCard.vue';
+  import { useGameStore } from '../../stores/gameStore';
   import type { Ally, Event, Upgrade, Support } from '../../types/card';
   import type { Resource } from '../../types/card';
+  const store = useGameStore();
     
   const props = defineProps<{ 
     card: Ally | Event | Upgrade | Support;
@@ -25,10 +27,11 @@
 
 <template>
   <div class="hand-card-wrapper">
-    <BaseCard 
-      :img-path="card.imgPath" 
+    <BaseCard
+      :img-path="card.imgPath"
       :orientation="'vertical'"
       :zoom-direction="'up'"
+      :no-zoom="store.targeting.isActive"
     />
 
     <div class="button-row">

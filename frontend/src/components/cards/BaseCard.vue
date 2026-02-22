@@ -4,15 +4,16 @@
         alt?: string;
         orientation: "vertical" | "horizontal";
         zoomDirection: "up" | "down" | "out";
-        size?: "normal" | "small"
+        size?: "normal" | "small";
+        noZoom?: boolean;
     }>();
 </script>
 
 <template>
   <div class="base-card" :class="orientation ?? 'vertical', size ?? 'normal'">
-    <img :src="imgPath" 
-    :alt="alt ?? 'Card'" 
-    :class="zoomDirection"/>
+    <img :src="imgPath"
+    :alt="alt ?? 'Card'"
+    :class="[zoomDirection, { 'no-zoom': noZoom }]"/>
   </div>
 </template>
 
@@ -78,5 +79,10 @@
         box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         z-index: 1000;
         position: relative;
+    }
+
+    .base-card img.no-zoom:hover {
+        transform: none;
+        box-shadow: none;
     }
 </style>

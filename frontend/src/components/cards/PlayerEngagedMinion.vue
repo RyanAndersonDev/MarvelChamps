@@ -53,10 +53,21 @@
             :orientation="'vertical'"
             :zoom-direction="'out'"
             :size="'small'"
+            :no-zoom="store.targeting.isActive"
             :class="{ 'zoomed': isHovered && !store.targeting.isActive }"
         />
 
         <StatusPips :stunned="card.stunned" :confused="card.confused" :tough="card.tough" />
+
+        <div v-if="card.attachments?.length" class="attachment-badge">
+            ⚙ {{ card.attachments.length }}
+            <div class="attachment-tooltip">
+                <div v-for="att in card.attachments" :key="(att as any).instanceId" class="tooltip-entry">
+                    <img :src="(att as any).imgPath" class="tooltip-img" />
+                    <span>{{ (att as any).name }}</span>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -66,6 +77,7 @@
         cursor: pointer;
         transition: transform 0.2s, filter 0.2s;
         display: inline-block;
+        overflow: visible;
     }
 
     .stat-badges {
@@ -178,5 +190,58 @@
         0% { transform: scale(1); }
         50% { transform: scale(1.02); }
         100% { transform: scale(1); }
+    }
+
+    .attachment-badge {
+        position: absolute;
+        bottom: 4px;
+        left: 4px;
+        background: #e67e22;
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 900;
+        padding: 3px 6px;
+        border-radius: 4px;
+        border: 1.5px solid #fff;
+        z-index: 9999;
+        cursor: default;
+    }
+
+    .attachment-tooltip {
+        display: none;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 0;
+        background: rgba(10, 10, 20, 0.97);
+        border: 1px solid #e67e22;
+        border-radius: 8px;
+        padding: 16px;
+        min-width: 340px;
+        z-index: 9999;
+        flex-direction: column;
+        gap: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.9);
+    }
+
+    .attachment-badge:hover .attachment-tooltip {
+        display: flex;
+    }
+
+    .tooltip-entry {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        color: #eee;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .tooltip-img {
+        width: 240px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+        flex-shrink: 0;
     }
 </style>

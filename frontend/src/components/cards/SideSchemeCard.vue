@@ -31,6 +31,7 @@ function handleCardClick() {
         :orientation="'horizontal'"
         :zoom-direction="'down'"
         :size="'small'"
+        :no-zoom="store.targeting.isActive"
         class="scheme-card"
       />
 

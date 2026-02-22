@@ -45,10 +45,11 @@
             <div class="stat-badge orange">{{ props.cardInstance.hitPointsRemaining }}</div>
         </div>
 
-        <BaseCard 
+        <BaseCard
             :img-path="props.cardInstance.imgPath"
             :orientation="'vertical'"
             :zoom-direction="'down'"
+            :no-zoom="store.targeting.isActive"
             class="id-card"
         />
         <div v-if="isTargetable" class="target-badge">SELECT TARGET</div>

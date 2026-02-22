@@ -110,14 +110,25 @@
       <div class="left-group">
         <div class="deck-wrapper">
           <Transition name="fade">
-            <button
-              v-if="store.currentPhase === 'PLAYER_TURN'"
-              class="btn-end-turn"
-              :disabled="!!store.endOfTurnPhase"
-              @click="store.advanceGame"
-            >
-              END TURN
-            </button>
+            <div v-if="store.currentPhase === 'PLAYER_TURN'" class="end-turn-group">
+              <button
+                class="btn-end-turn"
+                :class="{
+                  'phase-discard': store.endOfTurnPhase === 'discard',
+                  'phase-mulligan': store.endOfTurnPhase === 'mulligan',
+                }"
+                :disabled="store.endOfTurnPhase === 'discard' && store.endOfTurnSelectedIds.length !== store.endOfTurnDiscardCount"
+                @click="store.endOfTurnPhase === 'mulligan' ? store.confirmMulligan() : store.advanceGame()"
+              >
+                <template v-if="store.endOfTurnPhase === 'discard'">
+                  DISCARD ({{ store.endOfTurnSelectedIds.length }}/{{ store.endOfTurnDiscardCount }})
+                </template>
+                <template v-else-if="store.endOfTurnPhase === 'mulligan'">
+                  DONE DISCARDING
+                </template>
+                <template v-else>END TURN</template>
+              </button>
+            </div>
           </Transition>
 
           <PlayerDeck 
@@ -225,6 +236,13 @@
     min-width: 100px;
   }
 
+  .end-turn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: stretch;
+  }
+
   .btn-end-turn {
     background: #e67e22;
     color: white;
@@ -241,15 +259,21 @@
     z-index: 10;
   }
 
-  .btn-end-turn:hover {
-    background: #f39c12;
-    transform: translateY(-1px);
+  .btn-end-turn.phase-discard {
+    background: #c0392b;
+    box-shadow: 0 3px 0 #7b241c;
+    cursor: not-allowed;
   }
 
-  .btn-end-turn:active {
-    transform: translateY(2px);
-    box-shadow: none;
+  .btn-end-turn.phase-mulligan {
+    background: #2980b9;
+    box-shadow: 0 3px 0 #1a5276;
   }
+
+  .btn-end-turn.phase-mulligan:hover { background: #3498db; }
+  .btn-end-turn:hover { background: #f39c12; transform: translateY(-1px); }
+  .btn-end-turn:active { transform: translateY(2px); box-shadow: none; }
+  .btn-end-turn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   .hand {
     flex: 1;
