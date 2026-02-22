@@ -36,9 +36,13 @@
 
 <template>
   <div class="tableau-card-wrapper">
-    <div v-if="card.type === 'upgrade' && (card as any).counters > 0" class="counter-badge">
-        {{ (card as any).counters }}
-    </div>
+    <Transition name="counter-pop" mode="out-in">
+        <div
+            v-if="card.type === 'upgrade' && (card as any).counters > 0"
+            :key="(card as any).counters"
+            class="counter-badge"
+        >{{ (card as any).counters }}</div>
+    </Transition>
 
     <div v-if="card.type === 'ally'" class="stat-badges">
         <div class="stat-badge blue">{{ effectiveThw }}</div>
@@ -128,6 +132,13 @@
     
     border: 2px solid white !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .counter-pop-enter-active { animation: counter-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  .counter-pop-leave-active { animation: counter-bounce 0.15s ease reverse; }
+  @keyframes counter-bounce {
+    from { transform: scale(0.4); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
   }
 
   .counter-badge {

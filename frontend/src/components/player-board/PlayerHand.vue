@@ -52,7 +52,7 @@
         </div>
     </Transition>
 
-    <div class="hand-container">
+    <TransitionGroup name="hand-card" tag="div" class="hand-container">
       <HandCard
         v-for="card in props.hand"
         :key="card.instanceId"
@@ -66,7 +66,7 @@
         @play="handlePlay"
         @resource="handleResource"
       />
-    </div>
+    </TransitionGroup>
   </div>
 </template>
 
@@ -82,6 +82,12 @@
         justify-content: center;
         gap: 10px;
     }
+
+    .hand-card-enter-active { transition: all 0.3s ease; }
+    .hand-card-leave-active { transition: all 0.25s ease; position: absolute; }
+    .hand-card-enter-from   { opacity: 0; transform: translateY(40px) scale(0.85); }
+    .hand-card-leave-to     { opacity: 0; transform: translateY(30px) scale(0.8); }
+    .hand-card-move         { transition: transform 0.3s ease; }
 
     .payment-bar {
         position: absolute;
