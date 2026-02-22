@@ -213,47 +213,39 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
         type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: true, crisis: true }],
 
     // ── Standard I encounter set ──
-    [12, { name: "Advance", side: "villain", imgPath: "/cards/villains/standard/Advance-Treachery.png", tags: [], flavorText: "",
-        type: "treachery", boostIcons: 1,
+    [12, { name: "Advance", side: "villain", imgPath: "/cards/villains/standard/Advance-Treachery.png", tags: [], flavorText: '"The world will be mine!" - Red Skull',
+        type: "treachery", boostIcons: 0,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'addThreat', amount: 2 }] } }],
     [13, { name: "Assault", side: "villain", imgPath: "/cards/villains/standard/Assault-Treachery.png", tags: [], flavorText: "",
-        type: "treachery", boostIcons: 1,
+        type: "treachery", boostIcons: 0,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'dealDamage', target: 'identity', amount: 2 }] } }],
     [14, { name: "Caught Off Guard", side: "villain", imgPath: "/cards/villains/standard/CaughtOffGuard-Treachery.png", tags: [], flavorText: "",
-        type: "treachery", boostIcons: 0,
+        type: "treachery", boostIcons: 1,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'sequence', effects: [{ op: 'dealDamage', target: 'identity', amount: 2 }, { op: 'surge' }] }] } }],
-    [15, { name: "Concussive Blow", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
-        type: "treachery", boostIcons: 0,
-        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
-            effects: [{ op: 'sequence', effects: [{ op: 'dealDamage', target: 'identity', amount: 2 }, { op: 'stun', target: 'identity' }] }] } }],
-    [16, { name: "Gang-Up", side: "villain", imgPath: "/cards/villains/standard/GangUp-Treachery.png", tags: [], flavorText: "",
-        type: "treachery", boostIcons: 0,
+    [15, { name: "Gang-Up", side: "villain", imgPath: "/cards/villains/standard/GangUp-Treachery.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 1,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'villainAttack' }] } }],
-    [17, { name: "Shadows of the Past", side: "villain", imgPath: "/cards/villains/standard/ShadowOfThePast-Treachery.png", tags: [], flavorText: "",
-        type: "treachery", boostIcons: 1,
+    [16, { name: "Shadow of the Past", side: "villain", imgPath: "/cards/villains/standard/ShadowOfThePast-Treachery.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 2,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'surge' }] } }],
-    [18, { name: "Weapon Master", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
-        type: "treachery", boostIcons: 1,
-        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
-            effects: [{ op: 'addThreat', amount: 1 }] } }],
 
     // ── Bomb Scare modular encounter set ──
-    [19, { name: "Bomb", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "There's a bomb somewhere in the building. Find it!",
+    [17, { name: "Bomb", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "There's a bomb somewhere in the building. Find it!",
         type: "side-scheme", boostIcons: 2, startingThreat: 5, startingThreatIsPerPlayer: false }],
-    [20, { name: "Bomb Scare", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+    [18, { name: "Bomb Scare", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
         type: "treachery", boostIcons: 0,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'addThreat', amount: 2 }] } }],
-    [21, { name: "Under Fire", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+    [10, { name: "Under Fire", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
         type: "treachery", boostIcons: 1,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'dealDamage', target: 'identity', amount: 1 }] } }],
-    [22, { name: "Running Interference", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+    [20, { name: "Running Interference", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
         type: "treachery", boostIcons: 0,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'surge' }] } }],
@@ -270,8 +262,8 @@ export function getVillainCardImgPathById(cardId: number): string {
 // ── Setup libraries ──
 
 export const rhinoVillainCardIds  = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-export const standardICardIds     = [12, 13, 14, 15, 16, 17, 18];
-export const bombScareCardIds     = [19, 20, 21, 21, 22, 22];
+export const standardICardIds     = [12, 13, 14, 15, 16];
+export const bombScareCardIds     = [17, 18, 19, 20];
 
 export const heroLibrary = [
     {
