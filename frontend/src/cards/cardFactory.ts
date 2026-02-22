@@ -247,12 +247,14 @@ export function printVillainCard(blueprint: VillainCard, instanceId: number) : V
                 ...base,
                 startingThreat: blueprint.startingThreat,
                 startingThreatIsPerPlayer: blueprint.startingThreatIsPerPlayer,
-                threatRemaining: blueprint.startingThreatIsPerPlayer ? blueprint.startingThreat! * 1 : blueprint.startingThreat // TODO: Make number of players!
+                threatRemaining: blueprint.startingThreatIsPerPlayer ? blueprint.startingThreat! * 1 : blueprint.startingThreat, // TODO: Make number of players!
+                logic: blueprint.logic
             } as SideScheme;
 
         case "treachery":
             return {
-                ...base
+                ...base,
+                logic: blueprint.logic
             }
             
         default:
