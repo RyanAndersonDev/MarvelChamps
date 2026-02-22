@@ -42,6 +42,7 @@ export type EffectDef =
   | { op: 'generateResource'; resourceType: Resource }
   | { op: 'villainAttack';    stunOnHit?: boolean }
   | { op: 'villainScheme' }
+  | { op: 'allEnemiesAttack' }
   | { op: 'preventAttack' }
   | { op: 'cancelDamage' }
   | { op: 'reduceDamage';     amount: number }
@@ -51,6 +52,7 @@ export type EffectDef =
   | { op: 'decrementCounter'; discardIfEmpty?: boolean }
   | { op: 'exhaust' }
   | { op: 'surge' }
+  | { op: 'discardTableauCard'; types: string[]; surgeIfNone?: boolean }
   | { op: 'addThreat'; amount: number }
   | { op: 'redirectDamage';   discardAt?: number }
   | { op: 'if';       condition: EffectCondition; then: EffectDef | EffectDef[]; else?: EffectDef | EffectDef[] }

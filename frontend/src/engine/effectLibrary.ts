@@ -118,6 +118,20 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             break;
         }
 
+        case 'allEnemiesAttack': {
+            await state.villainActivationAttack({
+                attacker: state.villainCard?.name ?? 'Villain',
+                baseDamage: (state.villainCard?.atk ?? 0) + (state.villainCard?.attachments ?? []).reduce((s: number, a: any) => s + (a.atkMod ?? 0), 0),
+                boostDamage: 0, isDefended: false, targetType: 'identity', targetId: 'hero',
+                isCanceled: false, damageWasDealt: false,
+                overkill: (state.villainCard?.attachments ?? []).some((a: any) => a.overkill),
+            });
+            for (const minion of [...state.engagedMinions]) {
+                await state.minionActivationAttack(minion);
+            }
+            break;
+        }
+
         case 'villainScheme': {
             const schemeMod = (state.villainCard?.attachments ?? [])
                 .reduce((sum: number, att: any) => sum + (att.thwMod ?? 0), 0);
@@ -221,6 +235,23 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
         case 'surge': {
             context.surge = true;
             state.addLog("Surge triggered.", 'surge');
+            break;
+        }
+
+        case 'discardTableauCard': {
+            const candidates = state.tableauCards.filter((c: any) => effect.types.includes(c.type));
+            if (candidates.length === 0) {
+                if (effect.surgeIfNone) {
+                    context.surge = true;
+                    state.addLog("No valid cards to discard — surge triggered.", 'surge');
+                }
+                break;
+            }
+            const options = candidates.map((c: any) => ({ id: c.instanceId, name: c.name, imgPath: c.imgPath, cost: c.cost }));
+            const chosen = await state.requestChoice('Discard an upgrade or support', options);
+            if (chosen?.id !== 'none') {
+                state.discardFromTableau(chosen.id);
+            }
             break;
         }
 
