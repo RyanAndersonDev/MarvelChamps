@@ -69,6 +69,8 @@ export const useGameStore = defineStore('game', {
     pendingInterruptPayload: null as any,
     pendingInterruptResolve: null as ((value: string) => void) | null,
 
+    pendingRemoval: null as { attachmentInstanceId: number; hostId: number; cost: number; resourceType?: string; name: string } | null,
+
     isTargeting: false,
     targetType: null as string | null,
     resolveTargetPromise: null as ((id: number) => void) | null,
@@ -90,6 +92,8 @@ export const useGameStore = defineStore('game', {
     },
 
     activeCard(state): any {
+        if (state.activeCardId === -1 && state.pendingRemoval)
+            return { cost: state.pendingRemoval.cost, name: state.pendingRemoval.name, instanceId: -1 };
         return state.hand.find(c => c.instanceId === state.activeCardId);
     },
 
@@ -113,7 +117,10 @@ export const useGameStore = defineStore('game', {
 
     isCostMet(): boolean {
         if (!this.activeCard) return false;
-        
+        if (this.pendingRemoval?.resourceType) {
+            const typed = this.committedResources[this.pendingRemoval.resourceType] ?? 0;
+            return typed >= this.pendingRemoval.cost;
+        }
         const totalSpent = Object.values(this.committedResources).reduce((a, b) => a + b, 0);
         return totalSpent >= (this.activeCard.cost || 0);
     },
@@ -1067,6 +1074,26 @@ export const useGameStore = defineStore('game', {
 
     // ****************************** CARD PAYMENT ******************************
 
+    startAttachmentRemoval(attachment: any, hostId: number) {
+        this.pendingRemoval = {
+            attachmentInstanceId: attachment.instanceId,
+            hostId,
+            cost: attachment.removal.cost,
+            resourceType: attachment.removal.resourceType,
+            name: `Remove: ${attachment.name}`
+        };
+        this.activeCardId = -1;
+    },
+
+    removeAttachment(attachmentInstanceId: number, hostId: number) {
+        if (this.villainCard?.instanceId === hostId) {
+            this.villainCard.attachments = this.villainCard.attachments.filter(a => a.instanceId !== attachmentInstanceId);
+            return;
+        }
+        const minion = this.engagedMinions.find(m => m.instanceId === hostId);
+        if (minion) minion.attachments = minion.attachments.filter(a => a.instanceId !== attachmentInstanceId);
+    },
+
     startPayment(cardId: number) {
         const card = this.hand.find(c => c.instanceId === cardId);
         if (!card) return;
@@ -1079,7 +1106,16 @@ export const useGameStore = defineStore('game', {
     },
 
     addResourceToPayment(instanceId: number) {
-        if (this.activeCardId === instanceId) return; 
+        if (this.activeCardId === instanceId) return;
+
+        // If removal requires a specific resource type, reject cards that don't provide it
+        if (this.pendingRemoval?.resourceType) {
+            const card = this.hand.find(c => c.instanceId === instanceId);
+            if (!card?.resources?.includes(this.pendingRemoval.resourceType as any)) {
+                this.addLog(`Removal requires ${this.pendingRemoval.resourceType} resources only.`, 'system');
+                return;
+            }
+        }
 
         if (!this.paymentBufferIds.includes(instanceId)) {
             this.paymentBufferIds.push(instanceId);
@@ -1091,6 +1127,17 @@ export const useGameStore = defineStore('game', {
     },
 
     async finalizePlay() {
+        // Pending attachment removal
+        if (this.pendingRemoval) {
+            const { attachmentInstanceId, hostId, name } = this.pendingRemoval;
+            this.pendingRemoval = null;
+            this.discardPlayerCardsFromHand(this.paymentBufferIds);
+            this.resetPayment();
+            this.removeAttachment(attachmentInstanceId, hostId);
+            this.addLog(`${name} removed.`, 'play');
+            return;
+        }
+
         // Pending paid interrupt — execute the interrupt effect then resume the interrupt promise
         if (this.pendingInterruptCard) {
             const card = this.pendingInterruptCard;
@@ -1149,6 +1196,8 @@ export const useGameStore = defineStore('game', {
         this.activeCardId = null;
         this.paymentBufferIds = [];
         this.generatedResources = [];
+        this.pendingRemoval = null;
+
         // If cancelling a pending paid interrupt, resolve the suspended promise as "passed"
         if (this.pendingInterruptResolve) {
             const resolve = this.pendingInterruptResolve;

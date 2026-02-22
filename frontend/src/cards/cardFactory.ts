@@ -233,7 +233,8 @@ export function printVillainCard(blueprint: VillainCard, instanceId: number) : V
                 atkMod: blueprint.atkMod,
                 logic: blueprint.logic,
                 damageAccumulated: 0,
-                overkill: blueprint.overkill || false
+                overkill: blueprint.overkill || false,
+                removal: blueprint.removal
             } as Attachment;
 
         case "minion":

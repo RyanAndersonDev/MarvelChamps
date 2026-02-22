@@ -1,8 +1,11 @@
 <script setup lang="ts">
     import { ref } from 'vue';
     import type { Attachment, Upgrade } from '../../types/card';
+    import { useGameStore } from '../../stores/gameStore';
 
-    defineProps<{ attachments: (Attachment | Upgrade)[] }>();
+    const store = useGameStore();
+
+    const props = defineProps<{ attachments: (Attachment | Upgrade)[]; hostId: number }>();
 
     const hoverCard = ref<{ imgPath: string; name: string } | null>(null);
     const popupStyle = ref({});
@@ -38,6 +41,11 @@
         >
             <span class="chip-dot"></span>
             {{ card.name }}
+            <button
+                v-if="(card as any).removal && store.currentPhase === 'PLAYER_TURN'"
+                class="remove-btn"
+                @click.stop="store.startAttachmentRemoval(card, props.hostId)"
+            >REMOVE ({{ (card as any).removal.cost }}{{ (card as any).removal.resourceType ? ' ' + (card as any).removal.resourceType[0].toUpperCase() : '' }})</button>
         </div>
 
         <Teleport to="body">
@@ -77,6 +85,25 @@
 .attachment-chip:hover {
     background: rgba(220, 50, 50, 0.95);
     border-color: #ff8888;
+}
+
+.remove-btn {
+    margin-left: 4px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px;
+    color: #ffcccc;
+    font-size: 0.55rem;
+    font-weight: 900;
+    padding: 1px 4px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.remove-btn:hover {
+    background: #c0392b;
+    border-color: white;
+    color: white;
 }
 
 .chip-dot {

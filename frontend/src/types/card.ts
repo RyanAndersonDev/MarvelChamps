@@ -175,6 +175,7 @@ export interface VillainCard extends CardBase {
     guard?: boolean;
     toughOnEntry?: boolean;
     overkill?: boolean;
+    removal?: { cost: number; resourceType?: Resource };
     whenRevealedThreat?: number;
     crisis?: boolean;
     hazard?: boolean;
@@ -207,6 +208,7 @@ export interface Attachment extends VillainCardInstance {
     logic?: CardLogic;
     damageAccumulated?: number;
     overkill?: boolean;
+    removal?: { cost: number; resourceType?: Resource };
 }
 
 export interface SideScheme extends VillainCardInstance {

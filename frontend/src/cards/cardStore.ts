@@ -141,7 +141,7 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
         }
     }],
     [3, { name: "Enhanced Ivory Horn", side: "villain", imgPath: "/cards/villains/rhino/EnhancedIvoryHorn-Attachment.png", tags: ["weapon"], flavorText: "",
-        type: "attachment", boostIcons: 2, atkMod: 1 }],
+        type: "attachment", boostIcons: 2, atkMod: 1, removal: { cost: 3, resourceType: 'physical' } }],
     [4, { name: "Hydra Mercenary", side: "villain", imgPath: "/cards/villains/rhino/HydraMercenary-Minion.png", tags: ["hydra"], flavorText: `"What is Hydra doing here?" - Carol Danvers`,
         type: "minion", boostIcons: 1, sch: 0, atk: 1, hitPoints: 3, guard: true }],
     [5, { name: "Sandman", side: "villain", imgPath: "/cards/villains/rhino/Sandman-Minion.png", tags: ["criminal", "elite"], flavorText: `"I just wanna get paid!"`,

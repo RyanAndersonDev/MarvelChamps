@@ -38,6 +38,7 @@
             />
             <VillainAttachments
                 :attachments="props.cardInstance.attachments || []"
+                :host-id="props.cardInstance.instanceId"
             />
         </div>
 
