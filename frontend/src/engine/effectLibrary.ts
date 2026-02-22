@@ -118,6 +118,18 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             break;
         }
 
+        case 'villainScheme': {
+            const schemeMod = (state.villainCard?.attachments ?? [])
+                .reduce((sum: number, att: any) => sum + (att.thwMod ?? 0), 0);
+            const schemePayload = {
+                baseThreat: (state.villainCard?.sch ?? 0) + schemeMod,
+                boostThreat: 0,
+                isCanceled: false,
+            };
+            await state.villainActivationScheme(schemePayload);
+            break;
+        }
+
         case 'preventAttack': {
             if (context.attackPayload) context.attackPayload.isCanceled = true;
             else context.isCanceled = true;

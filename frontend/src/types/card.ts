@@ -41,6 +41,7 @@ export type EffectDef =
   | { op: 'removeThreat';     target: EffectTarget; amount: number }
   | { op: 'generateResource'; resourceType: Resource }
   | { op: 'villainAttack';    stunOnHit?: boolean }
+  | { op: 'villainScheme' }
   | { op: 'preventAttack' }
   | { op: 'cancelDamage' }
   | { op: 'reduceDamage';     amount: number }
