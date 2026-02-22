@@ -147,6 +147,7 @@ export interface VillainIdentityCard extends CardBase {
     atk: number;
     logic?: CardLogic;
     storageId?: number;
+    nextPhaseId?: number;
 }
 
 export interface VillainIdentityCardInstance extends VillainIdentityCard {

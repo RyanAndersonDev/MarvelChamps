@@ -117,7 +117,9 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
 
 export const villainIdCardMap: Map<number, VillainIdentityCard> = new Map<number, VillainIdentityCard>([
     [1, { name: "Rhino", side: "villain", imgPath: "/cards/villains/rhino/Rhino-Phase1.png", tags: ["brute", "criminal"], phase: 1, hitPointsPerPlayer: 14, sch: 1, atk: 2,
-        flavorText: `"I'm Rhino. I knock things down. That's what I do. That's who I am."` }]
+        nextPhaseId: 2, flavorText: `"I'm Rhino. I knock things down. That's what I do. That's who I am."` }],
+    [2, { name: "Rhino", side: "villain", imgPath: "/cards/villains/rhino/Rhino-Phase2.png", tags: ["brute", "criminal"], phase: 2, hitPointsPerPlayer: 15, sch: 2, atk: 3,
+        flavorText: `"You're going to need a bigger wall."` }],
 ]);
 
 export const villainMainSchemeMap: Map<number, MainScheme> = new Map<number, MainScheme>([

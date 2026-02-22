@@ -110,9 +110,10 @@
       <div class="left-group">
         <div class="deck-wrapper">
           <Transition name="fade">
-            <button 
-              v-if="store.currentPhase === 'PLAYER_TURN'" 
+            <button
+              v-if="store.currentPhase === 'PLAYER_TURN'"
               class="btn-end-turn"
+              :disabled="!!store.endOfTurnPhase"
               @click="store.advanceGame"
             >
               END TURN
@@ -149,6 +150,18 @@
   </main>
 
   <GameLog />
+
+  <!-- Game Over Overlay -->
+  <Teleport to="body">
+    <Transition name="fade">
+      <div v-if="store.gameOver" class="game-over-overlay" :class="store.gameOver">
+        <div class="game-over-box">
+          <div class="game-over-title">{{ store.gameOver === 'win' ? '🦸 VICTORY!' : '💀 DEFEATED' }}</div>
+          <div class="game-over-subtitle">{{ store.gameOver === 'win' ? 'The villain has been defeated!' : 'The villain has won...' }}</div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -362,4 +375,39 @@
 
   .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
   .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+  .game-over-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(6px);
+  }
+
+  .game-over-overlay.win  { background: rgba(0, 60, 20, 0.85); }
+  .game-over-overlay.lose { background: rgba(60, 0, 0, 0.85); }
+
+  .game-over-box {
+    text-align: center;
+    padding: 60px 80px;
+    border-radius: 20px;
+    background: rgba(0,0,0,0.6);
+    border: 2px solid rgba(255,255,255,0.2);
+    box-shadow: 0 0 60px rgba(0,0,0,0.8);
+  }
+
+  .game-over-title {
+    font-size: 3.5rem;
+    font-weight: 900;
+    color: white;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+  }
+
+  .game-over-subtitle {
+    font-size: 1.1rem;
+    color: rgba(255,255,255,0.7);
+  }
 </style>

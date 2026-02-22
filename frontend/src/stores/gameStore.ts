@@ -1,8 +1,11 @@
 import { defineStore } from "pinia";
+
+// Module-level resolver for end-of-turn async pause
+let _endOfTurnResolve: (() => void) | null = null;
 import { type Ally, type Event, type Upgrade, type Support, type IdentityCardInstance, type VillainIdentityCardInstance, type MainSchemeInstance, type Treachery, type Attachment, type Minion, type SideScheme, type PlayerCardInstance, type Resource }
     from '../types/card'
 import type { LogEntry, LogType } from '../types/log';
-import { villainCardMap } from "../cards/cardStore";
+import { villainCardMap, villainIdCardMap } from "../cards/cardStore";
 import { GamePhase, type GamePhaseType } from "../types/phases";
 import { createHandCard, createMainSchemeCard, createTableauCard, createVillainCard, createVillainIdentityCard, createEngagedMinion, createSideScheme, createIdentityCard } from "../cards/cardFactory";
 import { executeEffects } from "../engine/effectLibrary";
@@ -12,6 +15,19 @@ export const useGameStore = defineStore('game', {
     // Game phase info
     currentPhase: GamePhase.PLAYER_TURN as GamePhaseType,
     encounterResolveSignal: null as (() => void) | null,
+
+    // End-of-turn hand management
+    endOfTurnPhase: null as null | 'discard' | 'mulligan',
+    endOfTurnSelectedIds: [] as number[],
+
+    // Game outcome
+    gameOver: null as null | 'win' | 'lose',
+
+    // Acceleration tokens (villain deck exhausted = +1 permanent threat per round)
+    accelerationTokens: 0,
+
+    // Bonus encounter cards to deal next villain step 4 (from player deck shuffles)
+    bonusEncounterCards: 0,
 
     // Identification
     idIncrementer: 0,
@@ -89,6 +105,21 @@ export const useGameStore = defineStore('game', {
         }
 
         return state.playerIdentity;
+    },
+
+    currentHandSizeLimit(state): number {
+        if (!state.playerIdentity) return 6;
+        return state.playerIdentity.identityStatus === 'alter-ego'
+            ? state.playerIdentity.handsizeAe
+            : state.playerIdentity.handSizeHero;
+    },
+
+    endOfTurnDiscardCount(state): number {
+        if (!state.playerIdentity) return 0;
+        const limit = state.playerIdentity.identityStatus === 'alter-ego'
+            ? state.playerIdentity.handsizeAe
+            : state.playerIdentity.handSizeHero;
+        return Math.max(0, state.hand.length - limit);
     },
 
     activeCard(state): any {
@@ -195,7 +226,22 @@ export const useGameStore = defineStore('game', {
     },
 
     async advanceGame() {
+        if (this.gameOver) return;
+
         if (this.currentPhase === GamePhase.PLAYER_TURN) {
+            // Discard down to hand size if over limit
+            if (this.endOfTurnDiscardCount > 0) {
+                this.endOfTurnSelectedIds = [];
+                this.endOfTurnPhase = 'discard';
+                await new Promise<void>(resolve => { _endOfTurnResolve = resolve; });
+            }
+
+            // Mulligan opportunity
+            this.endOfTurnSelectedIds = [];
+            this.endOfTurnPhase = 'mulligan';
+            await new Promise<void>(resolve => { _endOfTurnResolve = resolve; });
+            this.endOfTurnPhase = null;
+
             this.readyAllCards();
             this.drawToHandSize();
 
@@ -228,9 +274,11 @@ export const useGameStore = defineStore('game', {
     },
 
     async processMainSchemeStepOne() {
-        const amount = this.mainScheme!.threatIncrementIsPerPlayer
+        const base = this.mainScheme!.threatIncrementIsPerPlayer
             ? this.mainScheme!.threatIncrement * 1 // TODO: Multiply by player count
             : this.mainScheme!.threatIncrement;
+
+        const amount = base + this.accelerationTokens;
 
         const threatPayload = {
             amount,
@@ -528,8 +576,19 @@ export const useGameStore = defineStore('game', {
                     this.encounterPileIds.push(cardId);
                     this.addLog(`Dealt 1 encounter card to the player.`, 'villain');
                 } else {
-                    // Logic for deck running out (Acceleration tokens)
-                    // TODO await this.handleEmptyVillainDeck();
+                    // Villain deck exhausted: shuffle discard, add acceleration token
+                    if (this.villainDiscardIds.length > 0) {
+                        this.villainDeckIds.push(...this.villainDiscardIds);
+                        this.villainDiscardIds = [];
+                        this.shufflePile(this.villainDeckIds);
+                        this.accelerationTokens++;
+                        this.addLog(`Villain deck exhausted — shuffled discard into new deck. Acceleration token added (+${this.accelerationTokens} threat/round total).`, 'villain');
+                        const newCardId = this.villainDeckIds.pop();
+                        if (newCardId) {
+                            this.encounterPileIds.push(newCardId);
+                            this.addLog(`Dealt 1 encounter card to the player.`, 'villain');
+                        }
+                    }
                 }
             }
 
@@ -539,6 +598,16 @@ export const useGameStore = defineStore('game', {
                 if (cardId) {
                     this.encounterPileIds.push(cardId);
                     this.addLog(`${scheme.name} (Hazard) dealt an additional encounter card.`, 'villain');
+                }
+            }
+
+            // Bonus encounter cards from player deck shuffles this round
+            while (this.bonusEncounterCards > 0) {
+                this.bonusEncounterCards--;
+                const cardId = this.villainDeckIds.pop();
+                if (cardId) {
+                    this.encounterPileIds.push(cardId);
+                    this.addLog(`Dealt 1 bonus encounter card (player deck was shuffled).`, 'villain');
                 }
             }
         });
@@ -600,11 +669,37 @@ export const useGameStore = defineStore('game', {
         this.hand = this.hand.filter(c => c.instanceId !== cardId);
     },
 
+    toggleEndOfTurnCard(instanceId: number) {
+        const idx = this.endOfTurnSelectedIds.indexOf(instanceId);
+        if (idx === -1) this.endOfTurnSelectedIds.push(instanceId);
+        else this.endOfTurnSelectedIds.splice(idx, 1);
+    },
+
+    confirmEndOfTurnDiscard() {
+        if (this.endOfTurnSelectedIds.length !== this.endOfTurnDiscardCount) return;
+        this.discardPlayerCardsFromHand(this.endOfTurnSelectedIds);
+        this.endOfTurnSelectedIds = [];
+        _endOfTurnResolve?.();
+        _endOfTurnResolve = null;
+    },
+
+    confirmMulligan() {
+        if (this.endOfTurnSelectedIds.length > 0) {
+            const count = this.endOfTurnSelectedIds.length;
+            this.discardPlayerCardsFromHand(this.endOfTurnSelectedIds);
+            for (let i = 0; i < count; i++) this.drawCardFromDeck();
+        }
+        this.endOfTurnSelectedIds = [];
+        _endOfTurnResolve?.();
+        _endOfTurnResolve = null;
+    },
+
     shuffleDiscardPileIntoDrawPile() {
         this.deckIds.push(...this.playerDiscardIds);
         this.playerDiscardIds = [];
-
         this.shufflePile(this.deckIds);
+        this.bonusEncounterCards++;
+        this.addLog(`Player deck exhausted — shuffled discard into new draw pile. An encounter card will be dealt this round.`, 'villain');
     },
 
     // ****************************** ALLY ACTIONS ******************************
@@ -1507,6 +1602,29 @@ export const useGameStore = defineStore('game', {
             { targetId: damageData.targetId, amount: damageData.amount, isCanceled: false },
             performDamage
         );
+
+        // Check if villain was defeated
+        if (target === this.villainCard && (this.villainCard.hitPointsRemaining ?? 0) <= 0) {
+            await this.handleVillainDefeated();
+        }
+    },
+
+    async handleVillainDefeated() {
+        const current = this.villainCard!;
+        const blueprint = villainIdCardMap.get(current.storageId!);
+
+        if (blueprint?.nextPhaseId) {
+            const nextBlueprint = villainIdCardMap.get(blueprint.nextPhaseId);
+            if (nextBlueprint) {
+                const nextPhase = current.phase + 1;
+                this.addLog(`${current.name} Phase ${current.phase} defeated! Flipping to Phase ${nextPhase}!`, 'villain');
+                this.villainCard = createVillainIdentityCard(blueprint.nextPhaseId, current.instanceId);
+                return;
+            }
+        }
+
+        this.addLog(`${current.name} has been defeated! PLAYER WINS!`, 'villain');
+        this.gameOver = 'win';
     },
 
     findTargetById(instanceId: number): IdentityCardInstance | VillainIdentityCardInstance | Minion | Ally | undefined {
