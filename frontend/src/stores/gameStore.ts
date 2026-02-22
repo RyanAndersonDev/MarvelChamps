@@ -559,6 +559,20 @@ export const useGameStore = defineStore('game', {
         });
     },
 
+    // Draws one card from the villain deck, shuffling discard back in (+ acceleration) if empty.
+    // Returns the storageId, or null if both deck and discard are empty.
+    drawOneVillainCard(): number | null {
+        if (this.villainDeckIds.length === 0) {
+            if (this.villainDiscardIds.length === 0) return null;
+            this.villainDeckIds.push(...this.villainDiscardIds);
+            this.villainDiscardIds = [];
+            this.shufflePile(this.villainDeckIds);
+            this.accelerationTokens++;
+            this.addLog(`Villain deck exhausted — discard shuffled into new deck. Acceleration token added (${this.accelerationTokens} bonus threat/round).`, 'villain');
+        }
+        return this.villainDeckIds.pop() ?? null;
+    },
+
     async dealEncounterCards() {
         const payload = {
             count: 1,
@@ -566,36 +580,21 @@ export const useGameStore = defineStore('game', {
         };
 
         await this.emitEvent('DEAL_ENCOUNTER_CARDS', payload, async () => {
-            if (payload.isCanceled) 
+            if (payload.isCanceled)
                 return;
 
             for (let i = 0; i < payload.count; i++) {
-                const cardId = this.villainDeckIds.pop();
-
-                if (cardId) {
+                const cardId = this.drawOneVillainCard();
+                if (cardId !== null) {
                     this.encounterPileIds.push(cardId);
                     this.addLog(`Dealt 1 encounter card to the player.`, 'villain');
-                } else {
-                    // Villain deck exhausted: shuffle discard, add acceleration token
-                    if (this.villainDiscardIds.length > 0) {
-                        this.villainDeckIds.push(...this.villainDiscardIds);
-                        this.villainDiscardIds = [];
-                        this.shufflePile(this.villainDeckIds);
-                        this.accelerationTokens++;
-                        this.addLog(`Villain deck exhausted — shuffled discard into new deck. Acceleration token added (+${this.accelerationTokens} threat/round total).`, 'villain');
-                        const newCardId = this.villainDeckIds.pop();
-                        if (newCardId) {
-                            this.encounterPileIds.push(newCardId);
-                            this.addLog(`Dealt 1 encounter card to the player.`, 'villain');
-                        }
-                    }
                 }
             }
 
             // Hazard: each active Hazard side scheme deals one additional encounter card
             for (const scheme of this.activeSideSchemes.filter(ss => ss.hazard)) {
-                const cardId = this.villainDeckIds.pop();
-                if (cardId) {
+                const cardId = this.drawOneVillainCard();
+                if (cardId !== null) {
                     this.encounterPileIds.push(cardId);
                     this.addLog(`${scheme.name} (Hazard) dealt an additional encounter card.`, 'villain');
                 }
@@ -604,8 +603,8 @@ export const useGameStore = defineStore('game', {
             // Bonus encounter cards from player deck shuffles this round
             while (this.bonusEncounterCards > 0) {
                 this.bonusEncounterCards--;
-                const cardId = this.villainDeckIds.pop();
-                if (cardId) {
+                const cardId = this.drawOneVillainCard();
+                if (cardId !== null) {
                     this.encounterPileIds.push(cardId);
                     this.addLog(`Dealt 1 bonus encounter card (player deck was shuffled).`, 'villain');
                 }
@@ -931,8 +930,9 @@ export const useGameStore = defineStore('game', {
     },
 
     drawFromVillainDeckAsEncounterCard() {
-        if (this.villainDeckIds.length > 0) {
-            this.encounterPileIds.push(this.villainDeckIds.shift()!);
+        const cardId = this.drawOneVillainCard();
+        if (cardId !== null) {
+            this.encounterPileIds.push(cardId);
         }
     },
 

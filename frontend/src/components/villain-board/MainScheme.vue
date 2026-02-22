@@ -47,6 +47,10 @@
         <span class="label">LIMIT</span>
         <span class="value">{{ schemeInstance.threatThreshold }}</span>
       </div>
+      <div v-if="store.accelerationTokens > 0" class="stat-badge acceleration" :title="`+${store.accelerationTokens} threat per round`">
+        <span class="label">ACCEL</span>
+        <span class="value">+{{ store.accelerationTokens }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -95,6 +99,7 @@
 
     .threat .value { color: #f1c40f; font-weight: 800; }
     .threshold .value { color: #ecf0f1; }
+    .acceleration .value { color: #e74c3c; font-weight: 800; }
 
     .label {
         font-size: 0.6rem;
