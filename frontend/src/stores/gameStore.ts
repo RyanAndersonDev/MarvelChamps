@@ -1277,15 +1277,17 @@ export const useGameStore = defineStore('game', {
 
         if (card.type === "event") {
             if ((card as any).tags?.includes('attack') && this.hero.stunned) {
-                this.addLog(`${this.hero.name}'s stun cleared by attack action.`, 'status');
+                this.addLog(`${this.hero.name} is stunned — attack blocked, stun removed.`, 'status');
                 this.hero.stunned = false;
-            }
-            if ((card as any).tags?.includes('thwart') && this.hero.confused) {
-                this.addLog(`${this.hero.name}'s confused status cleared by thwart action.`, 'status');
+                this.discardPlayerCardsFromHand([card.instanceId!]);
+            } else if ((card as any).tags?.includes('thwart') && this.hero.confused) {
+                this.addLog(`${this.hero.name} is confused — thwart blocked, confused removed.`, 'status');
                 this.hero.confused = false;
+                this.discardPlayerCardsFromHand([card.instanceId!]);
+            } else {
+                await this.executeCardEffect(card as any);
+                this.discardPlayerCardsFromHand([card.instanceId!]);
             }
-            await this.executeCardEffect(card as any);
-            this.discardPlayerCardsFromHand([card.instanceId!]);
         } 
         else if (card.type === "upgrade" && card.attachmentLocation !== "tableau") {
             try {
