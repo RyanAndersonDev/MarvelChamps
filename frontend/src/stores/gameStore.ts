@@ -87,6 +87,8 @@ export const useGameStore = defineStore('game', {
 
     pendingRemoval: null as { attachmentInstanceId: number; hostId: number; cost: number; resourceType?: string; name: string } | null,
 
+    boostCard: null as { storageId: number; boostIcons: number; imgPath: string; name: string } | null,
+
     isTargeting: false,
     targetType: null as string | null,
     resolveTargetPromise: null as ((id: number) => void) | null,
@@ -332,11 +334,39 @@ export const useGameStore = defineStore('game', {
         }
     },
 
+    async flipBoostCard(): Promise<number> {
+        const cardId = this.drawOneVillainCard();
+        if (cardId === null) return 0;
+
+        const blueprint = villainCardMap.get(cardId);
+        const boostIcons = blueprint?.boostIcons ?? 0;
+
+        this.boostCard = {
+            storageId: cardId,
+            boostIcons,
+            imgPath: blueprint?.imgPath ?? '',
+            name: blueprint?.name ?? 'Unknown'
+        };
+
+        await this.emitEvent('BOOST_CARD_DRAWN', { cardId, boostIcons }, async () => {});
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        await this.emitEvent('BOOST_CARD_REVEALED', { cardId, boostIcons }, async () => {});
+
+        this.villainDiscardIds.push(cardId);
+
+        await new Promise(resolve => setTimeout(resolve, 600));
+        this.boostCard = null;
+
+        return boostIcons;
+    },
+
     async villainActivationScheme(payload: any) {
         await this.emitEvent('VILLAIN_SCHEME', payload, async () => {
             if (payload.isCanceled) return;
 
-            //payload.boostThreat = await this.flipBoostCard(); TODO: BOOST CARD IMPLEMENTATION
+            payload.boostThreat = await this.flipBoostCard();
             const total = payload.baseThreat + payload.boostThreat;
 
             const threatPayload = {
@@ -391,12 +421,14 @@ export const useGameStore = defineStore('game', {
                 await this.handleDefenseStep(attackPayload);
             }
 
+            attackPayload.boostDamage = await this.flipBoostCard();
+
             let reduction = 0;
             if (attackPayload.isDefended && attackPayload.targetType === 'identity') {
                 reduction = this.hero.def || 0;
             }
 
-            const finalDamage = Math.max(0, attackPayload.baseDamage - reduction);
+            const finalDamage = Math.max(0, attackPayload.baseDamage + (attackPayload.boostDamage ?? 0) - reduction);
 
             if (attackPayload.targetType === 'identity') {
                 if (finalDamage > 0) {
