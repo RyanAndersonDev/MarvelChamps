@@ -31,6 +31,8 @@ export const useGameStore = defineStore('game', {
     // Player Side
     playerIdentity: null as IdentityCardInstance | null,
     idCardHasFlippedThisTurn: false,
+    abilityUseCounts: {} as Record<string, number>,
+    abilityResetOn: {} as Record<string, string>,
     hand: [] as (Ally | Event | Upgrade | Support)[],
     deckIds: [] as number[],
     playerDiscardIds: [] as number[],
@@ -213,6 +215,8 @@ export const useGameStore = defineStore('game', {
             this.addLog(`--- Round ${this.roundNumber} ---`, 'phase');
             this.currentPhase = GamePhase.PLAYER_TURN;
             this.idCardHasFlippedThisTurn = false;
+            this.resetAbilityLimits('round');
+            this.resetAbilityLimits('turn');
         }
     },
 
@@ -942,9 +946,17 @@ export const useGameStore = defineStore('game', {
 
     // ****************************** IDENTITY UTILS ******************************
 
-    triggerIdentityCardAbility() {
-        // TODO: Implement ability trigger
-        this.addLog(`Doing ${this.hero.name}'s ability.`, 'play');
+    async triggerIdentityCardAbility() {
+        await this.useResourceAbility('identity');
+    },
+
+    resetAbilityLimits(resetOn: string) {
+        for (const key in this.abilityResetOn) {
+            if (this.abilityResetOn[key] === resetOn) {
+                delete this.abilityUseCounts[key];
+                delete this.abilityResetOn[key];
+            }
+        }
     },
 
     toggleIdentityExhaust() {
@@ -1182,14 +1194,26 @@ export const useGameStore = defineStore('game', {
 
         if (!card || !logic || logic.type !== 'resource') return;
 
-        // Check exhaustion requirement
-        if (instanceId !== 'identity' && card.abilityExhausts && card.exhausted) return;
+        // Resource abilities can only be used during payment
+        if (logic.type === 'resource' && !this.activeCardId) return;
+
+        // Use limit check
+        const abilityKey = String(instanceId);
+        if (logic.limit && (this.abilityUseCounts[abilityKey] ?? 0) >= logic.limit.uses) return;
+
+        // Exhaustion check
+        if (card.abilityExhausts && card.exhausted) return;
 
         if (!logic.effects) return;
 
         const context: any = { sourceCard: card };
 
         await executeEffects(logic.effects, this, context);
+
+        if (logic.limit) {
+            this.abilityUseCounts[abilityKey] = (this.abilityUseCounts[abilityKey] ?? 0) + 1;
+            this.abilityResetOn[abilityKey] = logic.limit.resetOn;
+        }
 
         // Add generated resource to payment
         if (context.generatedResource) {

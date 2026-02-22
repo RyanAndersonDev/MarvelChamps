@@ -8,6 +8,7 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
             forced: false,
             formRequired: "alter-ego",
             timing: "PLAYER_TURN",
+            limit: { uses: 1, resetOn: 'round' },
             effects: [{ op: 'generateResource', resourceType: 'mental' }]
         },
         aeAbilityExhausts: false,
