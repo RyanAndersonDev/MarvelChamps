@@ -1593,15 +1593,14 @@ export const useGameStore = defineStore('game', {
 
         const eventName = target === this.villainCard ? 'VILLAIN_TAKES_DAMAGE' : 'ENTITY_DAMAGED';
 
+        const dmgPayload = { targetId: damageData.targetId, amount: damageData.amount, isCanceled: false };
+
         const performDamage = () => {
-            target.hitPointsRemaining = Math.max(0, (target.hitPointsRemaining || 0) - damageData.amount);
+            if (dmgPayload.isCanceled || dmgPayload.amount <= 0) return;
+            target.hitPointsRemaining = Math.max(0, (target.hitPointsRemaining || 0) - dmgPayload.amount);
         };
 
-        await this.emitEvent(
-            eventName,
-            { targetId: damageData.targetId, amount: damageData.amount, isCanceled: false },
-            performDamage
-        );
+        await this.emitEvent(eventName, dmgPayload, performDamage);
 
         // Check if villain was defeated
         if (target === this.villainCard && (this.villainCard.hitPointsRemaining ?? 0) <= 0) {

@@ -27,6 +27,10 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
                 if (!damagePayload.isCanceled && damagePayload.amount > 0)
                     await state.applyDamageToEntity(damagePayload);
             });
+            const target = state.findTargetById(targetId);
+            if (target && target.type === 'minion' && target.hitPointsRemaining <= 0) {
+                await state.discardFromEngagedMinions(target.instanceId);
+            }
             break;
         }
 
