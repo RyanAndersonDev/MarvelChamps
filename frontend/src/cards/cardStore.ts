@@ -23,7 +23,7 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
 ]);
 
 export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
-    [1, { name: "Black Cat", side: "player", type: "ally", cost: 2, aspect: "hero", imgPath: "/cards/heroes/spider-man/BlackCat-Ally.png", tags: ["hero for hire"], resources: ["energy"], flavorText: "", abilityExhausts: false, thw: 1, atk: 1, thwPain: 1, atkPain: 1, health: 2,
+    [1, { name: "Black Cat", side: "player", type: "ally", cost: 2, aspect: "hero", imgPath: "/cards/heroes/spider-man/BlackCat-Ally.png", tags: ["hero for hire"], resources: ["energy"], flavorText: "", abilityExhausts: false, thw: 1, atk: 1, thwPain: 1, atkPain: 0, health: 2,
         logic: {
             type: "response",
             forced: true,
@@ -67,7 +67,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             forced: false,
             formRequired: "alter-ego",
             timing: "PLAYER_TURN",
-            effects: [{ op: 'heal', target: 'identity', amount: 4 }, { op: 'exhaust' }]
+            effects: [{ op: 'if', condition: { type: 'targetHpFull', target: 'identity' }, then: [], else: [{ op: 'heal', target: 'identity', amount: 4 }, { op: 'exhaust' }] }]
         }
     }],
     [6, { name: "Spider-Tracer", side: "player", type: "upgrade", cost: 1, aspect: "hero", imgPath: "/cards/heroes/spider-man/SpiderTracer-Upgrade.png", tags: ["item", "tech"], resources: ["energy"], flavorText: "",
@@ -148,8 +148,8 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
     [6, { name: "Shocker", side: "villain", imgPath: "/cards/villains/rhino/Shocker-Minion.png", tags: ["criminal"], flavorText: `"I bet you're shocked to see me."`,
         type: "minion", boostIcons: 2, sch: 1, atk: 2, hitPoints: 3,
         logic: {
-            type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
-            effects: [{ op: 'dealDamage', target: 'identity', amount: 1 }]
+            type: "response", forced: true, formRequired: "any", timing: "minionEntered",
+            effects: [{ op: 'if', condition: { type: 'identityStatus', value: 'hero' }, then: [{ op: 'dealDamage', target: 'identity', amount: 1 }] }]
         }
     }],
     [7, { name: "Hard To Keep Down", side: "villain", imgPath: "/cards/villains/rhino/HardToKeepDown-Treachery.png", tags: [], flavorText: `"You think you can stop me? What a joke" - Rhino`,
