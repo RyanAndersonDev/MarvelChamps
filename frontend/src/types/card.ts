@@ -238,5 +238,6 @@ export interface CardLogic {
     formRequired: "hero" | "alter-ego" | "any";
     timing: TimingWindow;
     actionType?: "attack" | "thwart" | "defense";
+    limit?: { uses: number; resetOn: 'round' | 'turn' | 'phase' | string };
     effects: EffectDef[];
 }
