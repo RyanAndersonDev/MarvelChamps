@@ -1,6 +1,30 @@
 <script setup lang="ts">
   import { onMounted } from "vue";
   import { useGameStore } from "./stores/gameStore";
+
+  const EVENT_LABELS: Record<string, string> = {
+    VILLAIN_ATTACK:          'Villain is attacking',
+    VILLAIN_SCHEME:          'Villain is scheming',
+    ENEMY_ATTACK:            'Enemy is activating',
+    MINION_ATTACK:           'Minion is attacking',
+    MINION_SCHEME:           'Minion is scheming',
+    takeIdentityDamage:      'Taking damage',
+    takeAllyDamage:          'Ally taking damage',
+    ENTITY_DAMAGED:          'Entity taking damage',
+    VILLAIN_TAKES_DAMAGE:    'Villain taking damage',
+    BOOST_CARD_DRAWN:        'Boost card drawn',
+    BOOST_CARD_REVEALED:     'Boost card revealed',
+    SIDE_SCHEME_ENTERING:    'Side scheme entering play',
+    MINION_DEFEATED:         'Minion defeated',
+    ALLY_ATTACKS:            'Ally attacking',
+    ENTITY_TAKES_DAMAGE:     'Entity taking damage',
+  };
+
+  function friendlyEvent(event: string): string {
+    if (EVENT_LABELS[event]) return EVENT_LABELS[event];
+    const s = event.replace(/_/g, ' ').toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
   import PlayerHand from "./components/player-board/PlayerHand.vue";
   import PlayerDeck from "./components/piles/DeckPile.vue";
   import PlayerTableau from "./components/player-board/PlayerTableau.vue";
@@ -21,47 +45,30 @@
 
 <template>
   <main class="game-container">
-    <Transition name="fade">
+    <Transition name="prompt-fade">
       <div v-if="store.activePrompt" class="prompt-overlay">
         <div class="prompt-modal">
-          <header class="prompt-header">
-            <h2>{{ store.activePrompt.type === 'INTERRUPT_WINDOW' ? 'Interrupt Window' : 'Declare Defense' }}</h2>
-            <p>Current Event: <strong>{{ store.activePrompt.event }}</strong></p>
-          </header>
-
-          <div class="options-list">
-            <div 
-              v-for="option in store.activePrompt.cards" 
-              :key="option.instanceId || option.id" 
-              class="option-wrapper"
-            >
-              <div 
-                v-if="option.imgPath" 
-                class="option-card-wrapper" 
-                @click="store.selectInterruptCard(option)"
-              >
-                <img :src="option.heroImgPath || option.imgPath" :alt="option.name" class="mini-card-art" />
-                <div class="card-label">
-                  <span class="card-name">{{ option.name }}</span>
-                  <span v-if="option.cost !== undefined" class="card-cost">Cost: {{ option.cost }}</span>
-                </div>
-              </div>
-
-              <button 
-                v-else 
-                class="btn-defense-choice" 
-                @click="store.activePrompt.resolve(option.id)"
-              >
-                {{ option.name }}
-              </button>
-            </div>
+          <div class="prompt-top">
+            <span class="prompt-tag">{{ store.activePrompt.type === 'DEFENSE_CHOICE' ? 'DEFENSE' : 'INTERRUPT' }}</span>
+            <span class="prompt-event">{{ friendlyEvent(store.activePrompt.event) }}</span>
+            <button class="btn-pass" @click="store.passInterrupt">Pass</button>
           </div>
 
-          <footer class="prompt-footer">
-            <button class="btn-pass" @click="store.passInterrupt">
-              PASS / NO ACTION
-            </button>
-          </footer>
+          <div class="options-row">
+            <template v-for="option in store.activePrompt.cards" :key="option.instanceId || option.id">
+              <div v-if="option.imgPath" class="option-card" @click="store.selectInterruptCard(option)">
+                <div class="option-img-wrap">
+                  <img :src="option.heroImgPath || option.imgPath" :alt="option.name" />
+                  <span v-if="option.cost" class="cost-badge">{{ option.cost }}</span>
+                </div>
+                <span class="option-name">{{ option.name }}</span>
+              </div>
+
+              <button v-else class="option-choice" @click="store.activePrompt.resolve(option.id)">
+                {{ option.name }}
+              </button>
+            </template>
+          </div>
         </div>
       </div>
     </Transition>
@@ -312,93 +319,157 @@
     transform: translateY(10px);
   }
 
+  /* ── Prompt overlay ── */
   .prompt-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.85);
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     z-index: 9999;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(3px);
   }
 
   .prompt-modal {
-    background: #1a1a1a;
-    border: 3px solid #e74c3c;
-    border-radius: 12px;
-    padding: 2rem;
-    max-width: 90%;
-    width: 600px;
-    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    background: #111;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 28px 32px 32px;
+    width: 820px;
+    max-width: 92vw;
+    box-shadow: 0 12px 60px rgba(0, 0, 0, 0.7);
   }
 
-  .options-list {
+  .prompt-top {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 20px;
-    padding: 20px;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
   }
 
-  .btn-defense-choice {
-    background: #2c3e50;
-    color: white;
-    border: 2px solid #41b883;
-    padding: 1.5rem 2rem;
-    border-radius: 12px;
-    font-size: 1.2rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: transform 0.1s, background 0.2s;
-    min-width: 200px;
+  .prompt-tag {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 20px;
+    padding: 5px 14px;
+    flex-shrink: 0;
   }
 
-  .btn-defense-choice:hover {
-    background: #3e5871;
-    transform: scale(1.05);
-  }
-
-  .btn-defense-choice:active {
-    transform: scale(0.95);
-  }
-
-  .option-card-wrapper {
-    width: 120px;
-    cursor: pointer;
-    transition: transform 0.2s;
-    text-align: center;
-  }
-
-  .option-card-wrapper:hover {
-    transform: translateY(-10px) scale(1.1);
-  }
-
-  .mini-card-art {
-    width: 100%;
-    border-radius: 8px;
-    border: 2px solid #555;
+  .prompt-event {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    flex: 1;
   }
 
   .btn-pass {
-    background: #444;
-    color: white;
-    padding: 12px 24px;
+    margin-left: auto;
+    background: none;
     border: none;
-    border-radius: 6px;
-    font-weight: bold;
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 1rem;
     cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 4px;
+    transition: color 0.15s;
+    flex-shrink: 0;
   }
 
   .btn-pass:hover {
-    background: #666;
+    color: rgba(255, 255, 255, 0.75);
   }
 
-  .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-  .fade-enter-from, .fade-leave-to { opacity: 0; }
+  /* Options row */
+  .options-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+  }
+
+  /* Card-type option */
+  .option-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  .option-card:hover {
+    transform: translateY(-6px);
+  }
+
+  .option-img-wrap {
+    position: relative;
+    width: 150px;
+  }
+
+  .option-img-wrap img {
+    width: 100%;
+    border-radius: 8px;
+    display: block;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .cost-badge {
+    position: absolute;
+    bottom: -8px;
+    right: -8px;
+    background: #e8c84a;
+    color: #111;
+    font-size: 1rem;
+    font-weight: 800;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  }
+
+  .option-name {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.65);
+    text-align: center;
+    max-width: 150px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* Text-choice button (defense yes/no etc.) */
+  .option-choice {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.85);
+    padding: 16px 40px;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  .option-choice:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+
+  .prompt-fade-enter-active, .prompt-fade-leave-active {
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .prompt-fade-enter-from, .prompt-fade-leave-to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 
   .game-over-overlay {
     position: fixed;
