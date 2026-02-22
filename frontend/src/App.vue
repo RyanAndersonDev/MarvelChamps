@@ -138,9 +138,10 @@
             </div>
           </Transition>
 
-          <PlayerDeck 
+          <PlayerDeck
             :deckIds="store.deckIds"
             :card-back-img-path="store.playerCardBackImg"
+            image-type="player"
             @draw="store.drawCardFromDeck"
           />
         </div>
