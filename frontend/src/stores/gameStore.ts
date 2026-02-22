@@ -212,15 +212,37 @@ export const useGameStore = defineStore('game', {
     },
 
     // ****************************** Game Phase Actions ******************************
-    initializeGame() {
-        let initIdCounter = 0;
+    initializeGame(config: { heroId: number; playerDeckIds: number[]; villainId: number; mainSchemeId: number; villainDeckIds: number[] }) {
+        // Reset gameplay state
+        this.currentPhase = 'PLAYER_TURN' as any;
+        this.gameOver = null;
+        this.accelerationTokens = 0;
+        this.bonusEncounterCards = 0;
+        this.villainCard = null;
+        this.mainScheme = null;
+        this.villainDeckIds = [];
+        this.villainDiscardIds = [];
+        this.activeSideSchemes = [];
+        this.engagedMinions = [];
+        this.encounterPileIds = [];
+        this.revealedEncounterCard = null;
+        this.playerIdentity = null;
+        this.hand = [];
+        this.deckIds = [];
+        this.playerDiscardIds = [];
+        this.tableauCards = [];
+        this.activeCardId = null;
+        this.paymentBufferIds = [];
+        this.generatedResources = [];
+        this.boostCard = null;
 
-        this.playerIdentity = createIdentityCard(1, ++initIdCounter);
-        this.deckIds = [1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6, 7, 7, 8, 8];
+        let initIdCounter = 0;
+        this.playerIdentity = createIdentityCard(config.heroId, ++initIdCounter);
+        this.deckIds = [...config.playerDeckIds];
         this.shufflePile(this.deckIds);
-        this.villainCard = createVillainIdentityCard(1, ++initIdCounter);
-        this.mainScheme = createMainSchemeCard(1, ++initIdCounter);
-        this.villainDeckIds = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+        this.villainCard = createVillainIdentityCard(config.villainId, ++initIdCounter);
+        this.mainScheme = createMainSchemeCard(config.mainSchemeId, ++initIdCounter);
+        this.villainDeckIds = [...config.villainDeckIds];
         this.shufflePile(this.villainDeckIds);
 
         this.idIncrementer = initIdCounter;

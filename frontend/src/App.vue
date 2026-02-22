@@ -1,6 +1,20 @@
 <script setup lang="ts">
-  import { onMounted } from "vue";
   import { useGameStore } from "./stores/gameStore";
+  import { useSetupStore } from "./stores/setupStore";
+  import SetupFlow from "./components/setup/SetupFlow.vue";
+  import PlayerHand from "./components/player-board/PlayerHand.vue";
+  import PlayerDeck from "./components/piles/DeckPile.vue";
+  import PlayerTableau from "./components/player-board/PlayerTableau.vue";
+  import VillainBoard from "./components/villain-board/VillainBoard.vue";
+  import DiscardPile from "./components/piles/DiscardPile.vue";
+  import PlayerEncounterCards from "./components/player-board/PlayerEncounterCards.vue";
+  import PlayerEngagedMinions from "./components/player-board/PlayerEngagedMinions.vue";
+  import SideSchemes from "./components/villain-board/SideSchemes.vue";
+  import PlayerIdentityCard from "./components/cards/PlayerIdentityCard.vue";
+  import GameLog from "./components/GameLog.vue";
+
+  const store = useGameStore();
+  const setupStore = useSetupStore();
 
   const EVENT_LABELS: Record<string, string> = {
     VILLAIN_ATTACK:          'Villain is attacking',
@@ -25,26 +39,12 @@
     const s = event.replace(/_/g, ' ').toLowerCase();
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
-  import PlayerHand from "./components/player-board/PlayerHand.vue";
-  import PlayerDeck from "./components/piles/DeckPile.vue";
-  import PlayerTableau from "./components/player-board/PlayerTableau.vue";
-  import VillainBoard from "./components/villain-board/VillainBoard.vue";
-  import DiscardPile from "./components/piles/DiscardPile.vue";
-  import PlayerEncounterCards from "./components/player-board/PlayerEncounterCards.vue";
-  import PlayerEngagedMinions from "./components/player-board/PlayerEngagedMinions.vue";
-  import SideSchemes from "./components/villain-board/SideSchemes.vue";
-  import PlayerIdentityCard from "./components/cards/PlayerIdentityCard.vue";
-  import GameLog from "./components/GameLog.vue";
-
-  const store = useGameStore();
-
-  onMounted(() => {
-    store.initializeGame();
-  })
 </script>
 
 <template>
-  <main class="game-container">
+  <SetupFlow v-if="setupStore.appPhase === 'setup'" />
+
+  <main v-else class="game-container">
     <Transition name="prompt-fade">
       <div v-if="store.activePrompt" class="prompt-overlay">
         <div class="prompt-modal">
@@ -167,7 +167,7 @@
     </footer>
   </main>
 
-  <GameLog />
+  <GameLog v-if="setupStore.appPhase === 'game'" />
 
   <!-- Game Over Overlay -->
   <Teleport to="body">

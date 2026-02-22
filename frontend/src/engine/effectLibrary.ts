@@ -212,6 +212,11 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             break;
         }
 
+        case 'addThreat': {
+            await state.applyThreatToMainScheme({ amount: effect.amount, source: 'encounter', isCanceled: false });
+            break;
+        }
+
         case 'redirectDamage': {
             const suit = context.sourceCard ?? state.villainCard?.attachments?.find(
                 (a: any) => a.instanceId === context.sourceCard?.instanceId
