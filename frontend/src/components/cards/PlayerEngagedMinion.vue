@@ -2,6 +2,7 @@
     import { ref, computed } from "vue";
     import type { Minion } from '../../types/card';
     import BaseCard from './BaseCard.vue';
+    import StatusPips from './StatusPips.vue';
     import { useGameStore } from "../../stores/gameStore";
 
     const props = defineProps<{ card: Minion }>();
@@ -12,6 +13,16 @@
         return store.targeting.isActive
             && (store.targeting.targetType === "minion" || store.targeting.targetType === "enemy");
     });
+
+    const effectiveAtk = computed(() =>
+        props.card.atk + (props.card.attachments ?? [])
+            .reduce((sum, att) => sum + ((att as any).atkMod ?? 0), 0)
+    );
+
+    const effectiveSch = computed(() =>
+        props.card.sch + (props.card.attachments ?? [])
+            .reduce((sum, att) => sum + ((att as any).schMod ?? 0), 0)
+    );
 
     function handleClick() {
         if (isTargetable.value) {
@@ -32,8 +43,8 @@
         @click="handleClick"
     >
         <div class="stat-badges">
-            <div class="stat-badge blue">{{ card.sch }}</div>
-            <div class="stat-badge red">{{ card.atk }}</div>
+            <div class="stat-badge blue">{{ effectiveSch }}</div>
+            <div class="stat-badge red">{{ effectiveAtk }}</div>
             <div class="stat-badge orange">{{ card.hitPointsRemaining }}</div>
         </div>
 
@@ -44,7 +55,8 @@
             :size="'small'"
             :class="{ 'zoomed': isHovered && !store.targeting.isActive }"
         />
-        
+
+        <StatusPips :stunned="card.stunned" :confused="card.confused" :tough="card.tough" />
     </div>
 </template>
 

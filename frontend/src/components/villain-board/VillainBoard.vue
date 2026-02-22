@@ -32,13 +32,14 @@
             :scheme-instance="props.mainSchemeInstance"
         />
 
-        <VillainAttachments
-            :attachments="props.cardInstance.attachments || []"
-        />
-
-        <VillainIdentityCard
-            :card-instance="props.cardInstance"
-        />
+        <div class="villain-col">
+            <VillainIdentityCard
+                :card-instance="props.cardInstance"
+            />
+            <VillainAttachments
+                :attachments="props.cardInstance.attachments || []"
+            />
+        </div>
 
         <DiscardPile
             :pile-ids="discardIds"
@@ -57,7 +58,10 @@
         gap: 16px;
     }
 
-    :deep(.attachment-pile-container) {
-        max-height: 250px;
+    .villain-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
     }
 </style>

@@ -2,15 +2,26 @@
     import { computed } from 'vue';
     import { useGameStore } from '../../stores/gameStore';
     import BaseCard from './BaseCard.vue';
+    import StatusPips from './StatusPips.vue';
     import type { VillainIdentityCardInstance } from '../../types/card';
 
     const props = defineProps<{ cardInstance: VillainIdentityCardInstance }>();
     const store = useGameStore();
 
     const isTargetable = computed(() => {
-        return store.targeting.isActive && 
+        return store.targeting.isActive &&
             (store.targeting.targetType === 'villain' || store.targeting.targetType === "enemy");
     });
+
+    const effectiveAtk = computed(() =>
+        props.cardInstance.atk + (props.cardInstance.attachments ?? [])
+            .reduce((sum, att) => sum + ((att as any).atkMod ?? 0), 0)
+    );
+
+    const effectiveSch = computed(() =>
+        props.cardInstance.sch + (props.cardInstance.attachments ?? [])
+            .reduce((sum, att) => sum + ((att as any).schMod ?? 0), 0)
+    );
 
     function handleClick() {
         if (isTargetable.value) {
@@ -29,8 +40,8 @@
         @click="handleClick"
     >
         <div class="stat-badges">
-            <div class="stat-badge blue">{{ props.cardInstance.sch }}</div>
-            <div class="stat-badge red">{{ props.cardInstance.atk }}</div>
+            <div class="stat-badge blue">{{ effectiveSch }}</div>
+            <div class="stat-badge red">{{ effectiveAtk }}</div>
             <div class="stat-badge orange">{{ props.cardInstance.hitPointsRemaining }}</div>
         </div>
 
@@ -41,6 +52,11 @@
             class="id-card"
         />
         <div v-if="isTargetable" class="target-badge">SELECT TARGET</div>
+        <StatusPips
+            :stunned="props.cardInstance.stunned"
+            :confused="props.cardInstance.confused"
+            :tough="props.cardInstance.tough"
+        />
         <h2>HP: {{ props.cardInstance.hitPointsRemaining }}</h2>
     </div>
 </template>
