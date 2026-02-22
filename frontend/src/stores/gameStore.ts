@@ -1104,6 +1104,13 @@ export const useGameStore = defineStore('game', {
             return;
         }
 
+        if (this.hero.confused) {
+            this.addLog(`${this.hero.name} is confused — thwart canceled, confused removed.`, 'status');
+            this.hero.confused = false;
+            this.toggleIdentityExhaust();
+            return;
+        }
+
         // Crisis: can't remove threat from main scheme
         if (this.mainScheme!.instanceId === id && this.hasCrisisScheme) {
             this.addLog("Cannot remove threat from main scheme while a Crisis side scheme is in play!", 'system');
@@ -1136,6 +1143,13 @@ export const useGameStore = defineStore('game', {
 
         if (this.hero.identityStatus === 'alter-ego') {
             this.addLog("You cannot attack in Alter-Ego form!", 'system');
+            return;
+        }
+
+        if (this.hero.stunned) {
+            this.addLog(`${this.hero.name} is stunned — attack canceled, stun removed.`, 'status');
+            this.hero.stunned = false;
+            this.toggleIdentityExhaust();
             return;
         }
 
@@ -1262,6 +1276,14 @@ export const useGameStore = defineStore('game', {
         this.discardPlayerCardsFromHand(this.paymentBufferIds);
 
         if (card.type === "event") {
+            if ((card as any).tags?.includes('attack') && this.hero.stunned) {
+                this.addLog(`${this.hero.name}'s stun cleared by attack action.`, 'status');
+                this.hero.stunned = false;
+            }
+            if ((card as any).tags?.includes('thwart') && this.hero.confused) {
+                this.addLog(`${this.hero.name}'s confused status cleared by thwart action.`, 'status');
+                this.hero.confused = false;
+            }
             await this.executeCardEffect(card as any);
             this.discardPlayerCardsFromHand([card.instanceId!]);
         } 
