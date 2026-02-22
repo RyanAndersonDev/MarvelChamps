@@ -51,26 +51,8 @@
       </div>
     </Transition>
 
-    <!-- Mulligan Phase Bar -->
     <Transition name="fade">
-      <div v-if="store.endOfTurnPhase === 'mulligan'" class="eot-bar mulligan-bar">
-        <div class="eot-info">
-          <span class="eot-label">MULLIGAN</span>
-          <span class="eot-hint">Select cards to swap (or skip)</span>
-          <span v-if="store.endOfTurnSelectedIds.length > 0" class="eot-count met">
-            {{ store.endOfTurnSelectedIds.length }} selected
-          </span>
-        </div>
-        <div class="eot-buttons">
-          <button class="btn-confirm" @click="store.confirmMulligan()">
-            {{ store.endOfTurnSelectedIds.length > 0 ? `SWAP ${store.endOfTurnSelectedIds.length}` : 'SKIP' }}
-          </button>
-        </div>
-      </div>
-    </Transition>
-
-    <Transition name="fade">
-        <div v-if="store.activeCardId !== null && store.endOfTurnPhase === null" class="payment-bar">
+        <div v-if="store.activeCardId !== null && store.endOfTurnPhase !== 'discard'" class="payment-bar">
             <div class="payment-cost">
                 <span class="payment-label">PAYING</span>
                 <span class="payment-fraction" :class="store.isCostMet ? 'met' : ''">
@@ -278,10 +260,6 @@
         border: 1px solid #e74c3c;
     }
 
-    .mulligan-bar {
-        background: rgba(20, 80, 160, 0.95);
-        border: 1px solid #3498db;
-    }
 
     .eot-info {
         display: flex;
@@ -310,10 +288,6 @@
 
     .eot-count.met { color: #2ecc71; }
 
-    .eot-buttons {
-        display: flex;
-        gap: 6px;
-    }
 
     .btn-confirm {
         background: rgba(255,255,255,0.15);

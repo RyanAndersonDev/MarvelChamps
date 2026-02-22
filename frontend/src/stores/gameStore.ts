@@ -236,7 +236,7 @@ export const useGameStore = defineStore('game', {
                 await new Promise<void>(resolve => { _endOfTurnResolve = resolve; });
             }
 
-            // Mulligan opportunity
+            // Mulligan opportunity — player selects cards to swap, then clicks Done
             this.endOfTurnSelectedIds = [];
             this.endOfTurnPhase = 'mulligan';
             await new Promise<void>(resolve => { _endOfTurnResolve = resolve; });
