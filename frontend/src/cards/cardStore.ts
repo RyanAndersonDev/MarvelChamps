@@ -112,7 +112,23 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
                 ]
             }]
         }
-    }]
+    }],
+
+    // ── Neutral cards ──
+    [9,  { name: "Emergency", side: "player", type: "event", cost: 1, aspect: "neutral", imgPath: "/cards/misc/player-card-back.png", tags: ["action"], resources: ["energy"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN",
+            effects: [{ op: 'heal', target: 'identity', amount: 4 }] } }],
+    [10, { name: "First Aid", side: "player", type: "event", cost: 2, aspect: "neutral", imgPath: "/cards/misc/player-card-back.png", tags: ["action"], resources: ["energy"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN",
+            effects: [{ op: 'heal', target: 'identity', amount: 5 }] } }],
+
+    // ── Aspect cards ──
+    [11, { name: "I've Got a Plan!", side: "player", type: "event", cost: 2, aspect: "justice", imgPath: "/cards/misc/player-card-back.png", tags: ["action", "thwart"], resources: ["mental"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", actionType: "thwart",
+            effects: [{ op: 'removeThreat', target: 'chooseScheme', amount: 4 }] } }],
+    [12, { name: "Mean Swing", side: "player", type: "event", cost: 1, aspect: "aggression", imgPath: "/cards/misc/player-card-back.png", tags: ["action", "attack"], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack",
+            effects: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 3 }] } }],
 ]);
 
 export const villainIdCardMap: Map<number, VillainIdentityCard> = new Map<number, VillainIdentityCard>([
@@ -194,7 +210,53 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
     [10, { name: `Breakin' & Takin'`, side: "villain", imgPath: "/cards/villains/rhino/Breakin'&Takin'-SideScheme.png", tags: [], flavorText: "Rhino is breaking things and taking them.",
         type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: false, hazard: true, whenRevealedThreat: 1 }],
     [11, { name: "Crowd Control", side: "villain", imgPath: "/cards/villains/rhino/CrowdControl-SideScheme.png", tags: [], flavorText: "Panicked civilians crowd the area. It is difficult to confront Rhino without putting them at risk. Get the people to safety!",
-        type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: true, crisis: true }]
+        type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: true, crisis: true }],
+
+    // ── Standard I encounter set ──
+    [12, { name: "Advance", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 1,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'addThreat', amount: 2 }] } }],
+    [13, { name: "Assault", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 1,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'dealDamage', target: 'identity', amount: 2 }] } }],
+    [14, { name: "Caught Off Guard", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 0,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'sequence', effects: [{ op: 'dealDamage', target: 'identity', amount: 2 }, { op: 'surge' }] }] } }],
+    [15, { name: "Concussive Blow", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 0,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'sequence', effects: [{ op: 'dealDamage', target: 'identity', amount: 2 }, { op: 'stun', target: 'identity' }] }] } }],
+    [16, { name: "Gang-Up", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 0,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'villainAttack' }] } }],
+    [17, { name: "Shadows of the Past", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 1,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'surge' }] } }],
+    [18, { name: "Weapon Master", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 1,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'addThreat', amount: 1 }] } }],
+
+    // ── Bomb Scare modular encounter set ──
+    [19, { name: "Bomb", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "There's a bomb somewhere in the building. Find it!",
+        type: "side-scheme", boostIcons: 2, startingThreat: 5, startingThreatIsPerPlayer: false }],
+    [20, { name: "Bomb Scare", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 0,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'addThreat', amount: 2 }] } }],
+    [21, { name: "Under Fire", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 1,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'dealDamage', target: 'identity', amount: 1 }] } }],
+    [22, { name: "Running Interference", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 0,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'surge' }] } }],
 ]);
 
 export function getCardImgPathById(cardId: number): string {
@@ -204,3 +266,38 @@ export function getCardImgPathById(cardId: number): string {
 export function getVillainCardImgPathById(cardId: number): string {
     return villainCardMap.get(cardId)?.imgPath ?? "";
 }
+
+// ── Setup libraries ──
+
+export const rhinoVillainCardIds  = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+export const standardICardIds     = [12, 13, 14, 15, 16, 17, 18];
+export const bombScareCardIds     = [19, 20, 21, 21, 22, 22];
+
+export const heroLibrary = [
+    {
+        id: 1,
+        name: "Spider-Man",
+        imgPath: "/cards/heroes/spider-man/PeterParker-Hero.png",
+        heroDeckIds: [1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6, 7, 7, 8, 8],
+    },
+];
+
+export const villainLibrary = [
+    {
+        id: 1,
+        name: "Rhino",
+        imgPath: "/cards/villains/rhino/Rhino-Phase1.png",
+        mainSchemeId: 1,
+        villainDeckIds: rhinoVillainCardIds,
+    },
+];
+
+export const encounterLibrary = [
+    {
+        id: 1,
+        name: "Bomb Scare",
+        imgPath: "/cards/misc/villain-card-back.png",
+        description: "A bomb has been planted. Stop it before it goes off!",
+        cardIds: bombScareCardIds,
+    },
+];
