@@ -1229,11 +1229,17 @@ export const useGameStore = defineStore('game', {
 
     removeAttachment(attachmentInstanceId: number, hostId: number) {
         if (this.villainCard?.instanceId === hostId) {
+            const att = this.villainCard.attachments.find(a => a.instanceId === attachmentInstanceId);
+            if (att?.storageId) this.villainDiscardIds.push(att.storageId);
             this.villainCard.attachments = this.villainCard.attachments.filter(a => a.instanceId !== attachmentInstanceId);
             return;
         }
         const minion = this.engagedMinions.find(m => m.instanceId === hostId);
-        if (minion) minion.attachments = minion.attachments.filter(a => a.instanceId !== attachmentInstanceId);
+        if (minion) {
+            const att = minion.attachments.find(a => a.instanceId === attachmentInstanceId);
+            if (att?.storageId) this.villainDiscardIds.push(att.storageId);
+            minion.attachments = minion.attachments.filter(a => a.instanceId !== attachmentInstanceId);
+        }
     },
 
     startPayment(cardId: number) {
