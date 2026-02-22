@@ -50,6 +50,7 @@ export type EffectDef =
   | { op: 'decrementCounter'; discardIfEmpty?: boolean }
   | { op: 'exhaust' }
   | { op: 'surge' }
+  | { op: 'addThreat'; amount: number }
   | { op: 'redirectDamage';   discardAt?: number }
   | { op: 'if';       condition: EffectCondition; then: EffectDef | EffectDef[]; else?: EffectDef | EffectDef[] }
   | { op: 'sequence'; effects: EffectDef[] };
