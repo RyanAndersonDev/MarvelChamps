@@ -2,6 +2,7 @@
   import { computed } from 'vue';
   import { useGameStore } from '../../stores/gameStore';
   import BaseCard from './BaseCard.vue';
+  import StatusPips from './StatusPips.vue';
 
   const store = useGameStore();
   const player = computed(() => store.hero);
@@ -61,6 +62,8 @@
       </div>
       <span class="hp-text">{{ player.hitPointsRemaining! }} / {{ player.hitPoints }} HP</span>
     </div>
+
+    <StatusPips :stunned="player.stunned" :confused="player.confused" :tough="player.tough" />
 
     <div class="compact-controls">
       <div class="row-main">

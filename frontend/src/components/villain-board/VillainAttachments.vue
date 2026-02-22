@@ -1,129 +1,105 @@
 <script setup lang="ts">
-    import BaseCard from '../cards/BaseCard.vue';
+    import { ref } from 'vue';
     import type { Attachment, Upgrade } from '../../types/card';
 
-    defineProps<{
-        attachments: (Attachment | Upgrade)[];
-    }>();
+    defineProps<{ attachments: (Attachment | Upgrade)[] }>();
+
+    const hoverCard = ref<{ imgPath: string; name: string } | null>(null);
+    const popupStyle = ref({});
+
+    function showPreview(e: MouseEvent, card: any) {
+        hoverCard.value = card;
+        positionPopup(e);
+    }
+
+    function positionPopup(e: MouseEvent) {
+        const x = e.clientX + 12;
+        const y = e.clientY - 80;
+        popupStyle.value = {
+            left: `${Math.min(x, window.innerWidth - 170)}px`,
+            top: `${Math.max(y, 8)}px`
+        };
+    }
+
+    function hidePreview() {
+        hoverCard.value = null;
+    }
 </script>
 
 <template>
-  <div class="attachment-pile-container" v-if="attachments.length > 0">
-    <div class="pile-header">
-      <span class="pulse-dot"></span>
-        MODIFIERS ({{ attachments.length }})
+    <div v-if="attachments.length > 0" class="attachment-strip">
+        <div
+            v-for="card in attachments"
+            :key="card.instanceId"
+            class="attachment-chip"
+            @mouseenter="(e) => showPreview(e, card)"
+            @mousemove="positionPopup"
+            @mouseleave="hidePreview"
+        >
+            <span class="chip-dot"></span>
+            {{ card.name }}
+        </div>
+
+        <Teleport to="body">
+            <div v-if="hoverCard" class="attachment-popup" :style="popupStyle">
+                <img :src="hoverCard.imgPath" :alt="hoverCard.name" />
+            </div>
+        </Teleport>
     </div>
-    
-    <div class="scroll-area">
-      <div 
-        v-for="card in attachments" 
-        :key="card.instanceId" 
-        class="attachment-item"
-      >
-        <BaseCard 
-          :img-path="card.imgPath" 
-          :orientation="'vertical'"
-          :size="'small'"
-          :zoom-direction="'out'"
-          class="mini-card"
-        />
-      </div>
-    </div>
-    
-    <div class="pile-footer">
-      <i class="arrow-down"></i>
-    </div>
-  </div>
 </template>
 
 <style scoped>
-.attachment-pile-container {
-  display: flex;
-  flex-direction: column;
-  width: 170px;
-  align-self: stretch;
-  background: rgba(15, 5, 5, 0.9);
-  border: 2px solid #ff4444;
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-  position: relative;
-  overflow: hidden;
-  z-index: 5;
+.attachment-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    max-width: 160px;
 }
 
-.pile-header {
-  background: #ff4444;
-  color: white;
-  font-size: 0.7rem;
-  font-weight: 800;
-  padding: 10px;
-  text-align: center;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  flex-shrink: 0;
+.attachment-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(180, 30, 30, 0.85);
+    border: 1px solid #ff4444;
+    border-radius: 10px;
+    padding: 2px 7px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.03em;
+    cursor: default;
+    white-space: nowrap;
+    user-select: none;
 }
 
-.scroll-area {
-  flex: 1; 
-  padding: 15px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  
-  scrollbar-width: thin;
-  scrollbar-color: #ff4444 transparent;
+.attachment-chip:hover {
+    background: rgba(220, 50, 50, 0.95);
+    border-color: #ff8888;
 }
 
-.scroll-area::-webkit-scrollbar {
-  width: 4px;
+.chip-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #ffaaaa;
+    flex-shrink: 0;
 }
 
-.scroll-area::-webkit-scrollbar-thumb {
-  background: #ff4444;
-  border-radius: 10px;
+.attachment-popup {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    width: 155px;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
 }
 
-.attachment-item {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  transition: transform 0.2s ease;
-  cursor: pointer;
-}
-
-.attachment-item:hover {
-  transform: scale(1.08);
-  filter: brightness(1.1);
-}
-
-.mini-card {
-  width: 130px;
-  height: auto;
-  border-radius: 4px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-}
-
-.pile-footer {
-  height: 6px;
-  background: rgba(255, 68, 68, 0.2);
-  flex-shrink: 0;
-}
-
-.pulse-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  background: #fff;
-  border-radius: 50%;
-  margin-right: 8px;
-  box-shadow: 0 0 8px #fff;
-  animation: blink 2s infinite;
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+.attachment-popup img {
+    width: 100%;
+    display: block;
+    border-radius: 6px;
 }
 </style>
