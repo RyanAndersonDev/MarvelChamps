@@ -30,7 +30,9 @@ export type EffectCondition =
   | { type: 'identityStatus'; value: 'hero' | 'alter-ego' }
   | { type: 'targetHpFull'; target: EffectTarget }
   | { type: 'targetHasTough'; target: EffectTarget }
-  | { type: 'damageWasDealt' };
+  | { type: 'damageWasDealt' }
+  | { type: 'sideSchemeInPlay'; name: string }
+  | { type: 'targetIsConfused'; target: EffectTarget };
 
 export type EffectDef =
   | { op: 'dealDamage';       target: EffectTarget; amount: number }
@@ -52,6 +54,9 @@ export type EffectDef =
   | { op: 'decrementCounter'; discardIfEmpty?: boolean }
   | { op: 'exhaust' }
   | { op: 'surge' }
+  | { op: 'confuse'; target: EffectTarget }
+  | { op: 'chooseOne'; options: { label: string; effect: EffectDef }[] }
+  | { op: 'dealDamageBySideSchemeThreat'; schemeName: string; target: EffectTarget }
   | { op: 'discardTableauCard'; types: string[]; surgeIfNone?: boolean }
   | { op: 'addThreat'; amount: number }
   | { op: 'redirectDamage';   discardAt?: number }
@@ -182,8 +187,10 @@ export interface VillainCard extends CardBase {
     overkill?: boolean;
     removal?: { cost: number; resourceType?: Resource };
     whenRevealedThreat?: number;
+    whenRevealedThreatIsPerPlayer?: boolean;
     crisis?: boolean;
     hazard?: boolean;
+    acceleration?: boolean;
 }
 
 export interface VillainCardInstance extends VillainCard {
@@ -221,6 +228,7 @@ export interface SideScheme extends VillainCardInstance {
     type: "side-scheme";
     crisis: boolean;
     hazard: boolean;
+    acceleration: boolean;
 }
 
 export interface MainScheme extends CardBase {

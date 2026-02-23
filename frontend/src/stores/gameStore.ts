@@ -328,9 +328,10 @@ export const useGameStore = defineStore('game', {
                 return;
             }
 
+            const accelerationBonus = this.activeSideSchemes.filter(ss => ss.acceleration).length;
             const initialPayload = {
                 attacker: this.villainCard?.name || 'Villain',
-                baseThreat: this.villainCard?.sch || 0,
+                baseThreat: (this.villainCard?.sch || 0) + accelerationBonus,
                 boostThreat: 0,
                 isCanceled: false
             };
@@ -958,7 +959,10 @@ export const useGameStore = defineStore('game', {
 
             // When Revealed: place additional threat
             if (blueprint?.whenRevealedThreat) {
-                sideScheme.threatRemaining += blueprint.whenRevealedThreat;
+                const extra = blueprint.whenRevealedThreatIsPerPlayer
+                    ? blueprint.whenRevealedThreat * 1 // TODO: multiply by number of players
+                    : blueprint.whenRevealedThreat;
+                sideScheme.threatRemaining += extra;
             }
 
             this.activeSideSchemes.push(sideScheme);

@@ -235,20 +235,28 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
             effects: [{ op: 'surge' }] } }],
 
     // ── Bomb Scare modular encounter set ──
-    [17, { name: "Bomb", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "There's a bomb somewhere in the building. Find it!",
-        type: "side-scheme", boostIcons: 2, startingThreat: 5, startingThreatIsPerPlayer: false }],
-    [18, { name: "Bomb Scare", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
-        type: "treachery", boostIcons: 0,
+    [17, { name: "Bomb Scare", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: false,
+        whenRevealedThreat: 1, whenRevealedThreatIsPerPlayer: true, acceleration: true }],
+    [18, { name: "Hydra Bomber", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: ["hydra"], flavorText: "",
+        type: "minion", boostIcons: 2, sch: 1, atk: 1, hitPoints: 2,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "minionEntered",
+            effects: [{ op: 'chooseOne', options: [
+                { label: "Take 2 damage",              effect: { op: 'dealDamage', target: 'identity', amount: 2 } },
+                { label: "Place 1 threat on main scheme", effect: { op: 'addThreat', amount: 1 } },
+            ]}] } }],
+    [19, { name: "Explosion", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 2,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
-            effects: [{ op: 'addThreat', amount: 2 }] } }],
-    [10, { name: "Under Fire", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+            effects: [{ op: 'if', condition: { type: 'sideSchemeInPlay', name: 'Bomb Scare' },
+                then: { op: 'dealDamageBySideSchemeThreat', schemeName: 'Bomb Scare', target: 'identity' },
+                else: { op: 'surge' } }] } }],
+    [20, { name: "False Alarm", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
         type: "treachery", boostIcons: 1,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
-            effects: [{ op: 'dealDamage', target: 'identity', amount: 1 }] } }],
-    [20, { name: "Running Interference", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
-        type: "treachery", boostIcons: 0,
-        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
-            effects: [{ op: 'surge' }] } }],
+            effects: [{ op: 'if', condition: { type: 'targetIsConfused', target: 'identity' },
+                then: { op: 'surge' },
+                else: { op: 'confuse', target: 'identity' } }] } }],
 ]);
 
 export function getCardImgPathById(cardId: number): string {
@@ -263,7 +271,7 @@ export function getVillainCardImgPathById(cardId: number): string {
 
 export const rhinoVillainCardIds  = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 export const standardICardIds     = [12, 13, 14, 15, 16];
-export const bombScareCardIds     = [17, 18, 19, 20];
+export const bombScareCardIds     = [17, 18, 18, 19, 20, 20];
 
 export const heroLibrary = [
     {
