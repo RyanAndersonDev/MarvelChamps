@@ -114,21 +114,42 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
         }
     }],
 
-    // ── Neutral cards ──
-    [9,  { name: "Emergency", side: "player", type: "event", cost: 1, aspect: "neutral", imgPath: "/cards/misc/player-card-back.png", tags: ["action"], resources: ["energy"], flavorText: "",
-        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN",
-            effects: [{ op: 'heal', target: 'identity', amount: 4 }] } }],
-    [10, { name: "First Aid", side: "player", type: "event", cost: 2, aspect: "neutral", imgPath: "/cards/misc/player-card-back.png", tags: ["action"], resources: ["energy"], flavorText: "",
-        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN",
-            effects: [{ op: 'heal', target: 'identity', amount: 5 }] } }],
-
-    // ── Aspect cards ──
-    [11, { name: "I've Got a Plan!", side: "player", type: "event", cost: 2, aspect: "justice", imgPath: "/cards/misc/player-card-back.png", tags: ["action", "thwart"], resources: ["mental"], flavorText: "",
-        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", actionType: "thwart",
-            effects: [{ op: 'removeThreat', target: 'chooseScheme', amount: 4 }] } }],
-    [12, { name: "Mean Swing", side: "player", type: "event", cost: 1, aspect: "aggression", imgPath: "/cards/misc/player-card-back.png", tags: ["action", "attack"], resources: ["physical"], flavorText: "",
-        logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack",
-            effects: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 3 }] } }],
+    // ── Neutral allies ──
+    [9, { name: "Mockingbird", side: "player", type: "ally", cost: 3, aspect: "neutral",
+        imgPath: "/cards/player-cards/neutral/Mockingbird-Ally.png",
+        tags: ["S.H.I.E.L.D.", "spy"], resources: ["physical"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "afterPlay",
+            effects: [{ op: 'stun', target: 'chooseEnemy' }]
+        }
+    }],
+    [10, { name: "Nick Fury", side: "player", type: "ally", cost: 4, aspect: "neutral",
+        imgPath: "/cards/player-cards/neutral/NickFury-Ally.png",
+        tags: ["S.H.I.E.L.D.", "spy"], resources: ["mental"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "afterPlay",
+            effects: [{ op: 'chooseOne', options: [
+                { label: "Remove 2 threat from a scheme", effect: { op: 'removeThreat', target: 'chooseScheme', amount: 2 } },
+                { label: "Draw 3 cards",                  effect: { op: 'drawCards', amount: 3 } },
+                { label: "Deal 4 damage to an enemy",     effect: { op: 'dealDamage', target: 'chooseEnemy', amount: 4 } },
+            ]}]
+        },
+        logics: [{
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "roundEnd",
+            effects: [{ op: 'discardSelf' }]
+        }]
+    }],
 
     // ── Neutral resource cards (max 1 per deck) ──
     [13, { name: "Strength", side: "player", type: "resource", cost: 0, aspect: "neutral", imgPath: "/cards/player-cards/neutral/Strength-Resource.png", tags: [], resources: ["physical", "physical"], flavorText: "", maxCopies: 1,

@@ -52,7 +52,11 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
         }
 
         case 'stun': {
-            const target = resolveTargetEntity(effect.target, state, context);
+            let target = resolveTargetEntity(effect.target, state, context);
+            if (!target) {
+                const targetId = await resolveTargetId(effect.target, state, context);
+                if (targetId) target = state.findTargetById(targetId);
+            }
             if (target) {
                 target.stunned = true;
                 state.addLog(`${target.name} is stunned.`, 'status');
@@ -213,6 +217,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
                     (a: any) => a.instanceId !== card.instanceId
                 );
             }
+            state.tableauCards = state.tableauCards.filter((a: any) => a.instanceId !== card.instanceId);
             if (card.storageId != null) {
                 if (card.side === 'villain') state.villainDiscardIds.push(card.storageId);
                 else state.playerDiscardIds.push(card.storageId);

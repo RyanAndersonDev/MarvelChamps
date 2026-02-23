@@ -289,6 +289,8 @@ export const useGameStore = defineStore('game', {
 
             await new Promise(resolve => setTimeout(resolve, 500));
 
+            await this.checkTriggers('response', 'roundEnd', {});
+
             this.roundNumber++;
             this.addLog(`--- Round ${this.roundNumber} ---`, 'phase');
             this.currentPhase = GamePhase.PLAYER_TURN;
@@ -1541,6 +1543,12 @@ export const useGameStore = defineStore('game', {
             if (this.isValidTrigger(card, timing, event)) {
                 list.push(card);
             }
+            card.logics?.forEach((logic: any) => {
+                const wrapper = { ...card, logic };
+                if (this.isValidTrigger(wrapper, timing, event)) {
+                    list.push(wrapper);
+                }
+            });
         });
     },
 

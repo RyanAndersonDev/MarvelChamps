@@ -14,7 +14,7 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
-export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered";
+export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd";
 
 // ======================== EFFECT DSL ========================
 
@@ -118,6 +118,7 @@ export interface PlayerCard extends CardBase {
     abilityExhausts?: boolean;
     counters?: number;
     maxCopies?: number;
+    logics?: CardLogic[];
 }
 
 export interface PlayerCardInstance extends PlayerCard {
