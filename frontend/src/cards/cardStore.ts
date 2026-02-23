@@ -24,7 +24,7 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
 ]);
 
 export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
-    [1, { name: "Black Cat", side: "player", type: "ally", cost: 2, aspect: "hero", imgPath: "/cards/heroes/spider-man/BlackCat-Ally.png", tags: ["hero for hire"], resources: ["energy"], flavorText: "", abilityExhausts: false, thw: 1, atk: 1, thwPain: 1, atkPain: 0, health: 2,
+    [1, { name: "Black Cat", side: "player", type: "ally", cost: 2, aspect: "hero", imgPath: "/cards/heroes/spider-man/BlackCat-Ally.png", tags: ["hero for hire"], resources: ["energy"], flavorText: "", abilityExhausts: false, thw: 1, atk: 1, thwPain: 1, atkPain: 0, health: 2, maxCopies: 1,
         logic: {
             type: "response",
             forced: true,
@@ -118,7 +118,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     [9, { name: "Mockingbird", side: "player", type: "ally", cost: 3, aspect: "neutral",
         imgPath: "/cards/player-cards/neutral/Mockingbird-Ally.png",
         tags: ["S.H.I.E.L.D.", "spy"], resources: ["physical"], flavorText: "",
-        thw: 1, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false,
+        thw: 1, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
         logic: {
             type: "response",
             forced: true,
@@ -130,7 +130,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     [10, { name: "Nick Fury", side: "player", type: "ally", cost: 4, aspect: "neutral",
         imgPath: "/cards/player-cards/neutral/NickFury-Ally.png",
         tags: ["S.H.I.E.L.D.", "spy"], resources: ["mental"], flavorText: "",
-        thw: 2, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false,
+        thw: 2, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
         logic: {
             type: "response",
             forced: true,
@@ -187,6 +187,90 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     [15, { name: "Genius", side: "player", type: "resource", cost: 0, aspect: "neutral", imgPath: "/cards/player-cards/neutral/Genius-Resource.png", tags: [], resources: ["mental", "mental"], flavorText: "", maxCopies: 1,
         logic: { type: "resource", forced: false, formRequired: "any", timing: "paymentWindow",
             effects: [{ op: 'sequence', effects: [{ op: 'generateResource', resourceType: 'mental' }, { op: 'generateResource', resourceType: 'mental' }] }] } }],
+
+    // ── Protection aspect ──
+    [16, { name: "Armored Vest", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ArmoredVest-Upgrade.png",
+        tags: ["armor"], resources: ["mental"], flavorText: `"Life-saving and stylish."`,
+        attachmentLocation: "tableau", uniqueInPlay: true, defMod: 1,
+    }],
+    [17, { name: "Clea", side: "player", type: "ally", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Clea-Ally.png",
+        tags: ["mystic"], resources: ["physical"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 1, atkPain: 1, health: 2, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "interrupt",
+            forced: true,
+            formRequired: "any",
+            timing: "allyDefeated",
+            effects: [{ op: 'shuffleSelfIntoDeck' }]
+        }
+    }],
+    [18, { name: "Desperate Defense", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/DesperateDefense-Event.png",
+        tags: ["defense"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "hero",
+            timing: "takeIdentityDamage",
+            actionType: "defense",
+            effects: [
+                { op: 'reduceDamage', amount: 2 },
+                { op: 'if', condition: { type: 'damageCanceled' }, then: [{ op: 'readyIdentity' }] }
+            ]
+        }
+    }],
+    [19, { name: "Indomitable", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Indomitable-Upgrade.png",
+        tags: ["condition"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: false,
+        logic: {
+            type: "response",
+            forced: false,
+            formRequired: "any",
+            timing: "VILLAIN_ATTACK_CONCLUDED",
+            effects: [{
+                op: 'if', condition: { type: 'wasDefended' },
+                then: [{ op: 'discardSelf' }, { op: 'readyIdentity' }]
+            }]
+        }
+    }],
+    [20, { name: "The Night Nurse", side: "player", type: "support", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/TheNightNurse-Support.png",
+        tags: ["persona"], resources: ["mental"], flavorText: "",
+        abilityExhausts: true, counters: 3, maxCopies: 1,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [
+                { op: 'decrementCounter', discardIfEmpty: true },
+                { op: 'heal', target: 'identity', amount: 1 },
+                { op: 'clearStatus', target: 'identity' },
+                { op: 'exhaust' }
+            ]
+        }
+    }],
+    [21, { name: "Unflappable", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Unflappable-Upgrade.png",
+        tags: ["condition"], resources: ["mental"], flavorText: "",
+        attachmentLocation: "tableau", uniqueInPlay: true, abilityExhausts: true,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "VILLAIN_ATTACK_CONCLUDED",
+            effects: [{
+                op: 'if', condition: { type: 'wasDefended' },
+                then: [{
+                    op: 'if', condition: { type: 'noDamageDealt' },
+                    then: [{ op: 'drawCards', amount: 1 }, { op: 'exhaust' }]
+                }]
+            }]
+        }
+    }],
 ]);
 
 export const villainIdCardMap: Map<number, VillainIdentityCard> = new Map<number, VillainIdentityCard>([

@@ -14,7 +14,7 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
-export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd";
+export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated";
 
 // ======================== EFFECT DSL ========================
 
@@ -31,6 +31,9 @@ export type EffectCondition =
   | { type: 'targetHpFull'; target: EffectTarget }
   | { type: 'targetHasTough'; target: EffectTarget }
   | { type: 'damageWasDealt' }
+  | { type: 'damageCanceled' }
+  | { type: 'noDamageDealt' }
+  | { type: 'wasDefended' }
   | { type: 'sideSchemeInPlay'; name: string }
   | { type: 'targetIsConfused'; target: EffectTarget };
 
@@ -61,6 +64,9 @@ export type EffectDef =
   | { op: 'addThreat'; amount: number }
   | { op: 'redirectDamage';   discardAt?: number }
   | { op: 'reduceCostNextPlay' }
+  | { op: 'clearStatus'; target: EffectTarget }
+  | { op: 'readyIdentity' }
+  | { op: 'shuffleSelfIntoDeck' }
   | { op: 'if';       condition: EffectCondition; then: EffectDef | EffectDef[]; else?: EffectDef | EffectDef[] }
   | { op: 'sequence'; effects: EffectDef[] };
 
@@ -120,6 +126,7 @@ export interface PlayerCard extends CardBase {
     counters?: number;
     maxCopies?: number;
     uniqueInPlay?: boolean;
+    defMod?: number;
     logics?: CardLogic[];
 }
 

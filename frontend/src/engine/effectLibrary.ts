@@ -129,6 +129,35 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             break;
         }
 
+        case 'clearStatus': {
+            const target = resolveTargetEntity(effect.target, state, context);
+            if (target) {
+                target.stunned = false;
+                target.confused = false;
+                state.addLog(`${target.name}'s status effects cleared.`, 'status');
+            }
+            break;
+        }
+
+        case 'readyIdentity': {
+            state.hero.exhausted = false;
+            state.addLog(`${state.hero.name} is readied.`, 'status');
+            break;
+        }
+
+        case 'shuffleSelfIntoDeck': {
+            const card = context.sourceCard;
+            if (!card) return;
+            state.tableauCards = state.tableauCards.filter((c: any) => c.instanceId !== card.instanceId);
+            if (card.storageId != null) {
+                const insertAt = Math.floor(Math.random() * (state.deckIds.length + 1));
+                state.deckIds.splice(insertAt, 0, card.storageId);
+                state.addLog(`${card.name} shuffled back into the deck.`, 'system');
+            }
+            context.isCanceled = true;
+            break;
+        }
+
         case 'villainAttack': {
             const atkBonus = (state.villainCard?.attachments ?? [])
                 .reduce((sum: number, att: any) => sum + (att.atkMod ?? 0), 0);
@@ -383,6 +412,12 @@ function evaluateCondition(condition: EffectCondition, state: any, context: any)
         }
         case 'damageWasDealt':
             return context.damageWasDealt === true;
+        case 'damageCanceled':
+            return context.isCanceled === true;
+        case 'noDamageDealt':
+            return context.damageWasDealt !== true;
+        case 'wasDefended':
+            return context.isDefended === true;
         case 'sideSchemeInPlay':
             return state.activeSideSchemes.some((ss: any) => ss.name === condition.name);
         case 'targetIsConfused': {

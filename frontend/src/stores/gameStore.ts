@@ -176,9 +176,11 @@ export const useGameStore = defineStore('game', {
         return this.activeSideSchemes.some(ss => ss.crisis);
     },
 
-    isHandCardPlayable: (state) => (card: any): boolean => {
-        if (!card?.logic) return false;
+    tableauDefBonus(): number {
+        return this.tableauCards.reduce((sum: number, c: any) => sum + (c.defMod ?? 0), 0);
+    },
 
+    isHandCardPlayable: (state) => (card: any): boolean => {
         // Non-events (allies, supports, upgrades) can always be played from hand during player turn.
         // formRequired only restricts their tableau ABILITY, not playing them from hand.
         if (card.type !== 'event') {
@@ -188,6 +190,8 @@ export const useGameStore = defineStore('game', {
             if (card.attachmentLocation === 'enemy') return state.engagedMinions.length > 0 || !!state.villainCard;
             return true;
         }
+
+        if (!card?.logic) return false;
 
         // Events: playing IS using, so form restriction applies here.
         const form = card.logic.formRequired;
@@ -453,7 +457,7 @@ export const useGameStore = defineStore('game', {
 
             let reduction = 0;
             if (attackPayload.isDefended && attackPayload.targetType === 'identity') {
-                reduction = this.hero.def || 0;
+                reduction = (this.hero.def || 0) + this.tableauDefBonus;
             }
 
             const finalDamage = Math.max(0, attackPayload.baseDamage + (attackPayload.boostDamage ?? 0) - reduction);
@@ -506,7 +510,7 @@ export const useGameStore = defineStore('game', {
 
                 // Check if ally was defeated
                 if (ally && ally.hitPointsRemaining <= 0) {
-                    this.discardFromTableau(ally.instanceId!);
+                    await this.handleAllyDefeat(ally);
                 }
             }
 
@@ -602,7 +606,7 @@ export const useGameStore = defineStore('game', {
 
             let reduction = 0;
             if (attackPayload.isDefended && attackPayload.targetType === 'identity') {
-                reduction = this.hero.def || 0;
+                reduction = (this.hero.def || 0) + this.tableauDefBonus;
             }
 
             const finalDamage = Math.max(0, attackPayload.baseDamage - reduction);
@@ -803,7 +807,7 @@ export const useGameStore = defineStore('game', {
             }
 
             if (ally.hitPointsRemaining <= 0) {
-                this.discardFromTableau(ally.instanceId!);
+                await this.handleAllyDefeat(ally);
             }
 
             this.addLog(`${ally.name} successfully thwarted ${target.name}.`, 'play');
@@ -843,7 +847,7 @@ export const useGameStore = defineStore('game', {
             }
 
             if (ally.hitPointsRemaining <= 0) {
-                this.discardFromTableau(ally.instanceId!);
+                await this.handleAllyDefeat(ally);
             }
         });
     },
@@ -1410,6 +1414,16 @@ export const useGameStore = defineStore('game', {
         const cardsInHand = this.hand.length - 1;
         const totalAvailable = cardsInHand; // TODO: + boardResources
         return totalAvailable >= card.cost;
+    },
+
+    async handleAllyDefeat(ally: any) {
+        if (!ally || ally.hitPointsRemaining > 0) return;
+        const payload = { instanceId: ally.instanceId, name: ally.name, isCanceled: false, sourceCard: ally };
+        await this.emitEvent('allyDefeated', payload, async () => {
+            if (!payload.isCanceled) {
+                this.discardFromTableau(ally.instanceId!);
+            }
+        });
     },
 
     discardFromTableau(instanceId: number) {
