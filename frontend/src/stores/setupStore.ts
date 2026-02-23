@@ -18,7 +18,7 @@ export const useSetupStore = defineStore('setup', {
     getters: {
         canAdvance(state): boolean {
             if (state.currentStep === 1) return state.selectedHeroId !== null;
-            if (state.currentStep === 2) return state.selectedAspect !== null && state.playerDeckIds.length > 0;
+            if (state.currentStep === 2) return state.playerDeckIds.length > 0;
             if (state.currentStep === 3) return state.selectedVillainId !== null;
             if (state.currentStep === 4) return state.selectedEncounterSetId !== null;
             return false;

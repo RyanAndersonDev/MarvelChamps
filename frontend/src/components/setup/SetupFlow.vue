@@ -141,8 +141,7 @@ const STEP_LABELS = ['Hero', 'Deck', 'Villain', 'Encounter'];
 /* Content */
 .setup-content {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
     padding: 24px 40px;
     overflow-y: auto;
     min-height: 0;
@@ -191,4 +190,7 @@ const STEP_LABELS = ['Hero', 'Deck', 'Villain', 'Encounter'];
 .step-enter-active, .step-leave-active { transition: opacity 0.15s, transform 0.15s; }
 .step-enter-from  { opacity: 0; transform: translateX(16px); }
 .step-leave-to    { opacity: 0; transform: translateX(-16px); }
+
+/* Ensure step components fill the content area */
+.setup-content > * { width: 100%; }
 </style>

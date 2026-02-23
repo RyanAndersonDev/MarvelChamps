@@ -44,8 +44,8 @@
     background: #1a1a2e;
     border: 1px solid #444;
     border-radius: 10px;
-    width: min(90vw, 780px);
-    max-height: 80vh;
+    width: min(95vw, 1200px);
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -95,7 +95,7 @@
 }
 
 .peek-card {
-    width: 120px;
+    width: 180px;
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     transition: transform 0.15s ease;
