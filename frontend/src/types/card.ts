@@ -117,6 +117,7 @@ export interface PlayerCard extends CardBase {
     attachmentLocation?: AttachmentLocation;
     abilityExhausts?: boolean;
     counters?: number;
+    maxCopies?: number;
 }
 
 export interface PlayerCardInstance extends PlayerCard {

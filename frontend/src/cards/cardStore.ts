@@ -129,6 +129,17 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     [12, { name: "Mean Swing", side: "player", type: "event", cost: 1, aspect: "aggression", imgPath: "/cards/misc/player-card-back.png", tags: ["action", "attack"], resources: ["physical"], flavorText: "",
         logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack",
             effects: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 3 }] } }],
+
+    // ── Neutral resource cards (max 1 per deck) ──
+    [13, { name: "Strength", side: "player", type: "resource", cost: 0, aspect: "neutral", imgPath: "/cards/player-cards/neutral/Strength-Resource.png", tags: [], resources: ["physical", "physical"], flavorText: "", maxCopies: 1,
+        logic: { type: "resource", forced: false, formRequired: "any", timing: "paymentWindow",
+            effects: [{ op: 'sequence', effects: [{ op: 'generateResource', resourceType: 'physical' }, { op: 'generateResource', resourceType: 'physical' }] }] } }],
+    [14, { name: "Energy", side: "player", type: "resource", cost: 0, aspect: "neutral", imgPath: "/cards/player-cards/neutral/Energy-Resource.png", tags: [], resources: ["energy", "energy"], flavorText: "", maxCopies: 1,
+        logic: { type: "resource", forced: false, formRequired: "any", timing: "paymentWindow",
+            effects: [{ op: 'sequence', effects: [{ op: 'generateResource', resourceType: 'energy' }, { op: 'generateResource', resourceType: 'energy' }] }] } }],
+    [15, { name: "Genius", side: "player", type: "resource", cost: 0, aspect: "neutral", imgPath: "/cards/player-cards/neutral/Genius-Resource.png", tags: [], resources: ["mental", "mental"], flavorText: "", maxCopies: 1,
+        logic: { type: "resource", forced: false, formRequired: "any", timing: "paymentWindow",
+            effects: [{ op: 'sequence', effects: [{ op: 'generateResource', resourceType: 'mental' }, { op: 'generateResource', resourceType: 'mental' }] }] } }],
 ]);
 
 export const villainIdCardMap: Map<number, VillainIdentityCard> = new Map<number, VillainIdentityCard>([
@@ -235,23 +246,23 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
             effects: [{ op: 'surge' }] } }],
 
     // ── Bomb Scare modular encounter set ──
-    [17, { name: "Bomb Scare", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+    [17, { name: "Bomb Scare", side: "villain", imgPath: "/cards/modular/bomb-scare/BombScare-SideScheme.png", tags: [], flavorText: "",
         type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: false,
         whenRevealedThreat: 1, whenRevealedThreatIsPerPlayer: true, acceleration: true }],
-    [18, { name: "Hydra Bomber", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: ["hydra"], flavorText: "",
+    [18, { name: "Hydra Bomber", side: "villain", imgPath: "/cards/modular/bomb-scare/HydraBomber-Minion.png", tags: ["hydra"], flavorText: "",
         type: "minion", boostIcons: 2, sch: 1, atk: 1, hitPoints: 2,
         logic: { type: "response", forced: true, formRequired: "any", timing: "minionEntered",
             effects: [{ op: 'chooseOne', options: [
                 { label: "Take 2 damage",              effect: { op: 'dealDamage', target: 'identity', amount: 2 } },
                 { label: "Place 1 threat on main scheme", effect: { op: 'addThreat', amount: 1 } },
             ]}] } }],
-    [19, { name: "Explosion", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+    [19, { name: "Explosion", side: "villain", imgPath: "/cards/modular/bomb-scare/Explosion-Treachery.png", tags: [], flavorText: "",
         type: "treachery", boostIcons: 2,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'if', condition: { type: 'sideSchemeInPlay', name: 'Bomb Scare' },
                 then: { op: 'dealDamageBySideSchemeThreat', schemeName: 'Bomb Scare', target: 'identity' },
                 else: { op: 'surge' } }] } }],
-    [20, { name: "False Alarm", side: "villain", imgPath: "/cards/misc/villain-card-back.png", tags: [], flavorText: "",
+    [20, { name: "False Alarm", side: "villain", imgPath: "/cards/modular/bomb-scare/FalseAlarm-Treachery.png", tags: [], flavorText: "",
         type: "treachery", boostIcons: 1,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'if', condition: { type: 'targetIsConfused', target: 'identity' },

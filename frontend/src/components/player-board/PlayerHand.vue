@@ -19,6 +19,9 @@
     }
 
     function getCardMode(card: any): 'play' | 'resource' | 'none' {
+        if (card.type === 'resource') {
+            return store.activeCardId !== null && store.activeCardId !== card.instanceId ? 'resource' : 'none';
+        }
         if (store.activeCardId !== null) {
             return store.activeCardId === card.instanceId ? 'play' : 'resource';
         }

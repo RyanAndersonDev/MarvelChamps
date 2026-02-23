@@ -45,6 +45,7 @@ function printHandCard(blueprint: PlayerCardInstance, id: number): Ally | Event 
             } as Ally;
 
         case 'event':
+        case 'resource':
             return {
                 ...base,
                 tags: blueprint.tags ?? []
