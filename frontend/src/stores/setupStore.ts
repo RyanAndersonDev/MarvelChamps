@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { heroLibrary, villainLibrary, encounterLibrary, standardICardIds } from '../cards/cardStore';
 import { useGameStore } from './gameStore';
+import router from '../router';
 
 export const useSetupStore = defineStore('setup', {
     state: () => ({
-        appPhase: 'setup' as 'setup' | 'game',
         currentStep: 1 as 1 | 2 | 3 | 4,
 
         selectedHeroId:        null as number | null,
@@ -88,7 +88,7 @@ export const useSetupStore = defineStore('setup', {
                 villainDeckIds,
             });
 
-            this.appPhase = 'game';
+            router.push('/game');
         },
     },
 });

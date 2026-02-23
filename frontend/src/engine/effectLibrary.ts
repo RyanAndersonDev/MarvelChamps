@@ -60,6 +60,34 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             break;
         }
 
+        case 'confuse': {
+            const target = resolveTargetEntity(effect.target, state, context);
+            if (target) {
+                target.confused = true;
+                state.addLog(`${target.name} is confused.`, 'status');
+            }
+            break;
+        }
+
+        case 'chooseOne': {
+            const options = effect.options.map((o: any, i: number) => ({ id: String(i), name: o.label }));
+            const chosen = await state.requestChoice('Choose one', options);
+            const idx = effect.options.findIndex((_: any, i: number) => String(i) === chosen?.id);
+            if (idx >= 0) await applyEffect(effect.options[idx].effect, state, context);
+            break;
+        }
+
+        case 'dealDamageBySideSchemeThreat': {
+            const scheme = state.activeSideSchemes.find((ss: any) => ss.name === effect.schemeName);
+            if (!scheme) break;
+            const amount = scheme.threatRemaining;
+            if (amount > 0) {
+                const targetId = await resolveTargetId(effect.target, state, context);
+                await state.applyDamageToEntity({ targetId, amount });
+            }
+            break;
+        }
+
         case 'giveTough': {
             const target = resolveTargetEntity(effect.target, state, context);
             if (target) {
@@ -344,5 +372,11 @@ function evaluateCondition(condition: EffectCondition, state: any, context: any)
         }
         case 'damageWasDealt':
             return context.damageWasDealt === true;
+        case 'sideSchemeInPlay':
+            return state.activeSideSchemes.some((ss: any) => ss.name === condition.name);
+        case 'targetIsConfused': {
+            const entity = resolveTargetEntity(condition.target, state, context);
+            return entity?.confused === true;
+        }
     }
 }

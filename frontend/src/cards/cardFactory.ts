@@ -334,6 +334,7 @@ function printSideScheme(blueprint: VillainCard, instanceId: number) : SideSchem
         ...base,
         threatRemaining: threatToAdd,
         crisis: blueprint.crisis || false,
-        hazard: blueprint.hazard || false
+        hazard: blueprint.hazard || false,
+        acceleration: blueprint.acceleration || false,
     } as SideScheme;
 }
