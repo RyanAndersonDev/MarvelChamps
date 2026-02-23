@@ -80,6 +80,7 @@ export const useGameStore = defineStore('game', {
     activeCardId: null as number | null,
     paymentBufferIds: [] as number[],
     generatedResources: [] as Resource[],
+    pendingCostReduction: 0,
 
     pendingInterruptCard: null as any,
     pendingInterruptPayload: null as any,
@@ -156,7 +157,8 @@ export const useGameStore = defineStore('game', {
             return (typed + wild) >= this.pendingRemoval.cost;
         }
         const totalSpent = Object.values(this.committedResources).reduce((a, b) => a + b, 0);
-        return totalSpent >= (this.activeCard.cost || 0);
+        const effectiveCost = Math.max(0, (this.activeCard.cost || 0) - this.pendingCostReduction);
+        return totalSpent >= effectiveCost;
     },
 
     canAnyoneDefend(): boolean {
@@ -181,6 +183,7 @@ export const useGameStore = defineStore('game', {
         // formRequired only restricts their tableau ABILITY, not playing them from hand.
         if (card.type !== 'event') {
             if (state.currentPhase !== 'PLAYER_TURN') return false;
+            if (card.uniqueInPlay && state.tableauCards.some((c: any) => c.storageId === card.storageId)) return false;
             if (card.attachmentLocation === 'minion') return state.engagedMinions.length > 0;
             if (card.attachmentLocation === 'enemy') return state.engagedMinions.length > 0 || !!state.villainCard;
             return true;
@@ -1332,6 +1335,7 @@ export const useGameStore = defineStore('game', {
                 await executeEffects(card.logic.effects, this, context);
             }
 
+            this.pendingCostReduction = 0;
             if (resolve) resolve("played");
             return;
         }
@@ -1375,6 +1379,7 @@ export const useGameStore = defineStore('game', {
             await this.executeCardEffect(card as any);
         }
 
+        this.pendingCostReduction = 0;
         this.resetPayment();
     },
 

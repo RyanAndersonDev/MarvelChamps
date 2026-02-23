@@ -60,6 +60,7 @@ export type EffectDef =
   | { op: 'discardTableauCard'; types: string[]; surgeIfNone?: boolean }
   | { op: 'addThreat'; amount: number }
   | { op: 'redirectDamage';   discardAt?: number }
+  | { op: 'reduceCostNextPlay' }
   | { op: 'if';       condition: EffectCondition; then: EffectDef | EffectDef[]; else?: EffectDef | EffectDef[] }
   | { op: 'sequence'; effects: EffectDef[] };
 
@@ -118,6 +119,7 @@ export interface PlayerCard extends CardBase {
     abilityExhausts?: boolean;
     counters?: number;
     maxCopies?: number;
+    uniqueInPlay?: boolean;
     logics?: CardLogic[];
 }
 

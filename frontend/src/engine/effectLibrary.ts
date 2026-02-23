@@ -123,6 +123,12 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             break;
         }
 
+        case 'reduceCostNextPlay': {
+            state.pendingCostReduction = (state.pendingCostReduction ?? 0) + 1;
+            state.addLog(`Next card played costs 1 less this phase.`, 'system');
+            break;
+        }
+
         case 'villainAttack': {
             const atkBonus = (state.villainCard?.attachments ?? [])
                 .reduce((sum: number, att: any) => sum + (att.atkMod ?? 0), 0);

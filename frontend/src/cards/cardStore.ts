@@ -151,6 +151,32 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
         }]
     }],
 
+    // ── Neutral supports (unique in play) ──
+    [11, { name: "Avengers Mansion", side: "player", type: "support", cost: 4, aspect: "neutral",
+        imgPath: "/cards/player-cards/neutral/AvengersMansion-Support.png",
+        tags: ["avenger", "location"], resources: ["mental"], flavorText: `"Did you remember to turn off the stove?" - Janet Van Dyne`,
+        abilityExhausts: true, uniqueInPlay: true,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'drawCards', amount: 1 }, { op: 'exhaust' }]
+        }
+    }],
+    [12, { name: "Helicarrier", side: "player", type: "support", cost: 3, aspect: "neutral",
+        imgPath: "/cards/player-cards/neutral/Helicarrier-Support.png",
+        tags: ["location", "S.H.I.E.L.D."], resources: ["physical"], flavorText: `"A flying aircraft carrier? You're kidding, right?" - Jennifer Walters`,
+        abilityExhausts: true, uniqueInPlay: true,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'reduceCostNextPlay' }, { op: 'exhaust' }]
+        }
+    }],
+
     // ── Neutral resource cards (max 1 per deck) ──
     [13, { name: "Strength", side: "player", type: "resource", cost: 0, aspect: "neutral", imgPath: "/cards/player-cards/neutral/Strength-Resource.png", tags: [], resources: ["physical", "physical"], flavorText: "", maxCopies: 1,
         logic: { type: "resource", forced: false, formRequired: "any", timing: "paymentWindow",
