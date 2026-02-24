@@ -114,7 +114,7 @@ export interface PlayerCard extends CardBase {
     aspect: Aspect;
     imgPath: string;
     resources: Resource[];
-    logic: CardLogic;
+    logic?: CardLogic;
     storageId?: number,
     thw?: number;
     thwPain?: number;

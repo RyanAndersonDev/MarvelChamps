@@ -1392,6 +1392,7 @@ export const useGameStore = defineStore('game', {
         this.paymentBufferIds = [];
         this.generatedResources = [];
         this.pendingRemoval = null;
+        this.pendingCostReduction = 0;
 
         // If cancelling a pending paid interrupt, resolve the suspended promise as "passed"
         if (this.pendingInterruptResolve) {

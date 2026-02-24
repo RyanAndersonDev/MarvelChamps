@@ -77,7 +77,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             const options = effect.options.map((o: any, i: number) => ({ id: String(i), name: o.label }));
             const chosen = await state.requestChoice('Choose one', options);
             const idx = effect.options.findIndex((_: any, i: number) => String(i) === chosen?.id);
-            if (idx >= 0) await applyEffect(effect.options[idx].effect, state, context);
+            if (idx >= 0) await executeEffect(effect.options[idx]!.effect, state, context);
             break;
         }
 

@@ -169,10 +169,10 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
         tags: ["location", "S.H.I.E.L.D."], resources: ["physical"], flavorText: `"A flying aircraft carrier? You're kidding, right?" - Jennifer Walters`,
         abilityExhausts: true, uniqueInPlay: true,
         logic: {
-            type: "action",
+            type: "resource",
             forced: false,
             formRequired: "any",
-            timing: "PLAYER_TURN",
+            timing: "paymentWindow",
             effects: [{ op: 'reduceCostNextPlay' }, { op: 'exhaust' }]
         }
     }],
