@@ -20,6 +20,32 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
             effects: [{ op: 'drawCards', amount: 1 }]
         },
         heroAbilityExhausts: false
+    }],
+    [2, {
+        name: "Jennifer Walters / She-Hulk", side: "player",
+        imgPath: "/cards/heroes/she-hulk/JenniferWalters-AE.png",
+        heroImgPath: "/cards/heroes/she-hulk/SheHulk-Hero.png",
+        flavorText: "",
+        hitPoints: 15, healing: 5, thw: 1, atk: 3, def: 2,
+        handsizeAe: 6, handSizeHero: 4,
+        tags: ["attorney", "gamma"], heroTags: ["avenger", "gamma"],
+        aeLogic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "alter-ego",
+            timing: "MAIN_SCHEME_THREAT",
+            limit: { uses: 1, resetOn: 'round' },
+            effects: [{ op: 'preventThreat', amount: 1 }]
+        },
+        aeAbilityExhausts: false,
+        heroLogic: {
+            type: "response",
+            forced: true,
+            formRequired: "hero",
+            timing: "FLIP_TO_HERO",
+            effects: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 2 }]
+        },
+        heroAbilityExhausts: false,
     }]
 ]);
 
@@ -111,6 +137,121 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
                     { op: 'stun', target: 'attachedEnemy' }
                 ]
             }]
+        }
+    }],
+
+    // ── She-Hulk hero cards ──
+    [22, { name: "Hellcat", side: "player", type: "ally", cost: 3, aspect: "hero",
+        imgPath: "/cards/heroes/she-hulk/Hellcat-ally.png",
+        tags: ["avenger"], resources: ["wild"], flavorText: "",
+        thw: 2, thwPain: 2, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'returnAllyToHand' }]
+        }
+    }],
+    [23, { name: "Gamma Slam", side: "player", type: "event", cost: 4, aspect: "hero",
+        imgPath: "/cards/heroes/she-hulk/GammaSlam-event.png",
+        tags: ["attack", "superpower"], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [{ op: 'dynamicDamage', target: 'chooseEnemy', formula: 'damageSustained', max: 15 }]
+        }
+    }],
+    [24, { name: "Ground Stomp", side: "player", type: "event", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/she-hulk/GroundStomp-event.png",
+        tags: ["superpower"], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [{ op: 'dealDamageToAll', amount: 1 }]
+        }
+    }],
+    [25, { name: "Legal Practice", side: "player", type: "event", cost: 0, aspect: "hero",
+        imgPath: "/cards/heroes/she-hulk/LegalPractice-event.png",
+        tags: ["skill", "thwart"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "alter-ego",
+            timing: "PLAYER_TURN",
+            actionType: "thwart",
+            effects: [{ op: 'discardHandForThreat', max: 5 }]
+        }
+    }],
+    [26, { name: "One-Two Punch", side: "player", type: "event", cost: 1, aspect: "hero",
+        imgPath: "/cards/heroes/she-hulk/OneTwoPunch-event.png",
+        tags: ["skill"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "response",
+            forced: false,
+            formRequired: "hero",
+            timing: "BASIC_ATTACK",
+            effects: [{ op: 'readyIdentity' }]
+        }
+    }],
+    [27, { name: "Split Personality", side: "player", type: "event", cost: 3, aspect: "hero",
+        imgPath: "/cards/heroes/she-hulk/SplitPersonality-event.png",
+        tags: [], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'sequence', effects: [{ op: 'flipForm' }, { op: 'drawToHandSize' }] }]
+        }
+    }],
+    [28, { name: "Superhuman Law Division", side: "player", type: "support", cost: 1, aspect: "hero",
+        imgPath: "/cards/heroes/she-hulk/SuperhumanLawDivision-support.png",
+        tags: ["location"], resources: ["physical"], flavorText: "",
+        abilityExhausts: true,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "alter-ego",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'removeThreat', target: 'chooseScheme', amount: 2 }, { op: 'exhaust' }]
+        }
+    }],
+    [29, { name: "Focused Rage", side: "player", type: "upgrade", cost: 3, aspect: "hero",
+        imgPath: "/cards/heroes/she-hulk/FocusedRage-upgrade.png",
+        tags: ["skill"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'sequence', effects: [
+                { op: 'selfDamage', amount: 1 },
+                { op: 'drawCards', amount: 1 },
+                { op: 'exhaust' }
+            ]}]
+        }
+    }],
+    [30, { name: "Superhuman Strength", side: "player", type: "upgrade", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/she-hulk/SuperhumanStrength-upgrade.png",
+        tags: ["superpower"], resources: ["mental"], flavorText: "",
+        attachmentLocation: "tableau", atkMod: 2,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "hero",
+            timing: "BASIC_ATTACK",
+            effects: [{ op: 'sequence', effects: [
+                { op: 'discardSelf' },
+                { op: 'stun', target: 'payloadTarget' }
+            ]}]
         }
     }],
 
@@ -421,6 +562,12 @@ export const heroLibrary = [
         name: "Spider-Man",
         imgPath: "/cards/heroes/spider-man/PeterParker-Hero.png",
         heroDeckIds: [1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6, 7, 7, 8, 8],
+    },
+    {
+        id: 2,
+        name: "She-Hulk",
+        imgPath: "/cards/heroes/she-hulk/SheHulk-Hero.png",
+        heroDeckIds: [22, 23, 24, 24, 25, 25, 26, 26, 26, 27, 28, 29, 29, 30, 30],
     },
 ];
 

@@ -13,6 +13,25 @@ import GameLog from './GameLog.vue';
 
 const store = useGameStore();
 
+import { ref } from 'vue';
+
+const handDiscardSelected = ref<number[]>([]);
+
+function toggleHandDiscardCard(instanceId: number) {
+  if (!store.pendingHandDiscard) return;
+  const idx = handDiscardSelected.value.indexOf(instanceId);
+  if (idx >= 0) {
+    handDiscardSelected.value.splice(idx, 1);
+  } else if (handDiscardSelected.value.length < store.pendingHandDiscard.maxCount) {
+    handDiscardSelected.value.push(instanceId);
+  }
+}
+
+function confirmHandDiscard() {
+  store.confirmHandDiscard(handDiscardSelected.value);
+  handDiscardSelected.value = [];
+}
+
 const EVENT_LABELS: Record<string, string> = {
   VILLAIN_ATTACK:          'Villain is attacking',
   VILLAIN_SCHEME:          'Villain is scheming',
@@ -157,6 +176,43 @@ function friendlyEvent(event: string): string {
   </main>
 
   <GameLog />
+
+  <Teleport to="body">
+    <Transition name="prompt-fade">
+      <div v-if="store.pendingHandDiscard" class="prompt-overlay">
+        <div class="prompt-modal">
+          <div class="prompt-top">
+            <span class="prompt-tag">LEGAL PRACTICE</span>
+            <span class="prompt-event">Discard cards to remove threat</span>
+          </div>
+          <p class="hand-discard-hint">
+            Select up to {{ store.pendingHandDiscard.maxCount }} cards to discard.
+            Each discarded card removes 1 threat from the main scheme.
+            ({{ handDiscardSelected.length }} selected)
+          </p>
+          <div class="options-row">
+            <div
+              v-for="card in store.hand"
+              :key="card.instanceId"
+              class="option-card"
+              :class="{ 'hand-discard-selected': handDiscardSelected.includes(card.instanceId!) }"
+              @click="toggleHandDiscardCard(card.instanceId!)"
+            >
+              <div class="option-img-wrap">
+                <img :src="card.imgPath" :alt="card.name" />
+                <span v-if="card.cost" class="cost-badge">{{ card.cost }}</span>
+              </div>
+              <span class="option-name">{{ card.name }}</span>
+            </div>
+          </div>
+          <div class="hand-discard-actions">
+            <button class="btn-pass" @click="confirmHandDiscard">Confirm ({{ handDiscardSelected.length }})</button>
+            <button class="btn-pass" @click="store.confirmHandDiscard([]); handDiscardSelected.splice(0)">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 
   <Teleport to="body">
     <Transition name="fade">
@@ -389,6 +445,24 @@ function friendlyEvent(event: string): string {
 
   .game-over-overlay.win  { background: rgba(0, 60, 20, 0.85); }
   .game-over-overlay.lose { background: rgba(60, 0, 0, 0.85); }
+
+  .hand-discard-hint {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.6);
+    margin: 0 0 20px;
+  }
+
+  .hand-discard-selected .option-img-wrap img {
+    outline: 3px solid #f1c40f;
+    border-radius: 8px;
+  }
+
+  .hand-discard-actions {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 24px;
+  }
 
   .game-over-box {
     text-align: center;

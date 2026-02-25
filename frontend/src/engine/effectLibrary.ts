@@ -350,6 +350,112 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             break;
         }
 
+        case 'preventThreat': {
+            context.amount = Math.max(0, (context.amount ?? 0) - effect.amount);
+            if (context.amount === 0) context.isCanceled = true;
+            state.addLog(`Prevented ${effect.amount} threat.`, 'threat');
+            break;
+        }
+
+        case 'dealDamageToAll': {
+            const enemies = [state.villainCard, ...state.engagedMinions].filter(Boolean);
+            for (const enemy of enemies) {
+                const damagePayload = {
+                    amount: effect.amount,
+                    targetId: enemy.instanceId,
+                    isCanceled: false,
+                    source: context.sourceCard ?? 'effect'
+                };
+                await state.emitEvent('ENTITY_TAKES_DAMAGE', damagePayload, async () => {
+                    if (!damagePayload.isCanceled && damagePayload.amount > 0)
+                        await state.applyDamageToEntity(damagePayload);
+                });
+                if (enemy.type === 'minion' && enemy.hitPointsRemaining <= 0) {
+                    await state.discardFromEngagedMinions(enemy.instanceId);
+                }
+            }
+            break;
+        }
+
+        case 'dynamicDamage': {
+            const hero = state.hero;
+            const damageSustained = (hero.hitPoints ?? 0) - (hero.hitPointsRemaining ?? 0);
+            const amount = Math.min(effect.max, Math.max(0, damageSustained));
+            if (amount <= 0) {
+                state.addLog('Gamma Slam — no damage sustained, effect fizzles.', 'system');
+                break;
+            }
+            const targetId = await resolveTargetId(effect.target, state, context);
+            if (!targetId) break;
+            const damagePayload = {
+                amount,
+                targetId,
+                isCanceled: false,
+                source: context.sourceCard ?? 'effect'
+            };
+            await state.emitEvent('ENTITY_TAKES_DAMAGE', damagePayload, async () => {
+                if (!damagePayload.isCanceled && damagePayload.amount > 0)
+                    await state.applyDamageToEntity(damagePayload);
+            });
+            const dTarget = state.findTargetById(targetId);
+            if (dTarget && dTarget.type === 'minion' && dTarget.hitPointsRemaining <= 0) {
+                await state.discardFromEngagedMinions(dTarget.instanceId);
+            }
+            break;
+        }
+
+        case 'returnAllyToHand': {
+            const card = context.sourceCard;
+            if (!card) break;
+            state.tableauCards = state.tableauCards.filter((c: any) => c.instanceId !== card.instanceId);
+            if (card.storageId != null) {
+                state.hand.push(createHandCard(card.storageId, state.getNextId()));
+                state.addLog(`${card.name} returned to hand.`, 'system');
+            }
+            break;
+        }
+
+        case 'flipForm': {
+            const wasHero = state.hero.identityStatus === 'hero';
+            state.hero.identityStatus = wasHero ? 'alter-ego' : 'hero';
+            state.addLog(`Flipped to ${state.hero.identityStatus}.`, 'system');
+            if (!wasHero) {
+                await state.checkTriggers('response', 'FLIP_TO_HERO', {});
+            }
+            break;
+        }
+
+        case 'drawToHandSize': {
+            const limit = state.currentHandSizeLimit;
+            while (state.hand.length < limit) {
+                await state.drawCardFromDeck();
+            }
+            break;
+        }
+
+        case 'selfDamage': {
+            await state.applyDamageToEntity({ targetId: state.hero.instanceId, amount: effect.amount });
+            state.addLog(`${state.hero.name} took ${effect.amount} self-damage.`, 'damage');
+            break;
+        }
+
+        case 'discardHandForThreat': {
+            const selectedIds: number[] = await state.requestHandDiscard(effect.max);
+            for (const id of selectedIds) {
+                const card = state.hand.find((c: any) => c.instanceId === id);
+                if (card) {
+                    state.hand = state.hand.filter((c: any) => c.instanceId !== id);
+                    if (card.storageId != null) state.playerDiscardIds.push(card.storageId);
+                    state.addLog(`${card.name} discarded.`, 'discard');
+                }
+            }
+            if (selectedIds.length > 0 && state.mainScheme) {
+                state.mainScheme.threatRemaining = Math.max(0, state.mainScheme.threatRemaining - selectedIds.length);
+                state.addLog(`Removed ${selectedIds.length} threat from ${state.mainScheme.name}.`, 'threat');
+            }
+            break;
+        }
+
         case 'if': {
             if (evaluateCondition(effect.condition, state, context)) {
                 await executeEffects(effect.then, state, context);
@@ -393,6 +499,7 @@ async function resolveTargetId(target: EffectTarget, state: any, context: any): 
         case 'attacker':      return context.attacker?.instanceId ?? null;
         case 'chooseEnemy':   return await state.requestTarget(context.sourceCard, 'enemy');
         case 'chooseScheme':  return await state.requestTarget(context.sourceCard, 'scheme');
+        case 'payloadTarget': return context.targetId ?? null;
     }
 }
 

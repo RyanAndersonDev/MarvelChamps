@@ -88,6 +88,8 @@ export const useGameStore = defineStore('game', {
 
     pendingRemoval: null as { attachmentInstanceId: number; hostId: number; cost: number; resourceType?: string; name: string } | null,
 
+    pendingHandDiscard: null as { maxCount: number; resolve: (ids: number[]) => void } | null,
+
     boostCard: null as { storageId: number; boostIcons: number; imgPath: string; name: string } | null,
 
     isTargeting: false,
@@ -115,6 +117,13 @@ export const useGameStore = defineStore('game', {
         return state.playerIdentity.identityStatus === 'alter-ego'
             ? state.playerIdentity.handsizeAe
             : state.playerIdentity.handSizeHero;
+    },
+
+    effectiveAtk(state): number {
+        if (!state.playerIdentity) return 0;
+        const base = state.playerIdentity.atk ?? 0;
+        const mods = state.tableauCards.reduce((sum, c) => sum + ((c as any).atkMod ?? 0), 0);
+        return base + mods;
     },
 
     endOfTurnDiscardCount(state): number {
@@ -1134,12 +1143,14 @@ export const useGameStore = defineStore('game', {
         this.hero.exhausted = !this.hero.exhausted;
     },
 
-    flipIdentity() {
-        this.hero.identityStatus === "hero" 
-            ? this.hero.identityStatus = "alter-ego"
-            : this.hero.identityStatus = "hero"
-
+    async flipIdentity() {
+        const wasHero = this.hero.identityStatus === "hero";
+        this.hero.identityStatus = wasHero ? "alter-ego" : "hero";
         this.idCardHasFlippedThisTurn = !this.idCardHasFlippedThisTurn;
+
+        if (!wasHero) {
+            await this.checkTriggers('response', 'FLIP_TO_HERO', {});
+        }
     },
 
     healIdentity() {
@@ -1228,18 +1239,22 @@ export const useGameStore = defineStore('game', {
             return;
         }
 
-        const atkAmt = this.hero.atk;
+        const atkAmt = this.effectiveAtk;
         this.addLog(`Attacking for ${atkAmt}!`, 'play');
 
-        await this.applyDamageToEntity({ targetId: id, amount: atkAmt });
+        const attackPayload = { targetId: id, isCanceled: false };
+        await this.emitEvent('BASIC_ATTACK', attackPayload, async () => {
+            if (attackPayload.isCanceled) return;
+            await this.applyDamageToEntity({ targetId: id, amount: atkAmt });
 
-        const target = this.findTargetById(id);
-        if (target && 'type' in target && target.type === 'minion') {
-            const minion = target as Minion;
-            if (minion.hitPointsRemaining <= 0) {
-                await this.discardFromEngagedMinions(minion.instanceId);
+            const target = this.findTargetById(id);
+            if (target && 'type' in target && target.type === 'minion') {
+                const minion = target as Minion;
+                if (minion.hitPointsRemaining <= 0) {
+                    await this.discardFromEngagedMinions(minion.instanceId);
+                }
             }
-        }
+        });
 
         this.toggleIdentityExhaust();
     },
@@ -1555,6 +1570,10 @@ export const useGameStore = defineStore('game', {
             };
 
             if (this.isValidTrigger(trigger, timing, event)) {
+                if (activeLogic.limit) {
+                    const key = `identity_${hero.instanceId}`;
+                    if ((this.abilityUseCounts[key] ?? 0) >= activeLogic.limit.uses) return;
+                }
                 list.push(trigger);
             }
         }
@@ -1786,6 +1805,20 @@ export const useGameStore = defineStore('game', {
         }
     },
 
+    async requestHandDiscard(maxCount: number): Promise<number[]> {
+        return new Promise<number[]>((resolve) => {
+            this.pendingHandDiscard = { maxCount, resolve };
+        });
+    },
+
+    confirmHandDiscard(selectedIds: number[]) {
+        if (this.pendingHandDiscard) {
+            const resolve = this.pendingHandDiscard.resolve;
+            this.pendingHandDiscard = null;
+            resolve(selectedIds);
+        }
+    },
+
     async executeCardEffect(card: any) {
         if (!card.logic?.effects) return;
         const form = card.logic.formRequired;
@@ -1835,7 +1868,13 @@ export const useGameStore = defineStore('game', {
 
         if (isEventFromHand) {
             this.discardPlayerCardsFromHand([card.instanceId]);
-        } else if (!isIdentityAbility) {
+        } else if (isIdentityAbility) {
+            if (card.logic?.limit) {
+                const key = `identity_${card.instanceId}`;
+                this.abilityUseCounts[key] = (this.abilityUseCounts[key] ?? 0) + 1;
+                this.abilityResetOn[key] = card.logic.limit.resetOn;
+            }
+        } else {
             card.exhausted = true;
         }
 

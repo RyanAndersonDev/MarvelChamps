@@ -14,7 +14,7 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
-export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated";
+export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "FLIP_TO_HERO";
 
 // ======================== EFFECT DSL ========================
 
@@ -24,7 +24,8 @@ export type EffectTarget =
   | 'attachedEnemy'  // the entity this card is attached to (context.attacker)
   | 'attacker'       // the attacking entity in event context
   | 'chooseEnemy'    // player selects any enemy
-  | 'chooseScheme';  // player selects a scheme
+  | 'chooseScheme'   // player selects a scheme
+  | 'payloadTarget'; // the entity referenced by context.targetId (e.g. attack target)
 
 export type EffectCondition =
   | { type: 'identityStatus'; value: 'hero' | 'alter-ego' }
@@ -67,6 +68,14 @@ export type EffectDef =
   | { op: 'clearStatus'; target: EffectTarget }
   | { op: 'readyIdentity' }
   | { op: 'shuffleSelfIntoDeck' }
+  | { op: 'preventThreat';       amount: number }
+  | { op: 'dealDamageToAll';    amount: number }
+  | { op: 'dynamicDamage';      target: EffectTarget; formula: string; max: number }
+  | { op: 'returnAllyToHand' }
+  | { op: 'flipForm' }
+  | { op: 'drawToHandSize' }
+  | { op: 'selfDamage';         amount: number }
+  | { op: 'discardHandForThreat'; max: number }
   | { op: 'if';       condition: EffectCondition; then: EffectDef | EffectDef[]; else?: EffectDef | EffectDef[] }
   | { op: 'sequence'; effects: EffectDef[] };
 
@@ -127,6 +136,7 @@ export interface PlayerCard extends CardBase {
     maxCopies?: number;
     uniqueInPlay?: boolean;
     defMod?: number;
+    atkMod?: number;
     logics?: CardLogic[];
 }
 
