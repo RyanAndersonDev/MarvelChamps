@@ -467,7 +467,8 @@ export const useGameStore = defineStore('game', {
                     const damagePayload = {
                         amount: finalDamage,
                         isCanceled: false,
-                        targetId: this.hero.instanceId
+                        targetId: this.hero.instanceId,
+                        isDefended: attackPayload.isDefended ?? false
                     };
 
                     await this.emitEvent('takeIdentityDamage', damagePayload, async () => {
@@ -612,7 +613,7 @@ export const useGameStore = defineStore('game', {
             const finalDamage = Math.max(0, attackPayload.baseDamage - reduction);
 
             if (finalDamage > 0) {
-                const damagePayload = { amount: finalDamage, isCanceled: false, targetId: this.hero.instanceId };
+                const damagePayload = { amount: finalDamage, isCanceled: false, targetId: this.hero.instanceId, isDefended: attackPayload.isDefended ?? false };
 
                 await this.emitEvent('takeIdentityDamage', damagePayload, async () => {
                     if (damagePayload.isCanceled || damagePayload.amount <= 0) return;
@@ -1348,8 +1349,6 @@ export const useGameStore = defineStore('game', {
         if (!card)
             return;
 
-        this.discardPlayerCardsFromHand(this.paymentBufferIds);
-
         if (card.type === "event") {
             if ((card as any).tags?.includes('attack') && this.hero.stunned) {
                 this.addLog(`${this.hero.name} is stunned — attack blocked, stun removed.`, 'status');
@@ -1384,6 +1383,7 @@ export const useGameStore = defineStore('game', {
         }
 
         this.pendingCostReduction = 0;
+        this.discardPlayerCardsFromHand(this.paymentBufferIds);
         this.resetPayment();
     },
 
@@ -1490,8 +1490,8 @@ export const useGameStore = defineStore('game', {
 
     async checkTriggers(timing: string, eventName: string, payload: any) {
         const boardTriggers: any[] = [];
-        
-        if (!payload.usedInstanceIds) 
+
+        if (!payload.usedInstanceIds)
             payload.usedInstanceIds = [];
 
         this.collectIdentityTriggers(timing, eventName, boardTriggers);
@@ -1520,8 +1520,10 @@ export const useGameStore = defineStore('game', {
                 !payload.usedInstanceIds.includes(c.instanceId || 'identity')
             );
 
-            const handCards = this.hand.filter(card => 
-                this.isValidTrigger(card, timing, eventName) && 
+            const handCards = this.hand.filter(card =>
+                card.type === 'event' &&
+                (card.logic?.actionType !== 'defense' || payload.isDefended) &&
+                this.isValidTrigger(card, timing, eventName) &&
                 this.canAfford(card) &&
                 !payload.usedInstanceIds.includes(card.instanceId)
             );
@@ -1641,7 +1643,7 @@ export const useGameStore = defineStore('game', {
             defenders.push({ id: ally.instanceId, name: ally.name });
         });
 
-        if (defenders.length === 0) 
+        if (defenders.length === 0)
             return;
 
         const choice = await this.requestChoice("Who will defend this attack?", [
