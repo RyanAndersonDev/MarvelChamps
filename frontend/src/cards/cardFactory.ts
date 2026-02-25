@@ -96,7 +96,9 @@ function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Al
         abilityExhausts: blueprint.abilityExhausts ?? false,
         tags: blueprint.tags ?? [],
         resources: blueprint.resources ?? [],
-        flavorText: blueprint.flavorText ?? ''
+        flavorText: blueprint.flavorText ?? '',
+        atkMod: blueprint.atkMod,
+        defMod: blueprint.defMod,
     };
 
     switch (blueprint.type) {

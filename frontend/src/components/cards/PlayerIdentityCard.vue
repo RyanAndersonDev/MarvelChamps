@@ -24,7 +24,7 @@
     player.value.identityStatus === 'hero' ? store.playerIdentity.heroLogic : store.playerIdentity.aeLogic
   );
 
-  const hasManualAbility = computed(() => currentLogic.value?.type !== 'interrupt');
+  const hasManualAbility = computed(() => currentLogic.value?.type === 'action' || currentLogic.value?.type === 'resource');
 
   const handleAbility = () => {
     if (!player.value.exhausted) {
@@ -60,8 +60,8 @@
       <div class="stat-badges">
         <template v-if="player.identityStatus === 'hero'">
           <div class="stat-badge blue">{{ player.thw }}</div>
-          <div class="stat-badge red">{{ player.atk }}</div>
-          <div class="stat-badge green">{{ player.def }}</div>
+          <div class="stat-badge red">{{ store.effectiveAtk }}</div>
+          <div class="stat-badge green">{{ store.effectiveDef }}</div>
         </template>
         <template v-else>
           <div class="stat-badge yellow">{{ player.healing }}</div>

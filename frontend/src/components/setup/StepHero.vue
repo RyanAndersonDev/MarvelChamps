@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useSetupStore } from '../../stores/setupStore';
-import { heroLibrary } from '../../cards/cardStore';
+import { heroLibrary, idCardMap } from '../../cards/cardStore';
 
 const setup = useSetupStore();
 </script>
@@ -16,7 +16,7 @@ const setup = useSetupStore();
                 :class="{ selected: setup.selectedHeroId === hero.id }"
                 @click="setup.selectHero(hero.id)"
             >
-                <img :src="hero.imgPath" :alt="hero.name" />
+                <img :src="idCardMap.get(hero.id)?.heroImgPath" :alt="hero.name" />
                 <span class="hero-name">{{ hero.name }}</span>
             </button>
         </div>

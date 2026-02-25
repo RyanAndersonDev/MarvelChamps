@@ -16,6 +16,23 @@ const store = useGameStore();
 import { ref } from 'vue';
 
 const handDiscardSelected = ref<number[]>([]);
+const resourcePaySelected = ref<number[]>([]);
+
+function toggleResourcePayCard(instanceId: number) {
+  if (!store.pendingResourcePayment) return;
+  const needed = store.pendingResourcePayment.needed.length;
+  const idx = resourcePaySelected.value.indexOf(instanceId);
+  if (idx >= 0) {
+    resourcePaySelected.value.splice(idx, 1);
+  } else if (resourcePaySelected.value.length < needed) {
+    resourcePaySelected.value.push(instanceId);
+  }
+}
+
+function confirmResourcePay() {
+  store.confirmResourcePayment(resourcePaySelected.value);
+  resourcePaySelected.value = [];
+}
 
 function toggleHandDiscardCard(instanceId: number) {
   if (!store.pendingHandDiscard) return;
@@ -72,7 +89,7 @@ function friendlyEvent(event: string): string {
             <template v-for="option in store.activePrompt.cards" :key="option.instanceId || option.id">
               <div v-if="option.imgPath" class="option-card" @click="store.activePrompt?.type === 'CHOICE_WINDOW' ? store.activePrompt.resolve(option.id) : store.selectInterruptCard(option)">
                 <div class="option-img-wrap">
-                  <img :src="option.heroImgPath || option.imgPath" :alt="option.name" />
+                  <img :src="option.imgPath" :alt="option.name" />
                   <span v-if="option.cost" class="cost-badge">{{ option.cost }}</span>
                 </div>
                 <span class="option-name">{{ option.name }}</span>
@@ -208,6 +225,54 @@ function friendlyEvent(event: string): string {
           <div class="hand-discard-actions">
             <button class="btn-pass" @click="confirmHandDiscard">Confirm ({{ handDiscardSelected.length }})</button>
             <button class="btn-pass" @click="store.confirmHandDiscard([]); handDiscardSelected.splice(0)">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <Teleport to="body">
+    <Transition name="prompt-fade">
+      <div v-if="store.pendingResourcePayment" class="prompt-overlay">
+        <div class="prompt-modal">
+          <div class="prompt-top">
+            <span class="prompt-tag">ABILITY COST</span>
+            <span class="prompt-event">
+              Pay:
+              <span
+                v-for="(res, i) in store.pendingResourcePayment.needed"
+                :key="i"
+                class="resource-pip"
+                :class="`resource-${res}`"
+              >{{ res }}</span>
+            </span>
+          </div>
+          <p class="hand-discard-hint">Select a card from your hand to pay the resource cost.</p>
+          <div class="options-row">
+            <div
+              v-for="card in store.hand.filter(c => c.resources?.some(r => store.pendingResourcePayment!.needed.includes(r)))"
+              :key="card.instanceId"
+              class="option-card"
+              :class="{ 'hand-discard-selected': resourcePaySelected.includes(card.instanceId!) }"
+              @click="toggleResourcePayCard(card.instanceId!)"
+            >
+              <div class="option-img-wrap">
+                <img :src="card.imgPath" :alt="card.name" />
+                <div class="resource-pips">
+                  <span
+                    v-for="(res, i) in card.resources"
+                    :key="i"
+                    class="resource-pip"
+                    :class="`resource-${res}`"
+                  >{{ res[0].toUpperCase() }}</span>
+                </div>
+              </div>
+              <span class="option-name">{{ card.name }}</span>
+            </div>
+          </div>
+          <div class="hand-discard-actions">
+            <button class="btn-pass" :disabled="resourcePaySelected.length < store.pendingResourcePayment.needed.length" @click="confirmResourcePay">Confirm</button>
+            <button class="btn-pass" @click="store.confirmResourcePayment([]); resourcePaySelected.splice(0)">Cancel</button>
           </div>
         </div>
       </div>
@@ -475,4 +540,14 @@ function friendlyEvent(event: string): string {
 
   .game-over-title { font-size: 3.5rem; font-weight: 900; color: white; letter-spacing: 0.05em; margin-bottom: 16px; }
   .game-over-subtitle { font-size: 1.1rem; color: rgba(255,255,255,0.7); }
+
+  .resource-pips { display: flex; gap: 3px; justify-content: center; margin-top: 4px; flex-wrap: wrap; }
+  .resource-pip {
+    font-size: 0.6rem; font-weight: 800; padding: 2px 6px; border-radius: 10px;
+    text-transform: uppercase; letter-spacing: 0.05em; color: white;
+  }
+  .resource-physical { background: #27ae60; }
+  .resource-mental    { background: #2980b9; }
+  .resource-energy    { background: #e67e22; }
+  .resource-wild      { background: #8e44ad; }
 </style>

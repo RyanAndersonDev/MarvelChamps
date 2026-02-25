@@ -90,6 +90,8 @@ export const useGameStore = defineStore('game', {
 
     pendingHandDiscard: null as { maxCount: number; resolve: (ids: number[]) => void } | null,
 
+    pendingResourcePayment: null as { needed: string[]; resolve: (ids: number[]) => void } | null,
+
     boostCard: null as { storageId: number; boostIcons: number; imgPath: string; name: string } | null,
 
     isTargeting: false,
@@ -123,6 +125,13 @@ export const useGameStore = defineStore('game', {
         if (!state.playerIdentity) return 0;
         const base = state.playerIdentity.atk ?? 0;
         const mods = state.tableauCards.reduce((sum, c) => sum + ((c as any).atkMod ?? 0), 0);
+        return base + mods;
+    },
+
+    effectiveDef(state): number {
+        if (!state.playerIdentity) return 0;
+        const base = state.playerIdentity.def ?? 0;
+        const mods = state.tableauCards.reduce((sum, c) => sum + ((c as any).defMod ?? 0), 0);
         return base + mods;
     },
 
@@ -278,10 +287,12 @@ export const useGameStore = defineStore('game', {
             }
 
             // Mulligan opportunity — player selects cards to swap, then clicks Done
-            this.endOfTurnSelectedIds = [];
-            this.endOfTurnPhase = 'mulligan';
-            await new Promise<void>(resolve => { _endOfTurnResolve = resolve; });
-            this.endOfTurnPhase = null;
+            if (this.hand.length > 0) {
+                this.endOfTurnSelectedIds = [];
+                this.endOfTurnPhase = 'mulligan';
+                await new Promise<void>(resolve => { _endOfTurnResolve = resolve; });
+                this.endOfTurnPhase = null;
+            }
 
             this.readyAllCards();
             this.drawToHandSize();
@@ -466,7 +477,7 @@ export const useGameStore = defineStore('game', {
 
             let reduction = 0;
             if (attackPayload.isDefended && attackPayload.targetType === 'identity') {
-                reduction = (this.hero.def || 0) + this.tableauDefBonus;
+                reduction = this.effectiveDef + (attackPayload.defBonus ?? 0);
             }
 
             const finalDamage = Math.max(0, attackPayload.baseDamage + (attackPayload.boostDamage ?? 0) - reduction);
@@ -525,6 +536,11 @@ export const useGameStore = defineStore('game', {
             }
 
             await this.emitEvent('VILLAIN_ATTACK_CONCLUDED', attackPayload, async () => {});
+
+            if (attackPayload.defBonus && !attackPayload.damageWasDealt) {
+                this.hero.exhausted = false;
+                this.addLog(`${this.hero.name} readied — no damage taken (Desperate Defense).`, 'status');
+            }
         });
     },
 
@@ -616,7 +632,7 @@ export const useGameStore = defineStore('game', {
 
             let reduction = 0;
             if (attackPayload.isDefended && attackPayload.targetType === 'identity') {
-                reduction = (this.hero.def || 0) + this.tableauDefBonus;
+                reduction = this.effectiveDef + (attackPayload.defBonus ?? 0);
             }
 
             const finalDamage = Math.max(0, attackPayload.baseDamage - reduction);
@@ -632,6 +648,11 @@ export const useGameStore = defineStore('game', {
                 });
             }
         });
+
+        if (attackPayload.defBonus && !attackPayload.damageWasDealt) {
+            this.hero.exhausted = false;
+            this.addLog(`${this.hero.name} readied — no damage taken (Desperate Defense).`, 'status');
+        }
     },
 
     // Draws one card from the villain deck, shuffling discard back in (+ acceleration) if empty.
@@ -1242,6 +1263,8 @@ export const useGameStore = defineStore('game', {
         const atkAmt = this.effectiveAtk;
         this.addLog(`Attacking for ${atkAmt}!`, 'play');
 
+        this.toggleIdentityExhaust();
+
         const attackPayload = { targetId: id, isCanceled: false };
         await this.emitEvent('BASIC_ATTACK', attackPayload, async () => {
             if (attackPayload.isCanceled) return;
@@ -1255,8 +1278,6 @@ export const useGameStore = defineStore('game', {
                 }
             }
         });
-
-        this.toggleIdentityExhaust();
     },
 
     defend() {
@@ -1374,8 +1395,10 @@ export const useGameStore = defineStore('game', {
                 this.hero.confused = false;
                 this.discardPlayerCardsFromHand([card.instanceId!]);
             } else {
-                await this.executeCardEffect(card as any);
+                this.discardPlayerCardsFromHand(this.paymentBufferIds);
                 this.discardPlayerCardsFromHand([card.instanceId!]);
+                this.resetPayment();
+                await this.executeCardEffect(card as any);
             }
         } 
         else if (card.type === "upgrade" && card.attachmentLocation !== "tableau") {
@@ -1508,6 +1531,8 @@ export const useGameStore = defineStore('game', {
 
         if (!payload.usedInstanceIds)
             payload.usedInstanceIds = [];
+        if (!payload.usedStorageIds)
+            payload.usedStorageIds = [];
 
         this.collectIdentityTriggers(timing, eventName, boardTriggers);
         this.collectTableauTriggers(timing, eventName, boardTriggers);
@@ -1535,14 +1560,21 @@ export const useGameStore = defineStore('game', {
                 !payload.usedInstanceIds.includes(c.instanceId || 'identity')
             );
 
-            const handCards = this.hand.filter(card =>
-                card.type === 'event' &&
-                (card.logic?.actionType !== 'defense' || payload.isDefended) &&
-                this.isValidTrigger(card, timing, eventName) &&
-                this.canAfford(card) &&
-                !payload.usedInstanceIds.includes(card.instanceId)
-            );
-            
+            const seenStorageIds = new Set<number>();
+            const handCards = this.hand.filter(card => {
+                if (card.type !== 'event') return false;
+                if (card.logic?.actionType === 'defense' && !payload.isDefended) return false;
+                if (!this.isValidTrigger(card, timing, eventName)) return false;
+                if (!this.canAfford(card)) return false;
+                if (payload.usedInstanceIds.includes(card.instanceId)) return false;
+                if (card.storageId != null && payload.usedStorageIds.includes(card.storageId)) return false;
+                if (card.storageId != null) {
+                    if (seenStorageIds.has(card.storageId)) return false;
+                    seenStorageIds.add(card.storageId);
+                }
+                return true;
+            });
+
             const allOptions = [...optionalBoard, ...handCards];
 
             if (allOptions.length > 0) {
@@ -1566,7 +1598,9 @@ export const useGameStore = defineStore('game', {
         if (activeLogic) {
             const trigger = {
                 ...hero,
-                logic: activeLogic
+                logic: activeLogic,
+                type: 'identity',
+                imgPath: this.hero.identityStatus === 'hero' ? hero.heroImgPath : hero.imgPath,
             };
 
             if (this.isValidTrigger(trigger, timing, event)) {
@@ -1655,7 +1689,7 @@ export const useGameStore = defineStore('game', {
         const defenders = [];
 
         if (!this.hero.exhausted) {
-            defenders.push({ id: 'hero', name: `Hero (${this.hero.def} DEF)` });
+            defenders.push({ id: 'hero', name: `Hero (${this.effectiveDef} DEF)` });
         }
 
         this.tableauCards.filter(c => c.type === 'ally' && !c.exhausted).forEach(ally => {
@@ -1673,6 +1707,7 @@ export const useGameStore = defineStore('game', {
         if (choice.id === 'hero') {
             payload.isDefended = true;
             this.hero.exhausted = true;
+            await this.emitEvent('HERO_DEFENDS', payload, async () => {});
         } else if (choice.id !== 'none') {
             payload.isDefended = true;
             payload.targetType = 'ally';
@@ -1819,6 +1854,20 @@ export const useGameStore = defineStore('game', {
         }
     },
 
+    async requestResourcePayment(needed: string[]): Promise<number[]> {
+        return new Promise<number[]>((resolve) => {
+            this.pendingResourcePayment = { needed, resolve };
+        });
+    },
+
+    confirmResourcePayment(selectedIds: number[]) {
+        if (this.pendingResourcePayment) {
+            const resolve = this.pendingResourcePayment.resolve;
+            this.pendingResourcePayment = null;
+            resolve(selectedIds);
+        }
+    },
+
     async executeCardEffect(card: any) {
         if (!card.logic?.effects) return;
         const form = card.logic.formRequired;
@@ -1830,6 +1879,45 @@ export const useGameStore = defineStore('game', {
             sourceCard: card,
             playerForm: this.hero.identityStatus
         });
+    },
+
+    async activateCardAbility(instanceId: number) {
+        const card = this.tableauCards.find(c => c.instanceId === instanceId);
+        if (!card?.logic) return;
+
+        const logic = card.logic;
+
+        const form = logic.formRequired;
+        if (form && form !== 'any' && form !== this.hero.identityStatus) {
+            this.addLog(`${card.name} requires ${form} form.`, 'system');
+            return;
+        }
+
+        let paymentIds: number[] = [];
+        if (logic.resourceCost && logic.resourceCost.length > 0) {
+            paymentIds = await this.requestResourcePayment(logic.resourceCost);
+            if (paymentIds.length < logic.resourceCost.length) {
+                this.addLog(`${card.name} — payment canceled.`, 'system');
+                return;
+            }
+        }
+
+        const context: any = { sourceCard: card, actionBlocked: false };
+        await executeEffects(logic.effects, this, context);
+
+        if (context.actionBlocked) {
+            this.addLog(`${card.name} — action was blocked, payment refunded.`, 'system');
+            return;
+        }
+
+        for (const id of paymentIds) {
+            const paid = this.hand.find((c: any) => c.instanceId === id);
+            if (paid) {
+                this.hand = this.hand.filter((c: any) => c.instanceId !== id);
+                if (paid.storageId != null) this.playerDiscardIds.push(paid.storageId);
+                this.addLog(`${paid.name} discarded as payment.`, 'discard');
+            }
+        }
     },
 
     async requestPlayerInterrupt(event: string, payload: any, playableCards: any[]) {
@@ -1854,7 +1942,9 @@ export const useGameStore = defineStore('game', {
         if (isEventFromHand && card.cost > 0) {
             const context = this.activePrompt.payload;
             if (!context.usedInstanceIds) context.usedInstanceIds = [];
+            if (!context.usedStorageIds) context.usedStorageIds = [];
             context.usedInstanceIds.push(card.instanceId);
+            if (card.storageId != null) context.usedStorageIds.push(card.storageId);
             context.sourceCard = card;
 
             this.pendingInterruptCard = card;
@@ -1882,7 +1972,9 @@ export const useGameStore = defineStore('game', {
             const context = this.activePrompt.payload;
 
             if (!context.usedInstanceIds) context.usedInstanceIds = [];
+            if (!context.usedStorageIds) context.usedStorageIds = [];
             context.usedInstanceIds.push(card.instanceId || 'identity');
+            if (card.storageId != null) context.usedStorageIds.push(card.storageId);
 
             context.sourceCard = card;
 

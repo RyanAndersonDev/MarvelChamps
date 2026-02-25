@@ -26,10 +26,10 @@
   });
 
   function doAction(): void {
-    if (props.card.logic.type === 'resource') {
+    if (props.card.logic?.type === 'resource') {
       store.useResourceAbility(props.card.instanceId!);
     } else {
-      store.executeCardEffect(props.card);
+      store.activateCardAbility(props.card.instanceId!);
     }
   }
 </script>
@@ -82,8 +82,8 @@
       >ATK</button>
       
       <button
-        v-if="!card.logic.forced && (store.currentPhase === 'PLAYER_TURN' || store.activeCardId !== null)"
-        :disabled="card.abilityExhausts && card.exhausted"
+        v-if="card.logic && !card.logic.forced && (store.currentPhase === 'PLAYER_TURN' || store.activeCardId !== null)"
+        :disabled="(card.abilityExhausts && card.exhausted) || (card.logic?.type === 'resource' && store.activeCardId === null)"
         @click="doAction">Action</button>
     </div>
   </div>

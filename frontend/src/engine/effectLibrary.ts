@@ -7,6 +7,7 @@ import { createHandCard } from "../cards/cardFactory";
 export async function executeEffects(effects: EffectDef | EffectDef[], state: any, context: any): Promise<void> {
     const list = Array.isArray(effects) ? effects : [effects];
     for (const effect of list) {
+        if (context.actionBlocked) break;
         await executeEffect(effect, state, context);
     }
 }
@@ -108,6 +109,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             if (!scheme) return;
             if (scheme.type === 'main-scheme' && state.hasCrisisScheme) {
                 state.addLog("Cannot remove threat from main scheme while Crisis is active.", 'system');
+                context.actionBlocked = true;
                 return;
             }
             scheme.threatRemaining = Math.max(0, scheme.threatRemaining - effect.amount);
@@ -350,10 +352,17 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
             break;
         }
 
+        case 'addDefBonus': {
+            context.defBonus = (context.defBonus ?? 0) + effect.amount;
+            state.addLog(`+${effect.amount} DEF for this attack.`, 'status');
+            break;
+        }
+
         case 'preventThreat': {
-            context.amount = Math.max(0, (context.amount ?? 0) - effect.amount);
+            const before = context.amount ?? 0;
+            context.amount = Math.max(0, before - effect.amount);
             if (context.amount === 0) context.isCanceled = true;
-            state.addLog(`Prevented ${effect.amount} threat.`, 'threat');
+            state.addLog(`Prevented ${Math.min(effect.amount, before)} threat. (${before} → ${context.amount})`, 'threat');
             break;
         }
 
@@ -440,6 +449,14 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
         }
 
         case 'discardHandForThreat': {
+            const targetId = await resolveTargetId('chooseScheme', state, context);
+            if (!targetId) break;
+            const scheme = state.findSchemeById(targetId);
+            if (!scheme) break;
+            if (scheme.type === 'main-scheme' && state.hasCrisisScheme) {
+                state.addLog("Cannot remove threat from main scheme while Crisis is active.", 'system');
+                break;
+            }
             const selectedIds: number[] = await state.requestHandDiscard(effect.max);
             for (const id of selectedIds) {
                 const card = state.hand.find((c: any) => c.instanceId === id);
@@ -449,9 +466,11 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
                     state.addLog(`${card.name} discarded.`, 'discard');
                 }
             }
-            if (selectedIds.length > 0 && state.mainScheme) {
-                state.mainScheme.threatRemaining = Math.max(0, state.mainScheme.threatRemaining - selectedIds.length);
-                state.addLog(`Removed ${selectedIds.length} threat from ${state.mainScheme.name}.`, 'threat');
+            if (selectedIds.length > 0) {
+                scheme.threatRemaining = Math.max(0, scheme.threatRemaining - selectedIds.length);
+                state.addLog(`Removed ${selectedIds.length} threat from ${scheme.name}.`, 'threat');
+                if (scheme.type === 'side-scheme' && scheme.threatRemaining === 0)
+                    await state.discardSideScheme(scheme.instanceId);
             }
             break;
         }
@@ -530,6 +549,10 @@ function evaluateCondition(condition: EffectCondition, state: any, context: any)
         case 'targetIsConfused': {
             const entity = resolveTargetEntity(condition.target, state, context);
             return entity?.confused === true;
+        }
+        case 'payloadTargetAlive': {
+            const target = state.findTargetById(context.targetId);
+            return target != null && (target.hitPointsRemaining === undefined || target.hitPointsRemaining > 0);
         }
     }
 }

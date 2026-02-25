@@ -14,7 +14,7 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
-export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "FLIP_TO_HERO";
+export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "FLIP_TO_HERO" | "HERO_DEFENDS";
 
 // ======================== EFFECT DSL ========================
 
@@ -36,7 +36,8 @@ export type EffectCondition =
   | { type: 'noDamageDealt' }
   | { type: 'wasDefended' }
   | { type: 'sideSchemeInPlay'; name: string }
-  | { type: 'targetIsConfused'; target: EffectTarget };
+  | { type: 'targetIsConfused'; target: EffectTarget }
+  | { type: 'payloadTargetAlive' };
 
 export type EffectDef =
   | { op: 'dealDamage';       target: EffectTarget; amount: number }
@@ -76,6 +77,7 @@ export type EffectDef =
   | { op: 'drawToHandSize' }
   | { op: 'selfDamage';         amount: number }
   | { op: 'discardHandForThreat'; max: number }
+  | { op: 'addDefBonus';          amount: number }
   | { op: 'if';       condition: EffectCondition; then: EffectDef | EffectDef[]; else?: EffectDef | EffectDef[] }
   | { op: 'sequence'; effects: EffectDef[] };
 
@@ -275,5 +277,6 @@ export interface CardLogic {
     timing: TimingWindow;
     actionType?: "attack" | "thwart" | "defense";
     limit?: { uses: number; resetOn: 'round' | 'turn' | 'phase' | string };
+    resourceCost?: Resource[];
     effects: EffectDef[];
 }
