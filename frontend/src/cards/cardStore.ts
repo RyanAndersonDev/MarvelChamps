@@ -26,7 +26,7 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
         imgPath: "/cards/heroes/she-hulk/JenniferWalters-AE.png",
         heroImgPath: "/cards/heroes/she-hulk/JenniferWalters-Hero.png",
         flavorText: "",
-        hitPoints: 15, healing: 6, thw: 1, atk: 3, def: 2,
+        hitPoints: 15, healing: 5, thw: 1, atk: 3, def: 2,
         handsizeAe: 6, handSizeHero: 4,
         tags: ["attorney", "gamma"], heroTags: ["avenger", "gamma"],
         aeLogic: {
