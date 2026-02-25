@@ -51,7 +51,7 @@ function friendlyEvent(event: string): string {
 
           <div class="options-row">
             <template v-for="option in store.activePrompt.cards" :key="option.instanceId || option.id">
-              <div v-if="option.imgPath" class="option-card" @click="store.selectInterruptCard(option)">
+              <div v-if="option.imgPath" class="option-card" @click="store.activePrompt?.type === 'CHOICE_WINDOW' ? store.activePrompt.resolve(option.id) : store.selectInterruptCard(option)">
                 <div class="option-img-wrap">
                   <img :src="option.heroImgPath || option.imgPath" :alt="option.name" />
                   <span v-if="option.cost" class="cost-badge">{{ option.cost }}</span>

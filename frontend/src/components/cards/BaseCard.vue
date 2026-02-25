@@ -57,7 +57,7 @@
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
 
-    .base-card img.up:hover {
+    .base-card:hover img.up {
         transform: scale(1.5);
         transform-origin: bottom;
         box-shadow: 0 10px 20px rgba(0,0,0,0.3);
@@ -65,7 +65,7 @@
         position: relative;
     }
 
-    .base-card img.down:hover {
+    .base-card:hover img.down {
         transform: scale(1.5);
         transform-origin: top;
         box-shadow: 0 10px 20px rgba(0,0,0,0.3);
@@ -73,7 +73,7 @@
         position: relative;
     }
 
-    .base-card img.out:hover {
+    .base-card:hover img.out {
         transform: scale(1.5);
         transform-origin: center;
         box-shadow: 0 10px 20px rgba(0,0,0,0.3);
@@ -81,7 +81,7 @@
         position: relative;
     }
 
-    .base-card img.no-zoom:hover {
+    .base-card:hover img.no-zoom {
         transform: none;
         box-shadow: none;
     }

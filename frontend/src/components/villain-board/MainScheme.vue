@@ -1,36 +1,39 @@
 <script setup lang="ts">
-    import { computed } from 'vue';
+    import { computed, ref } from 'vue';
     import { useGameStore } from '../../stores/gameStore';
     import type { MainSchemeInstance } from '../../types/card';
     import BaseCard from '../cards/BaseCard.vue';
 
     const props = defineProps<{ schemeInstance: MainSchemeInstance }>();
     const store = useGameStore();
+    const justTargeted = ref(false);
 
     const isTargetable = computed(() => {
-        return store.targeting.isActive 
+        return store.targeting.isActive
             && (store.targeting.targetType === 'scheme' || store.targeting.targetType === 'main-scheme');
     });
 
     function handleSchemeClick() {
         if (isTargetable.value) {
+            justTargeted.value = true;
             store.selectTarget(props.schemeInstance.instanceId);
         }
     }
 </script>
 
 <template>
-  <div 
-    class="scheme-container" 
+  <div
+    class="scheme-container"
     :class="{ 'targetable': isTargetable }"
     @click="handleSchemeClick"
+    @mouseleave="justTargeted = false"
   >
     <div class="id-card-wrapper">
       <BaseCard
         :img-path="props.schemeInstance.imgPath"
         :orientation="'horizontal'"
         :zoom-direction="'down'"
-        :no-zoom="store.targeting.isActive"
+        :no-zoom="store.targeting.isActive || justTargeted"
         class="scheme-card"
       />
       
@@ -77,7 +80,7 @@
     .id-card-wrapper {
         position: relative;
         border-radius: 8px;
-        overflow: hidden;
+        overflow: visible;
     }
 
     .stats-overlay {

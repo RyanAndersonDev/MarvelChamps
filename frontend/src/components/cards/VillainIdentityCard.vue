@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import { computed } from 'vue';
+    import { computed, ref } from 'vue';
     import { useGameStore } from '../../stores/gameStore';
     import BaseCard from './BaseCard.vue';
     import StatusPips from './StatusPips.vue';
@@ -7,6 +7,7 @@
 
     const props = defineProps<{ cardInstance: VillainIdentityCardInstance }>();
     const store = useGameStore();
+    const justTargeted = ref(false);
 
     const isTargetable = computed(() => {
         return store.targeting.isActive &&
@@ -25,19 +26,21 @@
 
     function handleClick() {
         if (isTargetable.value) {
+            justTargeted.value = true;
             store.selectTarget(props.cardInstance.instanceId);
         }
     }
 </script>
 
 <template>
-    <div 
+    <div
         class="id-card-wrapper"
-        :class="{ 
+        :class="{
             'is-targetable': isTargetable,
-            'not-targetable': store.targeting.isActive && !isTargetable 
+            'not-targetable': store.targeting.isActive && !isTargetable
         }"
         @click="handleClick"
+        @mouseleave="justTargeted = false"
     >
         <div class="stat-badges">
             <div class="stat-badge blue">{{ effectiveSch }}</div>
@@ -49,7 +52,7 @@
             :img-path="props.cardInstance.imgPath"
             :orientation="'vertical'"
             :zoom-direction="'down'"
-            :no-zoom="store.targeting.isActive"
+            :no-zoom="store.targeting.isActive || justTargeted"
             class="id-card"
         />
         <div v-if="isTargetable" class="target-badge">SELECT TARGET</div>

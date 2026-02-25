@@ -32,6 +32,7 @@
       :orientation="'vertical'"
       :zoom-direction="'up'"
       :no-zoom="store.targeting.isActive"
+      @click="mode === 'play' ? playCard() : mode === 'resource' ? useAsResource() : undefined"
     />
 
     <div class="button-row">

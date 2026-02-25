@@ -92,6 +92,7 @@ function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Al
         aspect: blueprint.aspect,
         imgPath: blueprint.imgPath,
         logic: blueprint.logic,
+        logics: (blueprint as any).logics,
         abilityExhausts: blueprint.abilityExhausts ?? false,
         tags: blueprint.tags ?? [],
         resources: blueprint.resources ?? [],
