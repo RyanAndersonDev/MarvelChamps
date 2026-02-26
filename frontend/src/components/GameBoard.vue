@@ -125,7 +125,6 @@ function friendlyEvent(event: string): string {
           :discard-ids="store.villainDiscardIds"
           :card-back-img-path="store.villainCardBackImg"
           :empty-pile-img-path="store.villainCardBackImg"
-          @draw-as-encounter="store.drawFromVillainDeckAsEncounterCard"
         />
 
         <SideSchemes class="side-scheme-component"
@@ -224,7 +223,7 @@ function friendlyEvent(event: string): string {
           </div>
           <div class="hand-discard-actions">
             <button class="btn-pass" @click="confirmHandDiscard">Confirm ({{ handDiscardSelected.length }})</button>
-            <button class="btn-pass" @click="store.confirmHandDiscard([]); handDiscardSelected.splice(0)">Cancel</button>
+            <button class="btn-pass" @click="store.cancelHandDiscard(); handDiscardSelected.splice(0)">Cancel</button>
           </div>
         </div>
       </div>
@@ -250,7 +249,7 @@ function friendlyEvent(event: string): string {
           <p class="hand-discard-hint">Select a card from your hand to pay the resource cost.</p>
           <div class="options-row">
             <div
-              v-for="card in store.hand.filter(c => c.resources?.some(r => store.pendingResourcePayment!.needed.includes(r)))"
+              v-for="card in store.hand.filter(c => c.resources?.some(r => store.pendingResourcePayment!.needed.includes(r) || r === 'wild'))"
               :key="card.instanceId"
               class="option-card"
               :class="{ 'hand-discard-selected': resourcePaySelected.includes(card.instanceId!) }"
@@ -549,5 +548,5 @@ function friendlyEvent(event: string): string {
   .resource-physical { background: #27ae60; }
   .resource-mental    { background: #2980b9; }
   .resource-energy    { background: #e67e22; }
-  .resource-wild      { background: #8e44ad; }
+  .resource-wild      { background: #27ae60; }
 </style>

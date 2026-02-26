@@ -85,7 +85,10 @@ const setup = useSetupStore();
 
 .encounter-card.selected {
     border-color: #54a0e8;
-    background: rgba(84, 160, 232, 0.12);
+    border-width: 3px;
+    background: rgba(84, 160, 232, 0.22);
+    box-shadow: 0 0 0 3px rgba(84, 160, 232, 0.35), 0 8px 24px rgba(84, 160, 232, 0.25);
+    transform: translateY(-6px);
 }
 
 .encounter-name {

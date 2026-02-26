@@ -17,12 +17,12 @@
                 </div>
 
                 <div class="peek-grid">
-                    <img
-                        v-for="(path, i) in imgPaths"
-                        :key="i"
-                        :src="path"
-                        class="peek-card"
-                    />
+                    <template v-for="(path, i) in imgPaths" :key="i">
+                        <div v-if="path.includes('-SideScheme')" class="peek-card-wrapper">
+                            <img :src="path" class="peek-card-inner" />
+                        </div>
+                        <img v-else :src="path" class="peek-card" />
+                    </template>
                 </div>
             </div>
         </div>
@@ -107,5 +107,32 @@
     z-index: 10;
     position: relative;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+}
+
+.peek-card-wrapper {
+    width: 180px;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    position: relative;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
+    cursor: default;
+    transition: transform 0.15s ease;
+}
+
+.peek-card-wrapper:hover {
+    transform: scale(1.5);
+    z-index: 10;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+}
+
+.peek-card-inner {
+    position: absolute;
+    width: 150%;
+    height: 66.67%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
 }
 </style>

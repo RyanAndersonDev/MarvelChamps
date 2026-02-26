@@ -42,7 +42,7 @@
             <span class="chip-dot"></span>
             {{ card.name }}
             <button
-                v-if="(card as any).removal && store.currentPhase === 'PLAYER_TURN'"
+                v-if="(card as any).removal && store.currentPhase === 'PLAYER_TURN' && (!(card as any).removal.formRequired || (card as any).removal.formRequired === store.hero.identityStatus)"
                 class="remove-btn"
                 @click.stop="store.startAttachmentRemoval(card, props.hostId)"
             >REMOVE ({{ (card as any).removal.cost }}{{ (card as any).removal.resourceType ? ' ' + (card as any).removal.resourceType[0].toUpperCase() : '' }})</button>

@@ -1,12 +1,14 @@
 <script setup lang="ts">
     import { computed, ref } from "vue";
-    import { getCardImgPathById, getVillainCardImgPathById } from "../../cards/cardStore";
+    import { getCardImgPathById, getVillainCardImgPathById, cardMap, villainCardMap } from "../../cards/cardStore";
     import PeekModal from "./PeekModal.vue";
 
     const props = defineProps<{
         deckIds: number[],
         cardBackImgPath: string,
-        imageType?: 'player' | 'villain'
+        imageType?: 'player' | 'villain',
+        hidePeek?: boolean,
+        showDrawButton?: boolean,
     }>();
 
     const emit = defineEmits<{ (e: "draw"): void }>();
@@ -16,14 +18,18 @@
     const resolve = (id: number) =>
         (props.imageType === 'player' ? getCardImgPathById : getVillainCardImgPathById)(id);
 
+    const getName = (id: number): string => {
+        const map = props.imageType === 'player' ? cardMap : villainCardMap;
+        return (map as any).get(id)?.name ?? '';
+    };
+
     const deckCount = computed(() => props.deckIds.length);
 
-    // Top of deck is last element — show top-first
-    const allImgPaths = computed(() => [...props.deckIds].reverse().map(resolve));
-
-    function shuffleDeck() {
-        // TODO: implement shuffle
-    }
+    const allImgPaths = computed(() =>
+        [...props.deckIds]
+            .sort((a, b) => getName(a).localeCompare(getName(b)))
+            .map(resolve)
+    );
 </script>
 
 <template>
@@ -34,12 +40,12 @@
         </div>
 
         <div class="button-row">
-            <button @click="peeking = true" :disabled="deckCount === 0">Peek</button>
-            <button @click="emit('draw')">Draw</button>
+            <button v-if="!props.hidePeek" @click="peeking = true" :disabled="deckCount === 0">Peek</button>
+            <button v-if="props.showDrawButton !== false" @click="emit('draw')">Draw</button>
         </div>
 
         <PeekModal
-            v-if="peeking"
+            v-if="peeking && !props.hidePeek"
             title="Deck"
             :img-paths="allImgPaths"
             @close="peeking = false"

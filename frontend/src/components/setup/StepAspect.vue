@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useSetupStore } from '../../stores/setupStore';
 import { cardMap } from '../../cards/cardStore';
 import type { Aspect } from '../../types/card';
@@ -103,6 +103,29 @@ const zoomedImg = ref<string | null>(null);
 watch(() => setup.selectedAspect, () => {
     extraCounts.value = {};
     syncDeck();
+});
+
+onMounted(() => {
+    if (setup.selectedAspect) {
+        binderTab.value = setup.selectedAspect;
+    }
+
+    const hero = setup.selectedHero;
+    if (!hero) return;
+    const baseCounts = new Map<number, number>();
+    for (const id of hero.heroDeckIds) {
+        baseCounts.set(id, (baseCounts.get(id) ?? 0) + 1);
+    }
+    const storedCounts = new Map<number, number>();
+    for (const id of setup.playerDeckIds) {
+        storedCounts.set(id, (storedCounts.get(id) ?? 0) + 1);
+    }
+    const restored: Record<number, number> = {};
+    for (const [id, count] of storedCounts) {
+        const extra = count - (baseCounts.get(id) ?? 0);
+        if (extra > 0) restored[id] = extra;
+    }
+    extraCounts.value = restored;
 });
 </script>
 
@@ -218,7 +241,7 @@ watch(() => setup.selectedAspect, () => {
 /* Two-column layout */
 .columns {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 2fr;
     gap: 24px;
     flex: 1;
     min-height: 0;
@@ -330,8 +353,8 @@ watch(() => setup.selectedAspect, () => {
 /* Card grid */
 .binder-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 18px;
 }
 
 .binder-card {

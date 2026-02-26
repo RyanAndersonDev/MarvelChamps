@@ -68,7 +68,10 @@ const setup = useSetupStore();
 
 .hero-card.selected {
     border-color: #e8c84a;
-    background: rgba(232, 200, 74, 0.12);
+    border-width: 3px;
+    background: rgba(232, 200, 74, 0.22);
+    box-shadow: 0 0 0 3px rgba(232, 200, 74, 0.35), 0 8px 24px rgba(232, 200, 74, 0.25);
+    transform: translateY(-6px);
 }
 
 .hero-card img {

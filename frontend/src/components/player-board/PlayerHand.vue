@@ -61,7 +61,7 @@
                 <span class="payment-fraction" :class="store.isCostMet ? 'met' : ''">
                     {{ Object.values(store.committedResources).reduce((a, b) => a + b, 0) }}
                     /
-                    {{ store.activeCard?.cost ?? '?' }}
+                    {{ Math.max(0, (store.activeCard?.cost ?? 0) - store.pendingCostReduction) }}
                 </span>
                 <span class="generated-list">
                     <template v-for="(count, type) in store.committedResources" :key="type">
