@@ -37,7 +37,8 @@ export type EffectCondition =
   | { type: 'wasDefended' }
   | { type: 'sideSchemeInPlay'; name: string }
   | { type: 'targetIsConfused'; target: EffectTarget }
-  | { type: 'payloadTargetAlive' };
+  | { type: 'payloadTargetAlive' }
+  | { type: 'noActiveSideSchemes' };
 
 export type EffectDef =
   | { op: 'dealDamage';       target: EffectTarget; amount: number }
@@ -79,7 +80,13 @@ export type EffectDef =
   | { op: 'discardHandForThreat'; max: number }
   | { op: 'addDefBonus';          amount: number }
   | { op: 'if';       condition: EffectCondition; then: EffectDef | EffectDef[]; else?: EffectDef | EffectDef[] }
-  | { op: 'sequence'; effects: EffectDef[] };
+  | { op: 'sequence'; effects: EffectDef[] }
+  | { op: 'fetchAndRevealVillainCard'; storageId: number }
+  | { op: 'shuffleVillainDeck' }
+  | { op: 'exhaustIdentity' }
+  | { op: 'addThreatToEachSideScheme'; amount: number }
+  | { op: 'revealSideSchemeFromDeck' }
+  | { op: 'revealTopEncounterCard' };
 
 // ======================== CARD INTERFACES ========================
 
@@ -180,6 +187,7 @@ export interface VillainIdentityCard extends CardBase {
     logic?: CardLogic;
     storageId?: number;
     nextPhaseId?: number;
+    whenFlipped?: EffectDef[];
 }
 
 export interface VillainIdentityCardInstance extends VillainIdentityCard {
@@ -208,12 +216,13 @@ export interface VillainCard extends CardBase {
     guard?: boolean;
     toughOnEntry?: boolean;
     overkill?: boolean;
-    removal?: { cost: number; resourceType?: Resource };
+    removal?: { cost: number; resourceType?: Resource; formRequired?: 'hero' | 'alter-ego' };
     whenRevealedThreat?: number;
     whenRevealedThreatIsPerPlayer?: boolean;
     crisis?: boolean;
     hazard?: boolean;
     acceleration?: boolean;
+    surgeKeyword?: number;
 }
 
 export interface VillainCardInstance extends VillainCard {
@@ -243,7 +252,7 @@ export interface Attachment extends VillainCardInstance {
     logic?: CardLogic;
     damageAccumulated?: number;
     overkill?: boolean;
-    removal?: { cost: number; resourceType?: Resource };
+    removal?: { cost: number; resourceType?: Resource; formRequired?: 'hero' | 'alter-ego' };
 }
 
 export interface SideScheme extends VillainCardInstance {
