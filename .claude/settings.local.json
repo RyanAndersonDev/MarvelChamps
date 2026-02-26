@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:marvelcdb.com)"
+      "WebFetch(domain:marvelcdb.com)",
+      "Bash(cd:*)"
     ]
   }
 }
