@@ -612,7 +612,8 @@ export const useGameStore = defineStore('game', {
             targetType: 'identity',
             targetId: 'hero',
             isCanceled: false,
-            damageWasDealt: false
+            damageWasDealt: false,
+            defBonus: 0,
         };
 
         const playerAttachments = (minion.attachments || []).filter(a => a.side === 'player');

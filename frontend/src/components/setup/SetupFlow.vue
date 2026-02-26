@@ -4,14 +4,16 @@ import StepHero     from './StepHero.vue';
 import StepAspect   from './StepAspect.vue';
 import StepVillain  from './StepVillain.vue';
 import StepEncounter from './StepEncounter.vue';
+import { useGameScale } from '../../composables/useGameScale';
 
 const setup = useSetupStore();
+const { scaleStyle } = useGameScale();
 
 const STEP_LABELS = ['Hero', 'Deck', 'Villain', 'Encounter'];
 </script>
 
 <template>
-    <div class="setup-screen">
+    <div class="setup-screen" :style="scaleStyle">
         <!-- Step indicator -->
         <header class="setup-header">
             <div class="step-indicator">

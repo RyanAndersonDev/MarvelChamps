@@ -14,6 +14,9 @@ import GameLog from './GameLog.vue';
 const store = useGameStore();
 
 import { ref } from 'vue';
+import { useGameScale } from '../composables/useGameScale';
+
+const { scaleStyle: boardStyle } = useGameScale();
 
 const handDiscardSelected = ref<number[]>([]);
 const resourcePaySelected = ref<number[]>([]);
@@ -75,7 +78,7 @@ function friendlyEvent(event: string): string {
 </script>
 
 <template>
-  <main class="game-container">
+  <main class="game-container" :style="boardStyle">
     <Transition name="prompt-fade">
       <div v-if="store.activePrompt" class="prompt-overlay">
         <div class="prompt-modal">
