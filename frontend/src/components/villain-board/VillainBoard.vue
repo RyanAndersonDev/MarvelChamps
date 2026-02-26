@@ -18,9 +18,6 @@
         emptyPileImgPath: string
     }>();
 
-    const emit = defineEmits<{ 
-        (e: 'drawAsEncounter'): void;
-    }>();
 </script>
 
 <template>
@@ -28,7 +25,7 @@
         <DeckPile
             :deck-ids="deckIds"
             :card-back-img-path="emptyPileImgPath"
-            @draw="emit('drawAsEncounter')"
+            :show-draw-button="false"
         />
 
         <MainScheme

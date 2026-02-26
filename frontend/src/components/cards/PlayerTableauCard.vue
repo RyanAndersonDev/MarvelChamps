@@ -82,7 +82,7 @@
       >ATK</button>
       
       <button
-        v-if="card.logic && !card.logic.forced && (store.currentPhase === 'PLAYER_TURN' || store.activeCardId !== null)"
+        v-if="card.logic && !card.logic.forced && card.logic.type !== 'response' && (store.currentPhase === 'PLAYER_TURN' || store.activeCardId !== null)"
         :disabled="(card.abilityExhausts && card.exhausted) || (card.logic?.type === 'resource' && store.activeCardId === null)"
         @click="doAction">Action</button>
     </div>
