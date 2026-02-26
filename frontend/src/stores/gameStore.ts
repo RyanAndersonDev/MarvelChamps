@@ -26,15 +26,13 @@ export const useGameStore = defineStore('game', {
     // Acceleration tokens (villain deck exhausted = +1 permanent threat per round)
     accelerationTokens: 0,
 
-    // Bonus encounter cards to deal next villain step 4 (from player deck shuffles)
-    bonusEncounterCards: 0,
-
     // Identification
     idIncrementer: 0,
     
     // Villain Side
     villainCard: null as VillainIdentityCardInstance | null,
     mainScheme: null as MainSchemeInstance | null,
+    villainPhaseChain: [] as number[],
     villainDeckIds: [] as number[],
     villainDiscardIds: [] as number[],
     activeSideSchemes: [] as SideScheme[],
@@ -88,7 +86,10 @@ export const useGameStore = defineStore('game', {
 
     pendingRemoval: null as { attachmentInstanceId: number; hostId: number; cost: number; resourceType?: string; name: string } | null,
 
-    pendingHandDiscard: null as { maxCount: number; resolve: (ids: number[]) => void } | null,
+    pendingHandDiscard: null as { maxCount: number; resolve: (ids: number[] | null) => void } | null,
+
+    // Transaction snapshot: saved at startPayment, restored on abortPlay
+    playSnapshot: null as { hand: any[]; playerDiscardIds: number[] } | null,
 
     pendingResourcePayment: null as { needed: string[]; resolve: (ids: number[]) => void } | null,
 
@@ -237,12 +238,11 @@ export const useGameStore = defineStore('game', {
     },
 
     // ****************************** Game Phase Actions ******************************
-    initializeGame(config: { heroId: number; playerDeckIds: number[]; villainId: number; mainSchemeId: number; villainDeckIds: number[] }) {
+    async initializeGame(config: { heroId: number; playerDeckIds: number[]; villainId: number; mainSchemeId: number; villainDeckIds: number[]; villainPhaseChain: number[] }) {
         // Reset gameplay state
         this.currentPhase = 'PLAYER_TURN' as any;
         this.gameOver = null;
         this.accelerationTokens = 0;
-        this.bonusEncounterCards = 0;
         this.villainCard = null;
         this.mainScheme = null;
         this.villainDeckIds = [];
@@ -267,11 +267,20 @@ export const useGameStore = defineStore('game', {
         this.shufflePile(this.deckIds);
         this.villainCard = createVillainIdentityCard(config.villainId, ++initIdCounter);
         this.mainScheme = createMainSchemeCard(config.mainSchemeId, ++initIdCounter);
+        this.villainPhaseChain = [...config.villainPhaseChain];
         this.villainDeckIds = [...config.villainDeckIds];
         this.shufflePile(this.villainDeckIds);
 
         this.idIncrementer = initIdCounter;
         this.drawToHandSize();
+
+        // Execute the starting villain's "When Revealed" effects (fires at game start)
+        const startingBlueprint = villainIdCardMap.get(config.villainId);
+        if (startingBlueprint?.whenFlipped?.length) {
+            this.addLog(`${startingBlueprint.name} — When Revealed:`, 'villain');
+            await executeEffects(startingBlueprint.whenFlipped, this, {});
+        }
+
         this.addLog('--- Round 1 ---', 'phase');
     },
 
@@ -332,7 +341,8 @@ export const useGameStore = defineStore('game', {
             ? this.mainScheme!.threatIncrement * 1 // TODO: Multiply by player count
             : this.mainScheme!.threatIncrement;
 
-        const amount = base + this.accelerationTokens;
+        const sideSchemeAcceleration = this.activeSideSchemes.filter(ss => ss.acceleration).length;
+        const amount = base + this.accelerationTokens + sideSchemeAcceleration;
 
         const threatPayload = {
             amount,
@@ -605,7 +615,6 @@ export const useGameStore = defineStore('game', {
             damageWasDealt: false
         };
 
-        // Check for player attachments on this minion (e.g. Webbed Up)
         const playerAttachments = (minion.attachments || []).filter(a => a.side === 'player');
         for (const att of playerAttachments) {
             await this.emitEvent('attachedAttacks', {
@@ -618,7 +627,6 @@ export const useGameStore = defineStore('game', {
 
         if (attackPayload.isCanceled) return;
 
-        // Emit ENEMY_ATTACK so Spider-Sense triggers
         await this.emitEvent('ENEMY_ATTACK', attackPayload, async () => {});
         if (attackPayload.isCanceled) return;
 
@@ -696,15 +704,7 @@ export const useGameStore = defineStore('game', {
                 }
             }
 
-            // Bonus encounter cards from player deck shuffles this round
-            while (this.bonusEncounterCards > 0) {
-                this.bonusEncounterCards--;
-                const cardId = this.drawOneVillainCard();
-                if (cardId !== null) {
-                    this.encounterPileIds.push(cardId);
-                    this.addLog(`Dealt 1 bonus encounter card (player deck was shuffled).`, 'villain');
-                }
-            }
+
         });
 
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -793,8 +793,13 @@ export const useGameStore = defineStore('game', {
         this.deckIds.push(...this.playerDiscardIds);
         this.playerDiscardIds = [];
         this.shufflePile(this.deckIds);
-        this.bonusEncounterCards++;
-        this.addLog(`Player deck exhausted — shuffled discard into new draw pile. An encounter card will be dealt this round.`, 'villain');
+        const encounterId = this.drawOneVillainCard();
+        if (encounterId !== null) {
+            this.encounterPileIds.push(encounterId);
+            this.addLog(`Player deck exhausted — shuffled discard into new draw pile and dealt 1 encounter card.`, 'villain');
+        } else {
+            this.addLog(`Player deck exhausted — shuffled discard into new draw pile.`, 'villain');
+        }
     },
 
     // ****************************** ALLY ACTIONS ******************************
@@ -952,7 +957,7 @@ export const useGameStore = defineStore('game', {
         const treacheryPayload: any = {
             card,
             isCanceled: false,
-            surge: false
+            surge: 0
         };
 
         await this.emitEvent('treacheryRevealed', treacheryPayload, async () => {
@@ -970,8 +975,15 @@ export const useGameStore = defineStore('game', {
 
         this.villainDiscardIds.push(card.storageId);
 
-        // Surge: reveal an additional encounter card
-        if (treacheryPayload.surge) {
+        // Surge keyword: fires unconditionally even if When Revealed was canceled
+        const surgeKeyword = villainCardMap.get(card.storageId)?.surgeKeyword ?? 0;
+        for (let i = 0; i < surgeKeyword; i++) {
+            this.addLog(`${card.name} — Surge! Drawing additional encounter card.`, 'surge');
+            this.drawFromVillainDeckAsEncounterCard();
+        }
+
+        // When Revealed surge effects (cancelable): set by { op: 'surge' } in effects array
+        for (let i = 0; i < treacheryPayload.surge; i++) {
             this.addLog(`${card.name} surges! Drawing additional encounter card.`, 'surge');
             this.drawFromVillainDeckAsEncounterCard();
         }
@@ -1318,6 +1330,12 @@ export const useGameStore = defineStore('game', {
         const card = this.hand.find(c => c.instanceId === cardId);
         if (!card) return;
 
+        // Save transaction snapshot before any state changes
+        this.playSnapshot = {
+            hand: JSON.parse(JSON.stringify(this.hand)),
+            playerDiscardIds: [...this.playerDiscardIds],
+        };
+
         this.activeCardId = cardId;
 
         if (card.cost === 0) {
@@ -1399,8 +1417,9 @@ export const useGameStore = defineStore('game', {
                 this.discardPlayerCardsFromHand([card.instanceId!]);
                 this.resetPayment();
                 await this.executeCardEffect(card as any);
+                this.playSnapshot = null; // Commit transaction after successful effect
             }
-        } 
+        }
         else if (card.type === "upgrade" && card.attachmentLocation !== "tableau") {
             try {
                 const targetId = await this.requestTarget(card, card.attachmentLocation!);
@@ -1408,6 +1427,8 @@ export const useGameStore = defineStore('game', {
                 this.destroyHandCard(card.instanceId!);
             } catch (error) {
                 this.addLog("Play cancelled during targeting.", 'system');
+                this.abortPlay();
+                this.resetPayment();
                 return;
             }
         } 
@@ -1425,12 +1446,22 @@ export const useGameStore = defineStore('game', {
         this.resetPayment();
     },
 
+    // Abort the current card play transaction and restore pre-play state
+    abortPlay() {
+        if (!this.playSnapshot) return;
+        this.hand = this.playSnapshot.hand;
+        this.playerDiscardIds = this.playSnapshot.playerDiscardIds;
+        this.playSnapshot = null;
+        this.addLog('Play cancelled — cards returned to hand.', 'system');
+    },
+
     resetPayment() {
         this.activeCardId = null;
         this.paymentBufferIds = [];
         this.generatedResources = [];
         this.pendingRemoval = null;
         this.pendingCostReduction = 0;
+        this.playSnapshot = null; // Clear snapshot when cancelling before finalization
 
         // If cancelling a pending paid interrupt, resolve the suspended promise as "passed"
         if (this.pendingInterruptResolve) {
@@ -1783,14 +1814,17 @@ export const useGameStore = defineStore('game', {
 
     async handleVillainDefeated() {
         const current = this.villainCard!;
-        const blueprint = villainIdCardMap.get(current.storageId!);
+        const currentIdx = this.villainPhaseChain.indexOf(current.storageId!);
+        const nextPhaseId = currentIdx >= 0 ? this.villainPhaseChain[currentIdx + 1] : undefined;
 
-        if (blueprint?.nextPhaseId) {
-            const nextBlueprint = villainIdCardMap.get(blueprint.nextPhaseId);
+        if (nextPhaseId != null) {
+            const nextBlueprint = villainIdCardMap.get(nextPhaseId);
             if (nextBlueprint) {
-                const nextPhase = current.phase + 1;
-                this.addLog(`${current.name} Phase ${current.phase} defeated! Flipping to Phase ${nextPhase}!`, 'villain');
-                this.villainCard = createVillainIdentityCard(blueprint.nextPhaseId, current.instanceId);
+                this.addLog(`${current.name} Phase ${current.phase} defeated! Flipping to Phase ${current.phase + 1}!`, 'villain');
+                this.villainCard = createVillainIdentityCard(nextPhaseId, current.instanceId);
+                if (nextBlueprint.whenFlipped?.length) {
+                    await executeEffects(nextBlueprint.whenFlipped, this, {});
+                }
                 return;
             }
         }
@@ -1840,8 +1874,8 @@ export const useGameStore = defineStore('game', {
         }
     },
 
-    async requestHandDiscard(maxCount: number): Promise<number[]> {
-        return new Promise<number[]>((resolve) => {
+    async requestHandDiscard(maxCount: number): Promise<number[] | null> {
+        return new Promise<number[] | null>((resolve) => {
             this.pendingHandDiscard = { maxCount, resolve };
         });
     },
@@ -1850,8 +1884,18 @@ export const useGameStore = defineStore('game', {
         if (this.pendingHandDiscard) {
             const resolve = this.pendingHandDiscard.resolve;
             this.pendingHandDiscard = null;
+            this.playSnapshot = null; // Commit transaction on confirm
             resolve(selectedIds);
         }
+    },
+
+    cancelHandDiscard() {
+        if (this.pendingHandDiscard) {
+            const resolve = this.pendingHandDiscard.resolve;
+            this.pendingHandDiscard = null;
+            resolve(null); // null signals cancellation to the effect
+        }
+        this.abortPlay();
     },
 
     async requestResourcePayment(needed: string[]): Promise<number[]> {

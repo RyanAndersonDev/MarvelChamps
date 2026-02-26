@@ -1,6 +1,6 @@
 import type { EffectDef, EffectTarget, EffectCondition, Resource } from "../types/card";
-import { cardMap } from "../cards/cardStore";
-import { createHandCard } from "../cards/cardFactory";
+import { cardMap, villainCardMap } from "../cards/cardStore";
+import { createHandCard, createVillainCard } from "../cards/cardFactory";
 
 // ======================== PUBLIC API ========================
 
@@ -303,7 +303,7 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
         }
 
         case 'surge': {
-            context.surge = true;
+            context.surge = (context.surge ?? 0) + 1;
             state.addLog("Surge triggered.", 'surge');
             break;
         }
@@ -457,7 +457,8 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
                 state.addLog("Cannot remove threat from main scheme while Crisis is active.", 'system');
                 break;
             }
-            const selectedIds: number[] = await state.requestHandDiscard(effect.max);
+            const selectedIds = await state.requestHandDiscard(effect.max);
+            if (selectedIds === null) break; // Canceled — transaction rolled back by store
             for (const id of selectedIds) {
                 const card = state.hand.find((c: any) => c.instanceId === id);
                 if (card) {
@@ -472,6 +473,84 @@ export async function executeEffect(effect: EffectDef, state: any, context: any)
                 if (scheme.type === 'side-scheme' && scheme.threatRemaining === 0)
                     await state.discardSideScheme(scheme.instanceId);
             }
+            break;
+        }
+
+        case 'exhaustIdentity': {
+            state.hero.exhausted = true;
+            state.addLog(`${state.hero.name} is exhausted.`, 'status');
+            break;
+        }
+
+        case 'addThreatToEachSideScheme': {
+            for (const scheme of state.activeSideSchemes) {
+                scheme.threatRemaining += effect.amount;
+                state.addLog(`Added ${effect.amount} threat to ${scheme.name}. Total: ${scheme.threatRemaining}`, 'threat');
+            }
+            break;
+        }
+
+        case 'revealSideSchemeFromDeck': {
+            let found = false;
+            while (!found) {
+                const cardId = state.drawOneVillainCard();
+                if (cardId === null) break;
+                const blueprint = villainCardMap.get(cardId);
+                if (blueprint?.type === 'side-scheme') {
+                    const instance = createVillainCard(cardId, state.getNextId());
+                    await state.handleSideSchemeEntry(instance);
+                    found = true;
+                } else {
+                    state.villainDiscardIds.push(cardId);
+                    state.addLog(`${blueprint?.name ?? cardId} discarded (searching for side scheme).`, 'villain');
+                }
+            }
+            if (!found) state.addLog('No side scheme found in the encounter deck.', 'villain');
+            break;
+        }
+
+        case 'revealTopEncounterCard': {
+            state.drawFromVillainDeckAsEncounterCard();
+            state.addLog('Revealed the top card of the encounter deck.', 'villain');
+            break;
+        }
+
+        case 'fetchAndRevealVillainCard': {
+            const blueprint = villainCardMap.get(effect.storageId);
+            const name = blueprint?.name ?? String(effect.storageId);
+
+            // Search deck first, then discard pile
+            let found = false;
+            const deckIdx = state.villainDeckIds.lastIndexOf(effect.storageId);
+            if (deckIdx !== -1) {
+                state.villainDeckIds.splice(deckIdx, 1);
+                found = true;
+            } else {
+                const discardIdx = state.villainDiscardIds.lastIndexOf(effect.storageId);
+                if (discardIdx !== -1) {
+                    state.villainDiscardIds.splice(discardIdx, 1);
+                    found = true;
+                }
+            }
+
+            if (found) {
+                state.addLog(`${name} fetched and put into play.`, 'villain');
+                const instance = createVillainCard(effect.storageId, state.getNextId());
+                switch (blueprint?.type) {
+                    case 'side-scheme':  await state.handleSideSchemeEntry(instance);  break;
+                    case 'minion':       await state.handleMinionEntry(instance);       break;
+                    case 'attachment':   await state.handleAttachmentEntry(instance);   break;
+                    case 'treachery':    await state.handleTreacheryResolution(instance); break;
+                }
+            } else {
+                state.addLog(`${name} not found in encounter deck or discard — skipping.`, 'villain');
+            }
+            break;
+        }
+
+        case 'shuffleVillainDeck': {
+            state.shufflePile(state.villainDeckIds);
+            state.addLog(`Encounter deck shuffled.`, 'villain');
             break;
         }
 
@@ -554,5 +633,7 @@ function evaluateCondition(condition: EffectCondition, state: any, context: any)
             const target = state.findTargetById(context.targetId);
             return target != null && (target.hitPointsRemaining === undefined || target.hitPointsRemaining > 0);
         }
+        case 'noActiveSideSchemes':
+            return state.activeSideSchemes.length === 0;
     }
 }
