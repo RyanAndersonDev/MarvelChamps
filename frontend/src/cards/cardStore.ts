@@ -414,9 +414,14 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
 
 export const villainIdCardMap: Map<number, VillainIdentityCard> = new Map<number, VillainIdentityCard>([
     [1, { name: "Rhino", side: "villain", imgPath: "/cards/villains/rhino/Rhino-Phase1.png", tags: ["brute", "criminal"], phase: 1, hitPointsPerPlayer: 14, sch: 1, atk: 2,
-        nextPhaseId: 2, flavorText: `"I'm Rhino. I knock things down. That's what I do. That's who I am."` }],
+        flavorText: `"I'm Rhino. I knock things down. That's what I do. That's who I am."` }],
     [2, { name: "Rhino", side: "villain", imgPath: "/cards/villains/rhino/Rhino-Phase2.png", tags: ["brute", "criminal"], phase: 2, hitPointsPerPlayer: 15, sch: 1, atk: 3,
-        flavorText: `"Out of my way!"` }],
+        flavorText: `"Out of my way!"`,
+        whenFlipped: [
+            { op: 'fetchAndRevealVillainCard', storageId: 10 },
+            { op: 'shuffleVillainDeck' },
+        ]
+    }],
     [3, { name: "Rhino", side: "villain", imgPath: "/cards/villains/rhino/Rhino-Phase3.png", tags: ["brute", "criminal"], phase: 3, hitPointsPerPlayer: 16, sch: 1, atk: 4,
         flavorText: `"You brought this on yourself!"` }],
 ]);
@@ -442,7 +447,7 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
         }
     }],
     [3, { name: "Enhanced Ivory Horn", side: "villain", imgPath: "/cards/villains/rhino/EnhancedIvoryHorn-Attachment.png", tags: ["weapon"], flavorText: "",
-        type: "attachment", boostIcons: 2, atkMod: 1, removal: { cost: 3, resourceType: 'physical' } }],
+        type: "attachment", boostIcons: 2, atkMod: 1, removal: { cost: 3, resourceType: 'physical', formRequired: 'hero' } }],
     [4, { name: "Hydra Mercenary", side: "villain", imgPath: "/cards/villains/rhino/HydraMercenary-Minion.png", tags: ["hydra"], flavorText: `"What is Hydra doing here?" - Carol Danvers`,
         type: "minion", boostIcons: 1, sch: 0, atk: 1, hitPoints: 3, guard: true }],
     [5, { name: "Sandman", side: "villain", imgPath: "/cards/villains/rhino/Sandman-Minion.png", tags: ["criminal", "elite"], flavorText: `"I just wanna get paid!"`,
@@ -540,6 +545,23 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
             effects: [{ op: 'if', condition: { type: 'targetIsConfused', target: 'identity' },
                 then: { op: 'surge' },
                 else: { op: 'confuse', target: 'identity' } }] } }],
+
+    // ── Expert I encounter set ──
+    [21, { name: "Exhaustion", side: "villain", imgPath: "/cards/villains/standard/Exhaustion-Treachery.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 2, surgeKeyword: 1,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'exhaustIdentity' }] } }],
+    [22, { name: "Masterplan", side: "villain", imgPath: "/cards/villains/standard/Masterplan-Treachery.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 2,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [
+                { op: 'addThreatToEachSideScheme', amount: 4 },
+                { op: 'if', condition: { type: 'noActiveSideSchemes' }, then: { op: 'revealSideSchemeFromDeck' } }
+            ] } }],
+    [23, { name: "Under Fire", side: "villain", imgPath: "/cards/villains/standard/UnderFire-Treachery.png", tags: [], flavorText: `"But wait, there's more!" - Klaw`,
+        type: "treachery", boostIcons: 3, surgeKeyword: 1,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'revealTopEncounterCard' }] } }],
 ]);
 
 export function getCardImgPathById(cardId: number): string {
@@ -554,6 +576,7 @@ export function getVillainCardImgPathById(cardId: number): string {
 
 export const rhinoVillainCardIds  = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 export const standardICardIds     = [12, 13, 14, 15, 16];
+export const expertICardIds       = [21, 22, 23];
 export const bombScareCardIds     = [17, 18, 18, 19, 20, 20];
 
 export const heroLibrary = [
@@ -574,8 +597,11 @@ export const villainLibrary = [
         id: 1,
         name: "Rhino",
         imgPath: "/cards/villains/rhino/Rhino-Phase1.png",
+        expertImgPath: "/cards/villains/rhino/Rhino-Phase2.png",
         mainSchemeId: 1,
         villainDeckIds: rhinoVillainCardIds,
+        standardPhaseChain: [1, 2],
+        expertPhaseChain:   [2, 3],
     },
 ];
 

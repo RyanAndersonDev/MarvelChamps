@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { heroLibrary, villainLibrary, encounterLibrary, standardICardIds } from '../cards/cardStore';
+import { heroLibrary, villainLibrary, encounterLibrary, standardICardIds, expertICardIds } from '../cards/cardStore';
 import { useGameStore } from './gameStore';
 import router from '../router';
 
@@ -11,8 +11,9 @@ export const useSetupStore = defineStore('setup', {
         selectedAspect:        null as string | null,
         playerDeckIds:         [] as number[],
 
-        selectedVillainId:     null as number | null,
+        selectedVillainId:      null as number | null,
         selectedEncounterSetId: null as number | null,
+        expertMode:             false,
     }),
 
     getters: {
@@ -57,6 +58,10 @@ export const useSetupStore = defineStore('setup', {
             this.selectedVillainId = villainId;
         },
 
+        setExpertMode(expert: boolean) {
+            this.expertMode = expert;
+        },
+
         selectEncounterSet(id: number) {
             this.selectedEncounterSetId = id;
         },
@@ -69,23 +74,28 @@ export const useSetupStore = defineStore('setup', {
             if (this.currentStep > 1) this.currentStep = (this.currentStep - 1) as any;
         },
 
-        launchGame() {
-            const villain  = villainLibrary.find(v => v.id === this.selectedVillainId)!;
+        async launchGame() {
+            const villain   = villainLibrary.find(v => v.id === this.selectedVillainId)!;
             const encounter = encounterLibrary.find(e => e.id === this.selectedEncounterSetId)!;
 
             const villainDeckIds = [
                 ...villain.villainDeckIds,
                 ...encounter.cardIds,
                 ...standardICardIds,
+                ...(this.expertMode ? expertICardIds : []),
             ];
 
+            const phaseChain = this.expertMode ? villain.expertPhaseChain : villain.standardPhaseChain;
+            const startingVillainId = phaseChain[0];
+
             const gameStore = useGameStore();
-            gameStore.initializeGame({
-                heroId:        this.selectedHeroId!,
-                playerDeckIds: this.playerDeckIds,
-                villainId:     this.selectedVillainId!,
-                mainSchemeId:  villain.mainSchemeId,
+            await gameStore.initializeGame({
+                heroId:            this.selectedHeroId!,
+                playerDeckIds:     this.playerDeckIds,
+                villainId:         startingVillainId,
+                mainSchemeId:      villain.mainSchemeId,
                 villainDeckIds,
+                villainPhaseChain: phaseChain,
             });
 
             router.push('/game');
