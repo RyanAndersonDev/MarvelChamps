@@ -13,10 +13,36 @@ import GameLog from './GameLog.vue';
 
 const store = useGameStore();
 
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useGameScale } from '../composables/useGameScale';
+import { heroLibrary, villainLibrary } from '../cards/cardStore';
 
-const { scaleStyle: boardStyle } = useGameScale();
+const { scaleStyle } = useGameScale();
+
+const heroColors = computed(() => {
+  const id = store.playerIdentity?.storageId;
+  const hero = id != null ? heroLibrary.find(h => h.id === id) : undefined;
+  return {
+    primary:   hero?.primaryColor   ?? '#140c36',
+    secondary: hero?.secondaryColor ?? '#f3bbbb',
+  };
+});
+
+const villainColor = computed(() => {
+  const chain = store.villainPhaseChain.join(',');
+  const villain = villainLibrary.find(v =>
+    v.standardPhaseChain.join(',') === chain ||
+    v.expertPhaseChain.join(',') === chain
+  );
+  return villain?.color ?? '#2a1775';
+});
+
+const boardStyle = computed(() => ({
+  ...scaleStyle.value,
+  '--hero-primary':   heroColors.value.primary,
+  '--hero-secondary': heroColors.value.secondary,
+  '--villain-color':  villainColor.value,
+}));
 
 const handDiscardSelected = ref<number[]>([]);
 const resourcePaySelected = ref<number[]>([]);
@@ -328,7 +354,7 @@ function friendlyEvent(event: string): string {
     justify-content: space-between;
     padding: 12px;
     gap: 12px;
-    background: #140c36;
+    background: var(--hero-primary);
   }
 
   .left-group { display: flex; gap: 12px; flex-shrink: 0; align-items: flex-end; }

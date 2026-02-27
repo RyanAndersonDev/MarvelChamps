@@ -50,4 +50,10 @@
     align-items: center;
     gap: 8px;
   }
+
+  /* Override global .button-row button — hand container bg is --hero-secondary,
+     so buttons must use --hero-primary to stay visible. */
+  .button-row button {
+    background-color: var(--hero-primary, #1976d2);
+  }
 </style>

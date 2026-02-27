@@ -24,8 +24,8 @@ html, body {
     font-size: 1rem;
     cursor: pointer;
     border-radius: 6px;
-    border: none;
-    background-color: #1976d2;
+    border: 1px solid #000;
+    background-color: var(--hero-secondary, #1976d2);
     color: white;
     transition: background-color 0.2s;
     cursor: pointer;
@@ -94,7 +94,7 @@ html, body {
 .hand-container-wrapper {
     border: 3px solid #000000;
     border-radius: 10px;
-    background-color: #f3bbbb;
+    background-color: var(--hero-secondary, #f3bbbb);
     padding: 15px;
     display: inline-block;
 }
@@ -112,8 +112,8 @@ html, body {
 .tableau-container-wrapper {
     border: 3px solid #000000;
     border-radius: 10px;
-    background-color: #f3bbbb;
-    padding: 15px;           
+    background-color: var(--hero-secondary, #f3bbbb);
+    padding: 15px;
     display: inline-block;
 }
 
@@ -130,7 +130,7 @@ html, body {
 .engaged-minions-wrapper {
     border: 3px solid #000000;
     border-radius: 10px;
-    background-color: #2a17758c;
+    background-color: var(--villain-color, #2a1775);
     padding: 15px;           
     display: block; 
     width: fit-content;
@@ -151,7 +151,7 @@ html, body {
 .side-scheme-container-wrapper {
     border: 3px solid #000000;
     border-radius: 10px;
-    background-color: #2a17758c;
+    background-color: var(--villain-color, #2a1775);
     padding: 15px;           
     display: inline-block;
 }

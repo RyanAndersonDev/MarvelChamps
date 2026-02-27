@@ -180,9 +180,9 @@
     font-size: 0.65rem;
     font-weight: bold;
     cursor: pointer;
-    background: #333;
+    background: var(--hero-primary, #333);
     color: white;
-    border: 1px solid #555;
+    border: 1px solid #000;
     border-radius: 4px;
   }
 

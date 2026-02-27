@@ -221,7 +221,7 @@
     padding: 6px 0;
     font-size: 0.65rem;
     font-weight: 800;
-    border: none;
+    border: 1px solid #000;
     border-radius: 4px;
     color: white;
     cursor: pointer;
@@ -231,8 +231,8 @@
 
   .btn-sm:disabled { opacity: 0.2; cursor: not-allowed; }
 
-  .btn-flip { background: #484664; border: 1px solid #666; }
-  .btn-ability { background: #54245c; }
+  .btn-flip    { background: var(--hero-secondary, #484664); border: 1px solid #000; }
+  .btn-ability { background: var(--hero-secondary, #54245c); }
 
   .btn-heal { background: #f0cc58; color: black; font-weight: 900; }
   .btn-thw { background: #2980b9; }

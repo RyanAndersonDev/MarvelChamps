@@ -584,11 +584,15 @@ export const heroLibrary = [
         id: 1,
         name: "Spider-Man",
         heroDeckIds: [1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6, 7, 7, 8, 8],
+        primaryColor:   '#b01020',  // deep red    — player row background
+        secondaryColor: '#1565c0',  // strong blue — hand / tableau background + neutral buttons
     },
     {
         id: 2,
         name: "She-Hulk",
         heroDeckIds: [22, 23, 24, 24, 25, 25, 26, 26, 26, 27, 28, 29, 29, 30, 30],
+        primaryColor:   '#2e7d32',  // forest green    — player row background
+        secondaryColor: '#7b1fa2',  // strong purple   — hand / tableau background + neutral buttons
     },
 ];
 
@@ -602,6 +606,7 @@ export const villainLibrary = [
         villainDeckIds: rhinoVillainCardIds,
         standardPhaseChain: [1, 2],
         expertPhaseChain:   [2, 3],
+        color: '#b8bcc4',  // stone gray — minion / side-scheme panel background
     },
 ];
 
