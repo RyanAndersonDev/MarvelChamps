@@ -14,18 +14,22 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
-export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "FLIP_TO_HERO" | "HERO_DEFENDS";
+export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "ALLY_ATTACKS" | "FLIP_TO_HERO" | "HERO_DEFENDS" | "ALLY_THWARTS" | "MINION_DEFEATED" | "MINION_ENTERED_PLAY";
 
 // ======================== EFFECT DSL ========================
 
 export type EffectTarget =
-  | 'identity'       // player hero
-  | 'villain'        // main villain
-  | 'attachedEnemy'  // the entity this card is attached to (context.attacker)
-  | 'attacker'       // the attacking entity in event context
-  | 'chooseEnemy'    // player selects any enemy
-  | 'chooseScheme'   // player selects a scheme
-  | 'payloadTarget'; // the entity referenced by context.targetId (e.g. attack target)
+  | 'identity'              // player hero
+  | 'villain'               // main villain
+  | 'attachedEnemy'         // the entity this card is attached to (context.attacker)
+  | 'attacker'              // the attacking entity in event context
+  | 'self'                  // the card that owns the logic (context.sourceCard)
+  | 'chooseEnemy'           // player selects any enemy (guard minion blocks villain)
+  | 'chooseEnemyIgnoreGuard' // player selects any enemy, ignoring guard (non-attack damage)
+  | 'chooseMinion'          // player selects an engaged minion only
+  | 'chooseScheme'          // player selects a scheme
+  | 'payloadTarget'         // the entity referenced by context.targetId (e.g. attack target)
+  | 'chooseFriendly';      // player selects the hero or any ally
 
 export type EffectCondition =
   | { type: 'identityStatus'; value: 'hero' | 'alter-ego' }
@@ -35,10 +39,18 @@ export type EffectCondition =
   | { type: 'damageCanceled' }
   | { type: 'noDamageDealt' }
   | { type: 'wasDefended' }
+  | { type: 'heroDefended' }
+  | { type: 'selfIsAttacker' }
+  | { type: 'targetWasDefeated' }
+  | { type: 'targetIsMinion' }
+  | { type: 'activeCardIsAspect'; aspect: Aspect }
+  | { type: 'paidWithResource'; resource: Resource }
+  | { type: 'paidWithResources'; resources: Resource[] }
   | { type: 'sideSchemeInPlay'; name: string }
   | { type: 'targetIsConfused'; target: EffectTarget }
   | { type: 'payloadTargetAlive' }
-  | { type: 'noActiveSideSchemes' };
+  | { type: 'noActiveSideSchemes' }
+  | { type: 'selfHasCounters' };
 
 export type EffectDef =
   | { op: 'dealDamage';       target: EffectTarget; amount: number }
@@ -71,7 +83,7 @@ export type EffectDef =
   | { op: 'readyIdentity' }
   | { op: 'shuffleSelfIntoDeck' }
   | { op: 'preventThreat';       amount: number }
-  | { op: 'dealDamageToAll';    amount: number }
+  | { op: 'dealDamageToAll';    amount: number; includeAllCharacters?: boolean }
   | { op: 'dynamicDamage';      target: EffectTarget; formula: string; max: number }
   | { op: 'returnAllyToHand' }
   | { op: 'flipForm' }
@@ -86,7 +98,14 @@ export type EffectDef =
   | { op: 'exhaustIdentity' }
   | { op: 'addThreatToEachSideScheme'; amount: number }
   | { op: 'revealSideSchemeFromDeck' }
-  | { op: 'revealTopEncounterCard' };
+  | { op: 'revealTopEncounterCard' }
+  | { op: 'dealDamageOverkill';   target: EffectTarget; amount: number }
+  | { op: 'discardTopDeckBranch'; effects: Partial<Record<Resource, EffectDef[]>> }
+  | { op: 'readyAlly' }
+  | { op: 'modifyAllyStat'; target: EffectTarget; stat: 'atk' | 'thw'; amount: number }
+  | { op: 'boostAllCharacters'; stat: 'atk' | 'thw' | 'both'; amount: number }
+  | { op: 'putAllyFromDiscardIntoPlay' }
+  | { op: 'redirectThreatAsDamage' };
 
 // ======================== CARD INTERFACES ========================
 
@@ -146,7 +165,10 @@ export interface PlayerCard extends CardBase {
     uniqueInPlay?: boolean;
     defMod?: number;
     atkMod?: number;
+    thwMod?: number;
+    dynamicThwBonus?: string;
     logics?: CardLogic[];
+    allyLimitBonus?: number;
 }
 
 export interface PlayerCardInstance extends PlayerCard {
