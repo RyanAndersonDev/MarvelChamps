@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String           @id @default(cuid())
+  username     String           @unique
+  email        String           @unique
+  passwordHash String
+  createdAt    DateTime         @default(now())
+  stats        UserStats?
+  games        GameParticipant[]
+}
+
+model UserStats {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalGames         Int      @default(0)
+  wins               Int      @default(0)
+  losses             Int      @default(0)
+  // Stored as { "heroId": count } and { "villainId": count } JSON objects
+  heroUsageCounts    Json     @default("{}")
+  villainUsageCounts Json     @default("{}")
+  updatedAt          DateTime @updatedAt
+}
+
+model GameRecord {
+  id           String            @id @default(cuid())
+  hostUserId   String
+  playerCount  Int
+  villainId    Int
+  expertMode   Boolean           @default(false)
+  outcome      String            // 'win' | 'lose'
+  roundsPlayed Int
+  createdAt    DateTime          @default(now())
+  completedAt  DateTime
+  players      GameParticipant[]
+}
+
+model GameParticipant {
+  id           String     @id @default(cuid())
+  gameRecordId String
+  game         GameRecord @relation(fields: [gameRecordId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  heroId       Int
+  aspect       String
+  seat         Int        // 0-3, determines turn order
+}

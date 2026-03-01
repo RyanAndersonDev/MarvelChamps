@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed } from 'vue';
+  import { computed } from 'vue'
   import { useGameStore } from '../../stores/gameStore';
   import BaseCard from './BaseCard.vue';
   import StatusPips from './StatusPips.vue';
@@ -26,6 +26,14 @@
 
   const hasManualAbility = computed(() => currentLogic.value?.type === 'action' || currentLogic.value?.type === 'resource');
 
+  const isTargetable = computed(() =>
+    store.targeting.isActive && store.targeting.validTargetIds.includes(store.hero.instanceId)
+  );
+
+  function handleCardClick() {
+    if (isTargetable.value) store.selectTarget(store.hero.instanceId);
+  }
+
   const handleAbility = () => {
     if (!player.value.exhausted) {
       store.triggerIdentityCardAbility();
@@ -33,13 +41,11 @@
   };
 
   const handleAttack = () => {
-    store.requestTarget(null, 'enemy')
-      .then(id => store.attackWithIdentity(id));
+    store.startPlayerTargeting('player-attack');
   };
 
   const handleThwart = () => {
-    store.requestTarget(null, 'scheme')
-      .then(id => store.thwartWithIdentity(id));
+    store.startPlayerTargeting('player-thwart');
   };
 </script>
 
@@ -47,19 +53,22 @@
   <div class="identity-compact">
     <div
       class="aura-wrapper"
-      :class="player.exhausted ? 'aura-exhausted' : 'aura-ready'"
+      :class="[player.exhausted ? 'aura-exhausted' : 'aura-ready', { 'is-targetable': isTargetable }]"
+      @click="handleCardClick"
     >
+      <div v-if="isTargetable" class="target-badge">TARGET</div>
       <BaseCard
         :img-path="currentSideImg"
         :orientation="'vertical'"
         :zoom-direction="'up'"
         class="mini-identity"
         :class="{ 'is-dimmed': player.exhausted }"
+        :no-zoom="store.targeting.isActive"
       />
 
       <div class="stat-badges">
         <template v-if="player.identityStatus === 'hero'">
-          <div class="stat-badge blue">{{ player.thw }}</div>
+          <div class="stat-badge blue">{{ store.effectiveThw }}</div>
           <div class="stat-badge red">{{ store.effectiveAtk }}</div>
           <div class="stat-badge green">{{ store.effectiveDef }}</div>
         </template>
@@ -163,6 +172,13 @@
   .stat-badge.yellow { background-color: #e6ac00; }
   .aura-ready { box-shadow: 0 0 12px rgba(0, 255, 100, 0.7); }
   .aura-exhausted { box-shadow: 0 0 12px rgba(255, 0, 0, 0.7); }
+  .is-targetable { box-shadow: 0 0 16px 4px #f1c40f; cursor: pointer; }
+  .target-badge {
+    position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+    background: #f1c40f; color: #000; font-weight: 900; font-size: 0.6rem;
+    padding: 2px 6px; border-radius: 4px; z-index: 20; white-space: nowrap;
+    pointer-events: none;
+  }
 
   .mini-identity {
     width: 100%;

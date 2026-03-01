@@ -11,7 +11,7 @@
 
     const isTargetable = computed(() => {
         return store.targeting.isActive &&
-            (store.targeting.targetType === 'villain' || store.targeting.targetType === "enemy");
+            store.targeting.validTargetIds.includes(props.cardInstance.instanceId);
     });
 
     const effectiveAtk = computed(() =>

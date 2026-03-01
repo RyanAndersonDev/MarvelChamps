@@ -13,11 +13,13 @@ import GameLog from './GameLog.vue';
 
 const store = useGameStore();
 
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useGameScale } from '../composables/useGameScale';
 import { heroLibrary, villainLibrary } from '../cards/cardStore';
 
 const { scaleStyle } = useGameScale();
+
+onMounted(() => { store.loadCardRegistry(); });
 
 const heroColors = computed(() => {
   const id = store.playerIdentity?.storageId;
@@ -45,23 +47,16 @@ const boardStyle = computed(() => ({
 }));
 
 const handDiscardSelected = ref<number[]>([]);
-const resourcePaySelected = ref<number[]>([]);
 
-function toggleResourcePayCard(instanceId: number) {
-  if (!store.pendingResourcePayment) return;
-  const needed = store.pendingResourcePayment.needed.length;
-  const idx = resourcePaySelected.value.indexOf(instanceId);
-  if (idx >= 0) {
-    resourcePaySelected.value.splice(idx, 1);
-  } else if (resourcePaySelected.value.length < needed) {
-    resourcePaySelected.value.push(instanceId);
-  }
-}
-
-function confirmResourcePay() {
-  store.confirmResourcePayment(resourcePaySelected.value);
-  resourcePaySelected.value = [];
-}
+// Cards shown in the hand discard modal — filtered by resourceFilter if specified
+const discardableCards = computed(() => {
+  if (!store.pendingHandDiscard) return store.hand;
+  const filter = store.pendingHandDiscard.resourceFilter;
+  if (!filter || filter.length === 0) return store.hand;
+  return store.hand.filter(c =>
+    (c as any).resources?.some((r: string) => filter.includes(r) || r === 'wild')
+  );
+});
 
 function toggleHandDiscardCard(instanceId: number) {
   if (!store.pendingHandDiscard) return;
@@ -116,7 +111,7 @@ function friendlyEvent(event: string): string {
 
           <div class="options-row">
             <template v-for="option in store.activePrompt.cards" :key="option.instanceId || option.id">
-              <div v-if="option.imgPath" class="option-card" @click="store.activePrompt?.type === 'CHOICE_WINDOW' ? store.activePrompt.resolve(option.id) : store.selectInterruptCard(option)">
+              <div v-if="option.imgPath" class="option-card" @click="store.activePrompt?.type === 'CHOICE_WINDOW' ? store.respondToPrompt({ type: 'select_option', optionId: String(option.id) }) : store.selectInterruptCard(option)">
                 <div class="option-img-wrap">
                   <img :src="option.imgPath" :alt="option.name" />
                   <span v-if="option.cost" class="cost-badge">{{ option.cost }}</span>
@@ -124,7 +119,7 @@ function friendlyEvent(event: string): string {
                 <span class="option-name">{{ option.name }}</span>
               </div>
 
-              <button v-else class="option-choice" @click="store.activePrompt.resolve(option.id)">
+              <button v-else class="option-choice" @click="store.respondToPrompt({ type: 'select_option', optionId: String(option.id) })">
                 {{ option.name }}
               </button>
             </template>
@@ -142,7 +137,6 @@ function friendlyEvent(event: string): string {
           :card-back-img-path="store.villainCardBackImg"
           :encounter-card-id-pile="store.encounterPileIds"
           :revealed-card="store.revealedEncounterCard!"
-          @draw="store.drawEncounterCardFromPlayerPile"
           @resolve="store.resolveCurrentEncounterCard"
         />
 
@@ -196,6 +190,7 @@ function friendlyEvent(event: string): string {
             :deckIds="store.deckIds"
             :card-back-img-path="store.playerCardBackImg"
             image-type="player"
+            :show-draw-button="store.currentPhase === 'PLAYER_TURN'"
             @draw="store.drawCardFromDeck"
           />
         </div>
@@ -206,9 +201,6 @@ function friendlyEvent(event: string): string {
       <PlayerHand
         class="hand"
         :hand="store.hand"
-        @discard="store.discardPlayerCardsFromHand"
-        @send-to-tableau="store.makeTableauCardFromHand"
-        @destroy-hand-card="store.destroyHandCard"
       />
 
       <DiscardPile
@@ -227,17 +219,19 @@ function friendlyEvent(event: string): string {
       <div v-if="store.pendingHandDiscard" class="prompt-overlay">
         <div class="prompt-modal">
           <div class="prompt-top">
-            <span class="prompt-tag">LEGAL PRACTICE</span>
-            <span class="prompt-event">Discard cards to remove threat</span>
+            <span class="prompt-tag">{{ store.pendingHandDiscard.title }}</span>
+            <span v-if="store.activeCardId !== null" class="payment-fraction" :class="store.isCostMet ? 'met' : ''">
+              PAYING: {{ Object.values(store.committedResources).reduce((a: number, b: number) => a + b, 0) }}
+              / {{ Math.max(0, (store.activeCard?.cost ?? 0) - store.pendingCostReduction) }}
+            </span>
           </div>
           <p class="hand-discard-hint">
-            Select up to {{ store.pendingHandDiscard.maxCount }} cards to discard.
-            Each discarded card removes 1 threat from the main scheme.
+            {{ store.pendingHandDiscard.hint }}
             ({{ handDiscardSelected.length }} selected)
           </p>
           <div class="options-row">
             <div
-              v-for="card in store.hand"
+              v-for="card in discardableCards"
               :key="card.instanceId"
               class="option-card"
               :class="{ 'hand-discard-selected': handDiscardSelected.includes(card.instanceId!) }"
@@ -253,54 +247,6 @@ function friendlyEvent(event: string): string {
           <div class="hand-discard-actions">
             <button class="btn-pass" @click="confirmHandDiscard">Confirm ({{ handDiscardSelected.length }})</button>
             <button class="btn-pass" @click="store.cancelHandDiscard(); handDiscardSelected.splice(0)">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
-
-  <Teleport to="body">
-    <Transition name="prompt-fade">
-      <div v-if="store.pendingResourcePayment" class="prompt-overlay">
-        <div class="prompt-modal">
-          <div class="prompt-top">
-            <span class="prompt-tag">ABILITY COST</span>
-            <span class="prompt-event">
-              Pay:
-              <span
-                v-for="(res, i) in store.pendingResourcePayment.needed"
-                :key="i"
-                class="resource-pip"
-                :class="`resource-${res}`"
-              >{{ res }}</span>
-            </span>
-          </div>
-          <p class="hand-discard-hint">Select a card from your hand to pay the resource cost.</p>
-          <div class="options-row">
-            <div
-              v-for="card in store.hand.filter(c => c.resources?.some(r => store.pendingResourcePayment!.needed.includes(r) || r === 'wild'))"
-              :key="card.instanceId"
-              class="option-card"
-              :class="{ 'hand-discard-selected': resourcePaySelected.includes(card.instanceId!) }"
-              @click="toggleResourcePayCard(card.instanceId!)"
-            >
-              <div class="option-img-wrap">
-                <img :src="card.imgPath" :alt="card.name" />
-                <div class="resource-pips">
-                  <span
-                    v-for="(res, i) in card.resources"
-                    :key="i"
-                    class="resource-pip"
-                    :class="`resource-${res}`"
-                  >{{ res[0].toUpperCase() }}</span>
-                </div>
-              </div>
-              <span class="option-name">{{ card.name }}</span>
-            </div>
-          </div>
-          <div class="hand-discard-actions">
-            <button class="btn-pass" :disabled="resourcePaySelected.length < store.pendingResourcePayment.needed.length" @click="confirmResourcePay">Confirm</button>
-            <button class="btn-pass" @click="store.confirmResourcePayment([]); resourcePaySelected.splice(0)">Cancel</button>
           </div>
         </div>
       </div>
@@ -340,13 +286,14 @@ function friendlyEvent(event: string): string {
     display: flex;
     flex-direction: row;
     align-items: center;
+    justify-content: center;
     gap: 20px;
     overflow-y: auto;
     padding: 20px;
   }
 
   .encounter-component { grid-column: 1; justify-self: start; }
-  .tableau-component { width: 100%; display: flex; justify-content: center; }
+  .tableau-component { display: flex; justify-content: center; }
 
   .bottom-bar {
     display: flex;
@@ -370,7 +317,7 @@ function friendlyEvent(event: string): string {
   .end-turn-group { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
 
   .btn-end-turn {
-    background: #e67e22;
+    background: var(--hero-secondary);
     color: white;
     border: none;
     padding: 6px 12px;
@@ -379,18 +326,15 @@ function friendlyEvent(event: string): string {
     font-weight: 800;
     cursor: pointer;
     width: 100%;
-    box-shadow: 0 3px 0 #a04000;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
     transition: all 0.1s ease;
     white-space: nowrap;
     z-index: 10;
   }
 
-  .btn-end-turn.phase-discard { background: #c0392b; box-shadow: 0 3px 0 #7b241c; cursor: not-allowed; }
-  .btn-end-turn.phase-mulligan { background: #2980b9; box-shadow: 0 3px 0 #1a5276; }
-  .btn-end-turn.phase-mulligan:hover { background: #3498db; }
-  .btn-end-turn:hover { background: #f39c12; transform: translateY(-1px); }
+  .btn-end-turn:hover { filter: brightness(1.15); transform: translateY(-1px); }
   .btn-end-turn:active { transform: translateY(2px); box-shadow: none; }
-  .btn-end-turn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-end-turn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; filter: none; }
 
   .hand { flex: 1; display: flex; justify-content: center; min-width: 0; }
   .PlayerDiscard { flex-shrink: 0; }
@@ -431,6 +375,14 @@ function friendlyEvent(event: string): string {
   }
 
   .prompt-top { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+
+  .payment-fraction {
+    font-weight: 900;
+    font-size: 0.9rem;
+    color: white;
+    margin-left: auto;
+  }
+  .payment-fraction.met { color: #2ecc71; }
 
   .prompt-tag {
     font-size: 0.85rem;

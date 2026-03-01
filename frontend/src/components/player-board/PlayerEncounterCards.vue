@@ -1,11 +1,7 @@
 <script setup lang="ts">
-    import { computed } from 'vue';
     import type { Treachery, Attachment, Minion, SideScheme } from '../../types/card';
     import VillainCard from '../cards/VillainCard.vue';
     import DeckPile from '../piles/DeckPile.vue';
-    import { useGameStore } from '../../stores/gameStore';
-
-    const store = useGameStore();
 
     const props = defineProps<{
         encounterCardIdPile: number[],
@@ -14,19 +10,10 @@
     }>();
 
     const emit = defineEmits<{
-        (e: "draw"): void
-        (e: "resolve", currentInstanceId : number): void
+        (e: "resolve", currentInstanceId: number): void
     }>();
 
-    const canDrawEncounter = computed(() => store.currentPhase === 'VILLAIN_STEP_5_REVEAL');
-
-    function revealEncounterCard() {
-        if (props.revealedCard === undefined || props.revealedCard === null) {
-            emit("draw");
-        }
-    }
-
-    function resolveCurrentCard(currentInstanceId : number) {
+    function resolveCurrentCard(currentInstanceId: number) {
         if (currentInstanceId === props.revealedCard?.instanceId) {
             emit('resolve', currentInstanceId);
         }
@@ -39,8 +26,7 @@
             :deck-ids="encounterCardIdPile"
             :card-back-img-path="cardBackImgPath"
             :hide-peek="true"
-            :show-draw-button="canDrawEncounter"
-            @draw="revealEncounterCard"
+            :show-draw-button="false"
         />
 
         <VillainCard class="revealed-area"

@@ -32,11 +32,12 @@ html, body {
 }
 
 .button-row button:hover {
-    background-color: red;
+    filter: brightness(0.85);
 }
 
 .button-row button:disabled {
-    background-color: red;
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 

@@ -10,7 +10,7 @@
 
     const isTargetable = computed(() => {
         return store.targeting.isActive
-            && (store.targeting.targetType === 'scheme' || store.targeting.targetType === 'main-scheme');
+            && store.targeting.validTargetIds.includes(props.schemeInstance.instanceId);
     });
 
     function handleSchemeClick() {

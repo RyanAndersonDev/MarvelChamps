@@ -11,7 +11,7 @@
 
     const isTargetable = computed(() => {
         return store.targeting.isActive
-            && (store.targeting.targetType === "minion" || store.targeting.targetType === "enemy");
+            && store.targeting.validTargetIds.includes(props.card.instanceId);
     });
 
     const effectiveAtk = computed(() =>
@@ -216,11 +216,11 @@
         border: 1px solid #e67e22;
         border-radius: 8px;
         padding: 16px;
-        min-width: 340px;
         z-index: 9999;
-        flex-direction: column;
+        flex-direction: row;
         gap: 16px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.9);
+        white-space: nowrap;
     }
 
     .attachment-badge:hover .attachment-tooltip {

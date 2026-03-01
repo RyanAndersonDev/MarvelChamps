@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { useSetupStore } from '../../stores/setupStore';
-import { cardMap } from '../../cards/cardStore';
 import type { Aspect } from '../../types/card';
 
 const setup = useSetupStore();
@@ -23,16 +22,17 @@ function selectTab(id: string) {
     }
 }
 
-const allCards = computed(() =>
-    Array.from(cardMap.entries()).map(([id, card]) => ({ ...card, storageId: id }))
-);
+// Populated by fetch from backend on mount — always up-to-date with cardStore.ts
+const allCards = ref<any[]>([]);
 
 const activeBinderCards = computed(() => {
     if (!binderTab.value) return [];
     return allCards.value
         .filter(c => c.aspect === binderTab.value)
-        .sort((a, b) => a.cost - b.cost);
+        .sort((a: any, b: any) => a.cost - b.cost);
 });
+
+const extraCounts = ref<Record<number, number>>({});
 
 // Full living deck: hero base cards + anything added from the binder
 const deckDisplay = computed(() => {
@@ -50,20 +50,18 @@ const deckDisplay = computed(() => {
 
     return [...countMap.entries()]
         .map(([id, count]) => {
-            const card = cardMap.get(id);
-            return card ? { ...card, storageId: id, count } : null;
+            const card = allCards.value.find((c: any) => c.storageId === id);
+            return card ? { ...card, count } : null;
         })
         .filter(Boolean)
         .sort((a: any, b: any) => (a.cost ?? 0) - (b.cost ?? 0)) as any[];
 });
 
-const extraCounts = ref<Record<number, number>>({});
-
 // Which non-neutral aspect has cards added — locks the other 3 tabs
 const lockedAspect = computed(() => {
     for (const [id, count] of Object.entries(extraCounts.value)) {
         if (count > 0) {
-            const card = allCards.value.find(c => c.storageId === Number(id));
+            const card = allCards.value.find((c: any) => c.storageId === Number(id));
             if (card && card.aspect !== 'neutral' && card.aspect !== 'hero') return card.aspect;
         }
     }
@@ -73,7 +71,7 @@ const lockedAspect = computed(() => {
 const MAX_COPIES = 3;
 
 function maxForCard(cardId: number): number {
-    return allCards.value.find(c => c.storageId === cardId)?.maxCopies ?? MAX_COPIES;
+    return allCards.value.find((c: any) => c.storageId === cardId)?.maxCopies ?? MAX_COPIES;
 }
 
 function increment(cardId: number) {
@@ -105,7 +103,10 @@ watch(() => setup.selectedAspect, () => {
     syncDeck();
 });
 
-onMounted(() => {
+onMounted(async () => {
+    const resp = await fetch('http://localhost:3000/api/cards');
+    allCards.value = await resp.json();
+
     if (setup.selectedAspect) {
         binderTab.value = setup.selectedAspect;
     }

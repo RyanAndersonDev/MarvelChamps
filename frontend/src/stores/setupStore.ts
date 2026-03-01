@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { heroLibrary, villainLibrary, encounterLibrary, standardICardIds, expertICardIds } from '../cards/cardStore';
+import { heroLibrary, villainLibrary, encounterLibrary } from '../cards/cardStore';
+import { socket } from '../socket';
 import { useGameStore } from './gameStore';
 import router from '../router';
 
@@ -75,29 +76,52 @@ export const useSetupStore = defineStore('setup', {
         },
 
         async launchGame() {
-            const villain   = villainLibrary.find(v => v.id === this.selectedVillainId)!;
-            const encounter = encounterLibrary.find(e => e.id === this.selectedEncounterSetId)!;
-
-            const villainDeckIds = [
-                ...villain.villainDeckIds,
-                ...encounter.cardIds,
-                ...standardICardIds,
-                ...(this.expertMode ? expertICardIds : []),
-            ];
-
-            const phaseChain = this.expertMode ? villain.expertPhaseChain : villain.standardPhaseChain;
-            const startingVillainId = phaseChain[0];
+            const hero = heroLibrary.find(h => h.id === this.selectedHeroId)!;
 
             const gameStore = useGameStore();
-            await gameStore.initializeGame({
-                heroId:            this.selectedHeroId!,
-                playerDeckIds:     this.playerDeckIds,
-                villainId:         startingVillainId,
-                mainSchemeId:      villain.mainSchemeId,
-                villainDeckIds,
-                villainPhaseChain: phaseChain,
+
+            // 1. Create lobby room
+            const createResult = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
+                socket.emit('lobby:create', resolve as any);
+            });
+            if (!createResult.ok) throw new Error((createResult as any).error ?? 'lobby:create failed');
+
+            // 2. Configure villain/encounter/difficulty (host only, no ack)
+            socket.emit('lobby:configure', {
+                villainId:      this.selectedVillainId!,
+                encounterSetId: this.selectedEncounterSetId!,
+                expertMode:     this.expertMode,
             });
 
+            // 3. Select hero + deck
+            socket.emit('lobby:selectHero', {
+                heroId:  this.selectedHeroId!,
+                aspect:  this.selectedAspect ?? 'hero',
+                deckIds: this.playerDeckIds.length > 0 ? this.playerDeckIds : [...hero.heroDeckIds],
+            });
+
+            // 4. Mark ready
+            socket.emit('lobby:setReady', { ready: true });
+
+            // 5. Register stateUpdate listener BEFORE starting — server may emit it
+            //    before the lobby:start ack arrives (race condition otherwise)
+            const statePromise = new Promise<void>((resolve) => {
+                socket.once('game:stateUpdate', (view) => {
+                    gameStore.applyServerState(view);
+                    resolve();
+                });
+            });
+
+            // 6. Start the game
+            const startResult = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
+                socket.emit('lobby:start', resolve as any);
+            });
+            if (!startResult.ok) {
+                socket.off('game:stateUpdate');
+                throw new Error((startResult as any).error ?? 'lobby:start failed');
+            }
+
+            await statePromise;
             router.push('/game');
         },
     },

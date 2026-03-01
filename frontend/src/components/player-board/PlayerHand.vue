@@ -15,6 +15,7 @@
     }
 
     function cancel() {
+        store.targeting = { isActive: false, action: null, validTargetIds: [] };
         store.resetPayment();
     }
 
@@ -55,60 +56,57 @@
     </Transition>
 
     <Transition name="fade">
-        <div v-if="store.activeCardId !== null && store.endOfTurnPhase !== 'discard'" class="payment-bar">
+        <div v-if="(store.activeCardId !== null || (store.targeting.isActive && store.targeting.action === 'engine')) && store.endOfTurnPhase !== 'discard'" class="payment-bar">
             <div class="payment-cost">
-                <span class="payment-label">PAYING</span>
-                <span class="payment-fraction" :class="store.isCostMet ? 'met' : ''">
-                    {{ Object.values(store.committedResources).reduce((a, b) => a + b, 0) }}
-                    /
-                    {{ Math.max(0, (store.activeCard?.cost ?? 0) - store.pendingCostReduction) }}
-                </span>
-                <span class="generated-list">
-                    <template v-for="(count, type) in store.committedResources" :key="type">
-                        <span
-                            v-for="i in count"
-                            :key="`${type}-${i}`"
-                            class="resource-pip"
-                            :class="type"
-                        >{{ (type as string)[0].toUpperCase() }}</span>
-                    </template>
-                </span>
+                <template v-if="store.activeCardId !== null">
+                    <span class="payment-label">PAYING</span>
+                    <span class="payment-fraction" :class="store.isCostMet ? 'met' : ''">
+                        {{ Object.values(store.committedResources).reduce((a, b) => a + b, 0) }}
+                        /
+                        {{ Math.max(0, (store.activeCard?.cost ?? 0) - store.pendingCostReduction) }}
+                    </span>
+                    <span class="generated-list">
+                        <template v-for="(count, type) in store.committedResources" :key="type">
+                            <span
+                                v-for="i in count"
+                                :key="`${type}-${i}`"
+                                class="resource-pip"
+                                :class="type"
+                            >{{ (type as string)[0].toUpperCase() }}</span>
+                        </template>
+                    </span>
+                </template>
+                <template v-else>
+                    <span class="payment-label">SELECT TARGET</span>
+                </template>
             </div>
             <button class="btn-cancel" @click="cancel">✕ CANCEL</button>
         </div>
     </Transition>
 
     <TransitionGroup name="hand-card" tag="div" class="hand-container">
-      <!-- End-of-turn selection mode -->
-      <template v-if="store.endOfTurnPhase">
-        <div
-          v-for="card in props.hand"
-          :key="card.instanceId"
-          class="eot-card-wrapper"
-          :class="{ 'card-eot-selected': store.endOfTurnSelectedIds.includes(card.instanceId!) }"
-          @click="handleEndOfTurnCardClick(card.instanceId!)"
-        >
-          <HandCard :card="card" mode="none" />
-          <div class="eot-select-indicator">✓</div>
-        </div>
-      </template>
-
-      <!-- Normal play mode -->
-      <template v-else>
+      <div
+        v-for="card in props.hand"
+        :key="card.instanceId"
+        :class="[
+          store.endOfTurnPhase ? 'eot-card-wrapper' : 'hand-card-slot',
+          { 'card-eot-selected': !!store.endOfTurnPhase && store.endOfTurnSelectedIds.includes(card.instanceId!) }
+        ]"
+        @click="store.endOfTurnPhase ? handleEndOfTurnCardClick(card.instanceId!) : undefined"
+      >
         <HandCard
-          v-for="card in props.hand"
-          :key="card.instanceId"
           :card="card"
-          :mode="getCardMode(card)"
-          :class="{
+          :mode="store.endOfTurnPhase ? 'none' : getCardMode(card)"
+          :class="!store.endOfTurnPhase ? {
             'card-active-play': store.activeCardId === card.instanceId,
             'card-is-resource': store.activeCardId !== null && store.activeCardId !== card.instanceId,
             'card-selected-to-pay': store.paymentBufferIds.includes(card.instanceId!)
-          }"
+          } : {}"
           @play="handlePlay"
           @resource="handleResource"
         />
-      </template>
+        <div v-if="store.endOfTurnPhase" class="eot-select-indicator">✓</div>
+      </div>
     </TransitionGroup>
   </div>
 </template>
@@ -125,6 +123,8 @@
         justify-content: center;
         gap: 10px;
     }
+
+    .hand-card-slot { display: contents; }
 
     .hand-card-enter-active { transition: all 0.3s ease; }
     .hand-card-leave-active { transition: all 0.25s ease; position: absolute; }

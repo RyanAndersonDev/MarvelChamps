@@ -1,4 +1,4 @@
-import type { IdentityCard, PlayerCard, VillainIdentityCard, MainScheme, VillainCard } from "../types/card";
+import type { IdentityCard, PlayerCard, VillainIdentityCard, MainScheme, VillainCard } from "../../frontend/src/types/card";
 
 export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard>([
     [1, {name: "Peter Parker/Spiderman", side: "player", imgPath: "/cards/heroes/spider-man/PeterParker-AE.png", heroImgPath: "/cards/heroes/spider-man/PeterParker-Hero.png", flavorText: "",
@@ -43,7 +43,7 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
             forced: true,
             formRequired: "hero",
             timing: "FLIP_TO_HERO",
-            effects: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 2 }]
+            effects: [{ op: 'dealDamage', target: 'chooseEnemyIgnoreGuard', amount: 2 }]
         },
         heroAbilityExhausts: false,
     }]
@@ -65,7 +65,6 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             forced: false,
             formRequired: "hero",
             timing: "takeIdentityDamage",
-            actionType: "defense",
             effects: [{ op: 'cancelDamage' }]
         }
     }],
@@ -254,7 +253,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             formRequired: "any",
             timing: "VILLAIN_ATTACK_CONCLUDED",
             effects: [{
-                op: 'if', condition: { type: 'wasDefended' },
+                op: 'if', condition: { type: 'heroDefended' },
                 then: [{ op: 'discardSelf' }, { op: 'readyIdentity' }]
             }]
         }
@@ -299,7 +298,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     [22, { name: "Hellcat", side: "player", type: "ally", cost: 3, aspect: "hero",
         imgPath: "/cards/heroes/she-hulk/Hellcat-Ally.png",
         tags: ["avenger"], resources: ["wild"], flavorText: "",
-        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        thw: 2, thwPain: 2, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
         logic: {
             type: "action",
             forced: false,
@@ -408,6 +407,459 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
                 { op: 'discardSelf' },
                 { op: 'stun', target: 'payloadTarget' }
             ]}]
+        }
+    }],
+
+    // ── Aggression aspect ──
+    [31, { name: "Hulk", side: "player", type: "ally", cost: 2, aspect: "aggression",
+        imgPath: "/cards/player-cards/aggression/Hulk-Ally.png",
+        tags: ["avenger", "gamma"], resources: ["energy"], flavorText: "",
+        thw: 0, thwPain: 0, atk: 3, atkPain: 1, health: 5, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "ALLY_ATTACKS",
+            effects: [{
+                op: 'if', condition: { type: 'selfIsAttacker' },
+                then: [{ op: 'discardTopDeckBranch', effects: {
+                    physical: [{ op: 'dealDamage', target: 'chooseEnemyIgnoreGuard', amount: 2 }],
+                    energy:   [{ op: 'dealDamageToAll', amount: 1, includeAllCharacters: true }],
+                    mental:   [{ op: 'discardSelf' }],
+                }}]
+            }]
+        }
+    }],
+    [32, { name: "Tigra", side: "player", type: "ally", cost: 3, aspect: "aggression",
+        imgPath: "/cards/player-cards/aggression/Tigra-Ally.png",
+        tags: ["avenger"], resources: ["mental"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "ALLY_ATTACKS",
+            effects: [{
+                op: 'if', condition: { type: 'selfIsAttacker' },
+                then: [{
+                    op: 'if', condition: { type: 'targetWasDefeated' },
+                    then: [{
+                        op: 'if', condition: { type: 'targetIsMinion' },
+                        then: [{ op: 'heal', target: 'self', amount: 1 }]
+                    }]
+                }]
+            }]
+        }
+    }],
+    [33, { name: "Chase Them Down", side: "player", type: "event", cost: 0, aspect: "aggression",
+        imgPath: "/cards/player-cards/aggression/ChaseThemDown-Event.png",
+        tags: ["thwart"], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "response",
+            forced: false,
+            formRequired: "hero",
+            timing: "BASIC_ATTACK",
+            effects: [{
+                op: 'if', condition: { type: 'targetWasDefeated' },
+                then: [{ op: 'removeThreat', target: 'chooseScheme', amount: 2 }]
+            }]
+        }
+    }],
+    [34, { name: "Relentless Assault", side: "player", type: "event", cost: 2, aspect: "aggression",
+        imgPath: "/cards/player-cards/aggression/RelentlessAssault-Event.png",
+        tags: ["attack"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [{
+                op: 'if', condition: { type: 'paidWithResource', resource: 'physical' },
+                then: [{ op: 'dealDamageOverkill', target: 'chooseMinion', amount: 5 }],
+                else: [{ op: 'dealDamage', target: 'chooseMinion', amount: 5 }]
+            }]
+        }
+    }],
+    [35, { name: "Uppercut", side: "player", type: "event", cost: 3, aspect: "aggression",
+        imgPath: "/cards/player-cards/aggression/Uppercut-Event.png",
+        tags: ["attack"], resources: ["physical"], flavorText: "SMACK!",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 5 }]
+        }
+    }],
+    [36, { name: "The Power of Aggression", side: "player", type: "resource", cost: 0, aspect: "aggression",
+        imgPath: "/cards/player-cards/aggression/ThePowerOfAggression-Resource.png",
+        tags: [], resources: [], flavorText: "", maxCopies: 2,
+        logic: {
+            type: "resource",
+            forced: false,
+            formRequired: "any",
+            timing: "paymentWindow",
+            effects: [{
+                op: 'if', condition: { type: 'activeCardIsAspect', aspect: 'aggression' },
+                then: [{ op: 'generateResource', resourceType: 'wild' }, { op: 'generateResource', resourceType: 'wild' }],
+                else: [{ op: 'generateResource', resourceType: 'wild' }]
+            }]
+        }
+    }],
+    [37, { name: "Tac Team", side: "player", type: "support", cost: 3, aspect: "aggression",
+        imgPath: "/cards/player-cards/aggression/TacTeam-Support.png",
+        tags: ["s.h.i.e.l.d."], resources: ["energy"], flavorText: "",
+        abilityExhausts: true, counters: 3,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [
+                { op: 'decrementCounter', discardIfEmpty: true },
+                { op: 'dealDamage', target: 'chooseEnemy', amount: 2 },
+                { op: 'exhaust' }
+            ]
+        }
+    }],
+    [38, { name: "Combat Training", side: "player", type: "upgrade", cost: 2, aspect: "aggression",
+        imgPath: "/cards/player-cards/aggression/CombatTraining-Upgrade.png",
+        tags: ["skill"], resources: ["physical"], flavorText: "",
+        attachmentLocation: "tableau", atkMod: 1, uniqueInPlay: true,
+    }],
+
+    // ── Leadership aspect ──
+    [39, { name: "Hawkeye", side: "player", type: "ally", cost: 3, aspect: "leadership",
+        imgPath: "/cards/player-cards/leadership/Hawkeye-Ally.png",
+        tags: ["avenger"], resources: ["energy"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1, counters: 4,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "MINION_ENTERED_PLAY",
+            effects: [{
+                op: 'if', condition: { type: 'selfHasCounters' },
+                then: [{ op: 'decrementCounter' }, { op: 'dealDamage', target: 'payloadTarget', amount: 2 }]
+            }]
+        }
+    }],
+    [40, { name: "Maria Hill", side: "player", type: "ally", cost: 2, aspect: "leadership",
+        imgPath: "/cards/player-cards/leadership/MariaHill-Ally.png",
+        tags: ["S.H.I.E.L.D."], resources: ["mental"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 2, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "afterPlay",
+            effects: [{ op: 'drawCards', amount: 1 }]
+        }
+    }],
+    [41, { name: "Vision", side: "player", type: "ally", cost: 4, aspect: "leadership",
+        imgPath: "/cards/player-cards/leadership/Vision-Ally.png",
+        tags: ["android", "avenger"], resources: ["energy"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            resourceCost: ["energy"],
+            limit: { uses: 1, resetOn: 'round' },
+            effects: [{ op: 'chooseOne', options: [
+                { label: "Vision gets +2 ATK", effect: { op: 'modifyAllyStat', target: 'self', stat: 'atk', amount: 2 } },
+                { label: "Vision gets +2 THW", effect: { op: 'modifyAllyStat', target: 'self', stat: 'thw', amount: 2 } }
+            ]}]
+        }
+    }],
+    [42, { name: "Get Ready", side: "player", type: "event", cost: 0, aspect: "leadership",
+        imgPath: "/cards/player-cards/leadership/GetReady-Event.png",
+        tags: [], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'readyAlly' }]
+        }
+    }],
+    [43, { name: "Lead From The Front", side: "player", type: "event", cost: 2, aspect: "leadership",
+        imgPath: "/cards/player-cards/leadership/LeadFromTheFront-Event.png",
+        tags: ["tactic"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'boostAllCharacters', stat: 'both', amount: 1 }]
+        }
+    }],
+    [44, { name: "Make The Call", side: "player", type: "event", cost: 0, aspect: "leadership",
+        imgPath: "/cards/player-cards/leadership/MakeTheCall-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'putAllyFromDiscardIntoPlay' }]
+        }
+    }],
+    [45, { name: "The Power of Leadership", side: "player", type: "resource", cost: 0, aspect: "leadership",
+        imgPath: "/cards/player-cards/leadership/ThePowerOfLeadership-Resource.png",
+        tags: [], resources: [], flavorText: "", maxCopies: 2,
+        logic: {
+            type: "resource",
+            forced: false,
+            formRequired: "any",
+            timing: "paymentWindow",
+            effects: [{
+                op: 'if', condition: { type: 'activeCardIsAspect', aspect: 'leadership' },
+                then: [{ op: 'generateResource', resourceType: 'wild' }, { op: 'generateResource', resourceType: 'wild' }],
+                else: [{ op: 'generateResource', resourceType: 'wild' }]
+            }]
+        }
+    }],
+    [46, { name: "The Triskelion", side: "player", type: "support", cost: 1, aspect: "leadership",
+        imgPath: "/cards/player-cards/leadership/TheTriskelion-Support.png",
+        tags: ["location", "S.H.I.E.L.D."], resources: ["energy"], flavorText: "",
+        uniqueInPlay: true,
+        allyLimitBonus: 1,
+    }],
+    [47, { name: "Inspired", side: "player", type: "upgrade", cost: 1, aspect: "leadership",
+        imgPath: "/cards/player-cards/leadership/Inspired-Upgrade.png",
+        tags: ["condition"], resources: ["physical"], flavorText: "",
+        attachmentLocation: "ally", atkMod: 1, thwMod: 1,
+    }],
+
+    // ── Protection aspect ──
+    [48, { name: "Black Widow", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/BlackWidow-Ally.png",
+        tags: ["S.H.I.E.L.D.", "spy"], resources: ["physical"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 2, abilityExhausts: true, maxCopies: 1,
+        logic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "any",
+            timing: "treacheryRevealed",
+            resourceCost: ["mental"],
+            effects: [{ op: 'sequence', effects: [{ op: 'cancelEffect' }, { op: 'surge' }] }]
+        }
+    }],
+    [49, { name: "Luke Cage", side: "player", type: "ally", cost: 4, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/LukeCage-Ally.png",
+        tags: ["avenger", "hero for hire"], resources: ["energy"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 5, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "afterPlay",
+            effects: [{ op: 'giveTough', target: 'self' }]
+        }
+    }],
+    [50, { name: "Counter-Punch", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/CounterPunch-Event.png",
+        tags: ["attack"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "response",
+            forced: false,
+            formRequired: "hero",
+            timing: "HERO_DEFENDS",
+            actionType: "defense",
+            effects: [{ op: 'dynamicDamage', target: 'villain', formula: 'heroAtk', max: 99 }]
+        }
+    }],
+    [51, { name: "Get Behind Me!", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/GetBehindMe-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "hero",
+            timing: "treacheryRevealed",
+            effects: [{ op: 'sequence', effects: [{ op: 'cancelEffect' }, { op: 'villainAttack' }] }]
+        }
+    }],
+    [52, { name: "The Power of Protection", side: "player", type: "resource", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ThePowerOfProtection-Resource.png",
+        tags: [], resources: [], flavorText: "", maxCopies: 2,
+        logic: {
+            type: "resource",
+            forced: false,
+            formRequired: "any",
+            timing: "paymentWindow",
+            effects: [{
+                op: 'if', condition: { type: 'activeCardIsAspect', aspect: 'protection' },
+                then: [{ op: 'generateResource', resourceType: 'wild' }, { op: 'generateResource', resourceType: 'wild' }],
+                else: [{ op: 'generateResource', resourceType: 'wild' }]
+            }]
+        }
+    }],
+    [53, { name: "Med Team", side: "player", type: "support", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/MedTeam-Support.png",
+        tags: ["S.H.I.E.L.D."], resources: ["energy"], flavorText: "",
+        abilityExhausts: true, counters: 3,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [
+                { op: 'decrementCounter', discardIfEmpty: true },
+                { op: 'heal', target: 'chooseFriendly', amount: 2 },
+                { op: 'exhaust' }
+            ]
+        }
+    }],
+
+    // ── Justice aspect ──
+    [54, { name: "Daredevil", side: "player", type: "ally", cost: 4, aspect: "justice",
+        imgPath: "/cards/player-cards/justice/Daredevil-Ally.png",
+        tags: ["defender"], resources: ["physical"], flavorText: `"Sometimes, I think I accomplish more with my fists than with my law firm."`,
+        thw: 2, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "ALLY_THWARTS",
+            effects: [{
+                op: 'if', condition: { type: 'selfIsAttacker' },
+                then: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 1 }]
+            }]
+        }
+    }],
+    [55, { name: "Jessica Jones", side: "player", type: "ally", cost: 3, aspect: "justice",
+        imgPath: "/cards/player-cards/justice/JessicaJones-Ally.png",
+        tags: ["defender"], resources: ["energy"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        dynamicThwBonus: "sideSchemeCount",
+    }],
+    [56, { name: "For Justice!", side: "player", type: "event", cost: 2, aspect: "justice",
+        imgPath: "/cards/player-cards/justice/ForJustice-Event.png",
+        tags: ["thwart"], resources: ["energy"], flavorText: `"You lose. And you're going to answer for what you've done" - Captain America`,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            actionType: "thwart",
+            effects: [{
+                op: 'if', condition: { type: 'paidWithResource', resource: 'mental' },
+                then: [{ op: 'removeThreat', target: 'chooseScheme', amount: 4 }],
+                else: [{ op: 'removeThreat', target: 'chooseScheme', amount: 3 }]
+            }]
+        }
+    }],
+    [57, { name: "Great Responsibility", side: "player", type: "event", cost: 0, aspect: "justice",
+        imgPath: "/cards/player-cards/justice/GreatResponsibility-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "hero",
+            timing: "MAIN_SCHEME_THREAT",
+            effects: [{ op: 'redirectThreatAsDamage' }]
+        }
+    }],
+    [58, { name: "The Power of Justice", side: "player", type: "resource", cost: 0, aspect: "justice",
+        imgPath: "/cards/player-cards/justice/ThePowerOfJustice.png",
+        tags: [], resources: [], flavorText: "", maxCopies: 2,
+        logic: {
+            type: "resource",
+            forced: false,
+            formRequired: "any",
+            timing: "paymentWindow",
+            effects: [{
+                op: 'if', condition: { type: 'activeCardIsAspect', aspect: 'justice' },
+                then: [{ op: 'generateResource', resourceType: 'wild' }, { op: 'generateResource', resourceType: 'wild' }],
+                else: [{ op: 'generateResource', resourceType: 'wild' }]
+            }]
+        }
+    }],
+    [59, { name: "Interrogation Room", side: "player", type: "support", cost: 1, aspect: "justice",
+        imgPath: "/cards/player-cards/justice/InterrogationRoom-Support.png",
+        tags: ["location"], resources: ["energy"], flavorText: `"Oh, she's sorry! Let me get the keys and call you a car service." - Misty Knight`,
+        abilityExhausts: true,
+        logic: {
+            type: "response",
+            forced: false,
+            formRequired: "any",
+            timing: "MINION_DEFEATED",
+            effects: [{ op: 'removeThreat', target: 'chooseScheme', amount: 1 }]
+        }
+    }],
+    [60, { name: "Surveillance Team", side: "player", type: "support", cost: 2, aspect: "justice",
+        imgPath: "/cards/player-cards/justice/SurveillanceTeam-Support.png",
+        tags: ["S.H.I.E.L.D."], resources: ["mental"], flavorText: "",
+        abilityExhausts: true, counters: 3,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [
+                { op: 'decrementCounter', discardIfEmpty: true },
+                { op: 'removeThreat', target: 'chooseScheme', amount: 1 },
+                { op: 'exhaust' }
+            ]
+        }
+    }],
+    [61, { name: "Heroic Intuition", side: "player", type: "upgrade", cost: 2, aspect: "justice",
+        imgPath: "/cards/player-cards/justice/HeroicIntuition-Upgrade.png",
+        tags: ["condition"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", uniqueInPlay: true, thwMod: 1,
+    }],
+
+    // ── Additional neutral cards ──
+    [62, { name: "Emergency", side: "player", type: "event", cost: 0, aspect: "neutral",
+        imgPath: "/cards/player-cards/neutral/Emergency-Event.png",
+        tags: ["thwart"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "any",
+            timing: "MAIN_SCHEME_THREAT",
+            effects: [{ op: 'preventThreat', amount: 1 }]
+        }
+    }],
+    [63, { name: "First Aid", side: "player", type: "event", cost: 1, aspect: "neutral",
+        imgPath: "/cards/player-cards/neutral/FirstAid-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'heal', target: 'chooseFriendly', amount: 2 }]
+        }
+    }],
+    [64, { name: "Haymaker", side: "player", type: "event", cost: 2, aspect: "neutral",
+        imgPath: "/cards/player-cards/neutral/Haymaker-Event.png",
+        tags: ["attack"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 3 }]
+        }
+    }],
+    [65, { name: "Tenacity", side: "player", type: "upgrade", cost: 2, aspect: "neutral",
+        imgPath: "/cards/player-cards/neutral/Tenacity.png",
+        tags: ["condition"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            resourceCost: ["physical"],
+            effects: [{ op: 'discardSelf' }, { op: 'readyIdentity' }]
         }
     }],
 ]);
@@ -527,7 +979,7 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
         type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: false,
         whenRevealedThreat: 1, whenRevealedThreatIsPerPlayer: true, acceleration: true }],
     [18, { name: "Hydra Bomber", side: "villain", imgPath: "/cards/modular/bomb-scare/HydraBomber-Minion.png", tags: ["hydra"], flavorText: "",
-        type: "minion", boostIcons: 2, sch: 1, atk: 1, hitPoints: 2,
+        type: "minion", boostIcons: 1, sch: 1, atk: 1, hitPoints: 2,
         logic: { type: "response", forced: true, formRequired: "any", timing: "minionEntered",
             effects: [{ op: 'chooseOne', options: [
                 { label: "Take 2 damage",              effect: { op: 'dealDamage', target: 'identity', amount: 2 } },
@@ -584,15 +1036,15 @@ export const heroLibrary = [
         id: 1,
         name: "Spider-Man",
         heroDeckIds: [1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6, 7, 7, 8, 8],
-        primaryColor:   '#b01020',  // deep red    — player row background
-        secondaryColor: '#1565c0',  // strong blue — hand / tableau background + neutral buttons
+        primaryColor:   '#b01020',
+        secondaryColor: '#1565c0',
     },
     {
         id: 2,
         name: "She-Hulk",
         heroDeckIds: [22, 23, 24, 24, 25, 25, 26, 26, 26, 27, 28, 29, 29, 30, 30],
-        primaryColor:   '#2e7d32',  // forest green    — player row background
-        secondaryColor: '#7b1fa2',  // strong purple   — hand / tableau background + neutral buttons
+        primaryColor:   '#2e7d32',
+        secondaryColor: '#7b1fa2',
     },
 ];
 
@@ -606,7 +1058,7 @@ export const villainLibrary = [
         villainDeckIds: rhinoVillainCardIds,
         standardPhaseChain: [1, 2],
         expertPhaseChain:   [2, 3],
-        color: '#b8bcc4',  // stone gray — minion / side-scheme panel background
+        color: '#b8bcc4',
     },
 ];
 

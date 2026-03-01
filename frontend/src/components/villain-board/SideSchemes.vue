@@ -6,7 +6,7 @@ import SideSchemeCard from '../cards/SideSchemeCard.vue';
 </script>>
 
 <template>
-    <div class="side-scheme-container-wrapper">
+    <div v-if="props.sideSchemes.length > 0" class="side-scheme-container-wrapper">
         <div class="side-scheme-container">
             <SideSchemeCard
                 v-for="card in sideSchemes"

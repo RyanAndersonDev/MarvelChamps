@@ -6,7 +6,7 @@
 </script>
 
 <template>
-    <div class="engaged-minions-wrapper">
+    <div v-if="props.minions.length > 0" class="engaged-minions-wrapper">
         <div class="engaged-minion-container">
             <PlayerEngagedMinion
                 v-for="minion in minions"

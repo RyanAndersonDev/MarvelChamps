@@ -2,14 +2,16 @@
     import { computed } from "vue";
     import type { Minion, Treachery, Attachment, SideScheme } from '../../types/card';
     import BaseCard from './BaseCard.vue';
+    import { useGameStore } from '../../stores/gameStore';
 
     const props = defineProps<{ card: Minion | Treachery | Attachment | SideScheme }>();
+    const store = useGameStore();
 
     const emit = defineEmits<{
         (e: 'resolve', currentInstanceId: number): void;
     }>();
 
-    const cardOrientation = computed(() => 
+    const cardOrientation = computed(() =>
         props.card.type === "side-scheme" ? "horizontal" : "vertical"
     )
 
@@ -27,7 +29,7 @@
         />
 
         <div class="button-row">
-            <button @click="resolveEncounterCard">Resolve</button>
+            <button @click="resolveEncounterCard" :disabled="!!store.boostCard">Resolve</button>
         </div>
     </div>
 </template>

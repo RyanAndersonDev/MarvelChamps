@@ -13,10 +13,21 @@
       return null;
   });
 
+  const isTargetable = computed(() =>
+      props.card.type === 'ally' &&
+      store.targeting.isActive &&
+      store.targeting.validTargetIds.includes(props.card.instanceId!)
+  );
+
+  function handleCardClick() {
+      if (isTargetable.value) store.selectTarget(props.card.instanceId!);
+  }
+
   const effectiveThw = computed(() => {
       if (!allyStats.value) return 0;
       const attachments: any[] = (allyStats.value as any).attachments ?? [];
-      return (allyStats.value.thw ?? 0) + attachments.reduce((sum, att) => sum + (att.thwMod ?? 0), 0);
+      const dynamicBonus = (allyStats.value as any).dynamicThwBonus === 'sideSchemeCount' ? store.activeSideSchemes.length : 0;
+      return (allyStats.value.thw ?? 0) + attachments.reduce((sum, att) => sum + (att.thwMod ?? 0), 0) + dynamicBonus;
   });
 
   const effectiveAtk = computed(() => {
@@ -25,20 +36,20 @@
       return (allyStats.value.atk ?? 0) + attachments.reduce((sum, att) => sum + (att.atkMod ?? 0), 0);
   });
 
+  const realAttachments = computed(() =>
+      ((allyStats.value as any)?.attachments ?? []).filter((att: any) => !att.temporary)
+  );
+
   function doAction(): void {
-    if (props.card.logic?.type === 'resource') {
-      store.useResourceAbility(props.card.instanceId!);
-    } else {
-      store.activateCardAbility(props.card.instanceId!);
-    }
+    store.activateTableauCard(props.card.instanceId!);
   }
 </script>
 
 <template>
-  <div class="tableau-card-wrapper">
+  <div class="tableau-card-wrapper" :class="{ 'is-targetable': isTargetable }" @click="handleCardClick">
     <Transition name="counter-pop" mode="out-in">
         <div
-            v-if="card.type === 'upgrade' && (card as any).counters > 0"
+            v-if="(card.type === 'upgrade' || card.type === 'support') && (card as any).counters > 0"
             :key="(card as any).counters"
             class="counter-badge"
         >{{ (card as any).counters }}</div>
@@ -48,6 +59,7 @@
         <div class="stat-badge blue">{{ effectiveThw }}</div>
         <div class="stat-badge red">{{ effectiveAtk }}</div>
         <div class="stat-badge orange">{{ allyStats!.hitPointsRemaining }}</div>
+        <div v-if="(allyStats as any)?.counters > 0" class="stat-badge purple">{{ (allyStats as any).counters }}</div>
     </div>
 
     <BaseCard
@@ -58,6 +70,16 @@
       :no-zoom="store.targeting.isActive"
       :class="{ 'is-exhausted': card.exhausted }"
     />
+
+    <div v-if="realAttachments.length" class="attachment-badge">
+        ⚙ {{ realAttachments.length }}
+        <div class="attachment-tooltip">
+            <div v-for="att in realAttachments" :key="(att as any).instanceId ?? (att as any).storageId" class="tooltip-entry">
+                <img :src="(att as any).imgPath" class="tooltip-img" />
+                <span>{{ (att as any).name }}</span>
+            </div>
+        </div>
+    </div>
 
     <StatusPips
       v-if="card.type === 'ally'"
@@ -97,6 +119,12 @@
     align-items: center;
     gap: 8px;
     width: fit-content;
+  }
+
+  .is-targetable {
+    box-shadow: 0 0 16px 4px #f1c40f;
+    border-radius: 8px;
+    cursor: pointer;
   }
 
   .is-exhausted {
@@ -165,6 +193,61 @@
   .stat-badge.blue { background-color: #2196F3 !important; }
   .stat-badge.red { background-color: #f44336 !important; }
   .stat-badge.orange { background-color: #FF9800 !important; }
+  .stat-badge.purple { background-color: #9C27B0 !important; }
+
+  .attachment-badge {
+    position: absolute;
+    bottom: 36px;
+    left: 4px;
+    background: #e67e22;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 900;
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1.5px solid #fff;
+    z-index: 99;
+    cursor: default;
+    pointer-events: all;
+  }
+
+  .attachment-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    background: rgba(10, 10, 20, 0.97);
+    border: 1px solid #e67e22;
+    border-radius: 8px;
+    padding: 16px;
+    z-index: 9999;
+    flex-direction: row;
+    gap: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.9);
+    white-space: nowrap;
+  }
+
+  .attachment-badge:hover .attachment-tooltip {
+    display: flex;
+  }
+
+  .tooltip-entry {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: #eee;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .tooltip-img {
+    width: 240px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+    flex-shrink: 0;
+  }
 
   .button-row {
     display: grid;

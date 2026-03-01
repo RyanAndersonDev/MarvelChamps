@@ -8,8 +8,8 @@ const props = defineProps<{ card: SideScheme }>();
 const store = useGameStore();
 
 const isTargetable = computed(() => {
-    return store.targeting.isActive 
-        && (store.targeting.targetType === 'scheme' || store.targeting.targetType === 'main-scheme');
+    return store.targeting.isActive
+        && store.targeting.validTargetIds.includes(props.card.instanceId);
 });
 
 function handleCardClick() {
