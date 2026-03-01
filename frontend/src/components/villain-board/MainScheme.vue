@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import { computed, ref } from 'vue';
     import { useGameStore } from '../../stores/gameStore';
-    import type { MainSchemeInstance } from '../../types/card';
+    import type { MainSchemeInstance } from '@shared/types/card';
     import BaseCard from '../cards/BaseCard.vue';
 
     const props = defineProps<{ schemeInstance: MainSchemeInstance }>();

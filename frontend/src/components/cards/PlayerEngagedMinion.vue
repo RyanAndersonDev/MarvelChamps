@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import { ref, computed } from "vue";
-    import type { Minion } from '../../types/card';
+    import type { Minion } from '@shared/types/card';
     import BaseCard from './BaseCard.vue';
     import StatusPips from './StatusPips.vue';
     import { useGameStore } from "../../stores/gameStore";

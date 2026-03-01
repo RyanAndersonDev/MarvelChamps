@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import type { Minion } from '../../types/card';
+    import type { Minion } from '@shared/types/card';
     import PlayerEngagedMinion from '../cards/PlayerEngagedMinion.vue';
 
     const props = defineProps<{ minions: Minion[] }>();

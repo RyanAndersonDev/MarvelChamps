@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import { useGameStore } from '../../stores/gameStore';
     import HandCard from '../cards/HandCard.vue';
-    import type { Ally, Event, Upgrade, Support } from '../../types/card';
+    import type { Ally, Event, Upgrade, Support } from '@shared/types/card';
 
     const props = defineProps<{ hand: (Ally | Event | Upgrade | Support)[] }>();
     const store = useGameStore();

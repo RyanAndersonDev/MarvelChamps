@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useSetupStore } from '../../stores/setupStore';
-import { encounterLibrary, villainCardMap } from '../../cards/cardStore';
 
 const setup = useSetupStore();
 </script>
@@ -11,7 +10,7 @@ const setup = useSetupStore();
 
         <div class="encounter-grid">
             <button
-                v-for="set in encounterLibrary"
+                v-for="set in setup.catalog.encounters"
                 :key="set.id"
                 class="encounter-card"
                 :class="{ selected: setup.selectedEncounterSetId === set.id }"
@@ -25,9 +24,9 @@ const setup = useSetupStore();
                         :key="i"
                         class="card-chip"
                     >
-                        {{ villainCardMap.get(cardId)?.name }}
-                        <span class="card-chip-count" v-if="set.cardIds.filter(id => id === cardId).length > 1">
-                            ×{{ set.cardIds.filter(id => id === cardId).length }}
+                        {{ set.cardNames[cardId] }}
+                        <span class="card-chip-count" v-if="set.cardIds.filter((id: number) => id === cardId).length > 1">
+                            ×{{ set.cardIds.filter((id: number) => id === cardId).length }}
                         </span>
                     </span>
                 </div>

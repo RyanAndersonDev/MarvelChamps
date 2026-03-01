@@ -1,6 +1,5 @@
 <script setup lang="ts">
     import { computed, ref } from "vue";
-    import { getCardImgPathById, getVillainCardImgPathById, cardMap, villainCardMap } from "../../cards/cardStore";
     import { useGameStore } from "../../stores/gameStore";
     import PeekModal from "./PeekModal.vue";
 
@@ -19,14 +18,14 @@
 
     const resolve = (id: number) => {
         if (props.imageType === 'player') {
-            return store.playerCardRegistry[id] ?? getCardImgPathById(id);
+            return store.playerCardRegistry[id] ?? '';
         }
-        return getVillainCardImgPathById(id);
+        return store.villainCardRegistry[id]?.imgPath ?? '';
     };
 
     const getName = (id: number): string => {
-        const map = props.imageType === 'player' ? cardMap : villainCardMap;
-        return (map as any).get(id)?.name ?? '';
+        if (props.imageType === 'player') return '';
+        return store.villainCardRegistry[id]?.name ?? '';
     };
 
     const ids = computed(() => props.deckIds ?? []);

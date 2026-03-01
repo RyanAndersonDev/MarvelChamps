@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { useSetupStore } from '../../stores/setupStore';
-import { villainLibrary } from '../../cards/cardStore';
 
 const setup = useSetupStore();
 
-const selectedVillain = () => villainLibrary.find(v => v.id === setup.selectedVillainId);
+const selectedVillain = () => setup.catalog.villains.find(v => v.id === setup.selectedVillainId);
 </script>
 
 <template>
@@ -13,7 +12,7 @@ const selectedVillain = () => villainLibrary.find(v => v.id === setup.selectedVi
 
         <div class="villain-grid">
             <button
-                v-for="villain in villainLibrary"
+                v-for="villain in setup.catalog.villains"
                 :key="villain.id"
                 class="villain-card"
                 :class="{ selected: setup.selectedVillainId === villain.id }"

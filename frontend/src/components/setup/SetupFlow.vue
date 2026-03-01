@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import { useSetupStore } from '../../stores/setupStore';
 import StepHero     from './StepHero.vue';
 import StepAspect   from './StepAspect.vue';
@@ -8,6 +9,8 @@ import { useGameScale } from '../../composables/useGameScale';
 
 const setup = useSetupStore();
 const { scaleStyle } = useGameScale();
+
+onMounted(() => { setup.fetchCatalog(); });
 
 const STEP_LABELS = ['Hero', 'Deck', 'Villain', 'Encounter'];
 </script>

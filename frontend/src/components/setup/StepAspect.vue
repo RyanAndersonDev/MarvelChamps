@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { useSetupStore } from '../../stores/setupStore';
-import type { Aspect } from '../../types/card';
+import type { Aspect } from '@shared/types/card';
 
 const setup = useSetupStore();
 

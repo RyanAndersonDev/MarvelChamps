@@ -11,7 +11,7 @@ import { devAuthMiddleware } from './middleware/devAuth';
 import { registerLobbyHandlers } from './lobby/lobbyHandler';
 import { registerGameHandlers } from './engine/gameHandler';
 import { GameRoom } from './engine/GameRoom';
-import { cardMap } from './cards/cardStore';
+import { cardMap, villainCardMap, idCardMap, heroLibrary, villainLibrary, encounterLibrary } from './cards/cardStore';
 
 // ── HTTP + Socket.IO setup ────────────────────────────────────────────────────
 
@@ -36,6 +36,30 @@ app.use((_req, res, next) => { res.header('Access-Control-Allow-Origin', '*'); n
 app.get('/api/cards', (_req, res) => {
     const cards = Array.from(cardMap.entries()).map(([id, card]) => ({ ...card, storageId: id }));
     res.json(cards);
+});
+
+app.get('/api/villain-cards', (_req, res) => {
+    const cards = Array.from(villainCardMap.entries()).map(([id, card]) => ({
+        storageId: id, name: card.name, imgPath: card.imgPath,
+    }));
+    res.json(cards);
+});
+
+app.get('/api/cards/catalog', (_req, res) => {
+    const heroes = heroLibrary.map(h => {
+        const identity = idCardMap.get(h.id);
+        return { ...h, imgPath: identity?.imgPath ?? '', heroImgPath: identity?.heroImgPath ?? '' };
+    });
+    const encounters = encounterLibrary.map(e => {
+        const uniqueIds = [...new Set(e.cardIds)];
+        const cardNames: Record<number, string> = {};
+        for (const id of uniqueIds) {
+            const name = villainCardMap.get(id)?.name;
+            if (name) cardNames[id] = name;
+        }
+        return { ...e, cardNames };
+    });
+    res.json({ heroes, villains: villainLibrary, encounters });
 });
 
 // ── Socket.IO auth ────────────────────────────────────────────────────────────

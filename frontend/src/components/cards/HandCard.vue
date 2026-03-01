@@ -1,8 +1,8 @@
 <script setup lang="ts">
   import BaseCard from './BaseCard.vue';
   import { useGameStore } from '../../stores/gameStore';
-  import type { Ally, Event, Upgrade, Support } from '../../types/card';
-  import type { Resource } from '../../types/card';
+  import type { Ally, Event, Upgrade, Support } from '@shared/types/card';
+  import type { Resource } from '@shared/types/card';
   const store = useGameStore();
     
   const props = defineProps<{ 

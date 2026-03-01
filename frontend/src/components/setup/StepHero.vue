@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useSetupStore } from '../../stores/setupStore';
-import { heroLibrary, idCardMap } from '../../cards/cardStore';
 
 const setup = useSetupStore();
 </script>
@@ -10,13 +9,13 @@ const setup = useSetupStore();
         <h2 class="step-title">Choose Your Hero</h2>
         <div class="hero-grid">
             <button
-                v-for="hero in heroLibrary"
+                v-for="hero in setup.catalog.heroes"
                 :key="hero.id"
                 class="hero-card"
                 :class="{ selected: setup.selectedHeroId === hero.id }"
                 @click="setup.selectHero(hero.id)"
             >
-                <img :src="idCardMap.get(hero.id)?.heroImgPath" :alt="hero.name" />
+                <img :src="hero.heroImgPath" :alt="hero.name" />
                 <span class="hero-name">{{ hero.name }}</span>
             </button>
         </div>

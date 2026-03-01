@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import type { Ally, Upgrade, Support } from '../../types/card';
+    import type { Ally, Upgrade, Support } from '@shared/types/card';
     import PlayerTableauCard from '../cards/PlayerTableauCard.vue';
 
     const props = defineProps<{ tableauCards: (Ally | Upgrade | Support)[] }>();

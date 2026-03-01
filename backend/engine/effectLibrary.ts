@@ -1,4 +1,4 @@
-import type { EffectDef, EffectTarget, EffectCondition, Ally } from "../../frontend/src/types/card";
+import type { EffectDef, EffectTarget, EffectCondition, Ally } from "../../shared/types/card";
 import { cardMap, villainCardMap } from "../cards/cardStore";
 import { createHandCard, createVillainCard, createTableauCard } from "../cards/cardFactory";
 import type { GameRoom } from "./GameRoom";

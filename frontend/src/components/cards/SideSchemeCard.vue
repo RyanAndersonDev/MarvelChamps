@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useGameStore } from '../../stores/gameStore';
-import type { SideScheme } from '../../types/card';
+import type { SideScheme } from '@shared/types/card';
 import BaseCard from './BaseCard.vue';
 
 const props = defineProps<{ card: SideScheme }>();

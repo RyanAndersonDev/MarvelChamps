@@ -1,12 +1,6 @@
 /**
  * game.ts — Server-side authoritative game state model.
  *
- * IMPORT NOTE: The card-instance types below (IdentityCardInstance, Minion,
- * etc.) currently live in frontend/src/types/card.ts. When the monorepo
- * workspace is set up, both backend and frontend will import them from a
- * shared package (e.g. @marvelchamps/shared). Until then these are referenced
- * symbolically here and the TODO comments mark where the real imports go.
- *
  * KEY DESIGN PRINCIPLES
  * ─────────────────────
  * 1. Server owns all mutable game state. Clients receive read-only snapshots.
@@ -20,7 +14,6 @@
  *    The server collects all responses before resolving.
  */
 
-// TODO: replace these with imports from @marvelchamps/shared when workspace set up
 import type {
     IdentityCardInstance,
     VillainIdentityCardInstance,
@@ -34,8 +27,8 @@ import type {
     Upgrade,
     Support,
     Resource,
-} from '../../frontend/src/types/card';
-import type { GamePhaseType } from '../../frontend/src/types/phases';
+} from '../../shared/types/card';
+import type { GamePhaseType } from '../../shared/types/phases';
 import type { LogEntry } from '../../frontend/src/types/log';
 import type { UserPublic } from './user';
 

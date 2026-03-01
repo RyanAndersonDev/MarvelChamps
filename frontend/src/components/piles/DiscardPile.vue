@@ -1,6 +1,5 @@
 <script setup lang="ts">
     import { computed, ref } from "vue";
-    import { getCardImgPathById, getVillainCardImgPathById } from "../../cards/cardStore";
     import { useGameStore } from "../../stores/gameStore";
     import PeekModal from "./PeekModal.vue";
 
@@ -15,9 +14,9 @@
 
     const resolve = (id: number) => {
         if (props.imageType === 'player') {
-            return store.playerCardRegistry[id] ?? getCardImgPathById(id);
+            return store.playerCardRegistry[id] ?? '';
         }
-        return getVillainCardImgPathById(id);
+        return store.villainCardRegistry[id]?.imgPath ?? '';
     };
 
     const discardCount = computed(() => props.pileIds.length);

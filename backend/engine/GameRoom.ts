@@ -4,11 +4,11 @@ import type { AuthPayload } from '../types/user';
 import type {
     Ally, Event, Upgrade, Support, IdentityCardInstance, VillainIdentityCardInstance,
     MainSchemeInstance, Treachery, Attachment, Minion, SideScheme, PlayerCardInstance, Resource
-} from '../../frontend/src/types/card';
+} from '../../shared/types/card';
 import type { LogEntry, LogType } from '../../frontend/src/types/log';
-import type { GamePhaseType } from '../../frontend/src/types/phases';
+import type { GamePhaseType } from '../../shared/types/phases';
 import type { ActivePrompt, PlayerGameView, PlayerGameState, GameConfig, PromptResponse } from '../types/game';
-import { GamePhase } from '../../frontend/src/types/phases';
+import { GamePhase } from '../../shared/types/phases';
 import { villainCardMap, villainIdCardMap } from '../cards/cardStore';
 import {
     createHandCard, createMainSchemeCard, createTableauCard, createVillainCard,

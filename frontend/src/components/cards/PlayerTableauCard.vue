@@ -3,7 +3,7 @@
   import { useGameStore } from "../../stores/gameStore";
   import BaseCard from './BaseCard.vue';
   import StatusPips from './StatusPips.vue';
-  import type { Ally, Upgrade, Support } from '../../types/card';
+  import type { Ally, Upgrade, Support } from '@shared/types/card';
     
   const store = useGameStore();
   const props = defineProps<{ card: Ally | Upgrade | Support }>();

@@ -1,5 +1,5 @@
 import type { PlayerCardInstance, PlayerCard, Ally, Event, Upgrade, Support, IdentityCard, IdentityCardInstance, VillainIdentityCard, VillainIdentityCardInstance,
-    MainScheme, MainSchemeInstance, VillainCardInstance, VillainCard, Attachment, Treachery, Minion, SideScheme} from '../../frontend/src/types/card';
+    MainScheme, MainSchemeInstance, VillainCardInstance, VillainCard, Attachment, Treachery, Minion, SideScheme} from '../../shared/types/card';
 import { cardMap, idCardMap, villainIdCardMap, villainMainSchemeMap, villainCardMap } from './cardStore';
 
 // ************* HAND CARDS *************

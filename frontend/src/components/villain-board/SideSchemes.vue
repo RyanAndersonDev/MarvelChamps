@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import type { SideScheme } from '../../types/card';
+    import type { SideScheme } from '@shared/types/card';
 import SideSchemeCard from '../cards/SideSchemeCard.vue';
 
     const props = defineProps<{ sideSchemes: SideScheme[] }>();

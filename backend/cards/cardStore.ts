@@ -1,4 +1,4 @@
-import type { IdentityCard, PlayerCard, VillainIdentityCard, MainScheme, VillainCard } from "../../frontend/src/types/card";
+import type { IdentityCard, PlayerCard, VillainIdentityCard, MainScheme, VillainCard } from "../../shared/types/card";
 
 export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard>([
     [1, {name: "Peter Parker/Spiderman", side: "player", imgPath: "/cards/heroes/spider-man/PeterParker-AE.png", heroImgPath: "/cards/heroes/spider-man/PeterParker-Hero.png", flavorText: "",

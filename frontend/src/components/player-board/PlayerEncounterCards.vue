@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import type { Treachery, Attachment, Minion, SideScheme } from '../../types/card';
+    import type { Treachery, Attachment, Minion, SideScheme } from '@shared/types/card';
     import VillainCard from '../cards/VillainCard.vue';
     import DeckPile from '../piles/DeckPile.vue';
 

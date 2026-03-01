@@ -1,8 +1,38 @@
 import { defineStore } from 'pinia';
-import { heroLibrary, villainLibrary, encounterLibrary } from '../cards/cardStore';
 import { socket } from '../socket';
 import { useGameStore } from './gameStore';
 import router from '../router';
+
+export interface HeroCatalogEntry {
+    id: number;
+    name: string;
+    heroDeckIds: number[];
+    primaryColor: string;
+    secondaryColor: string;
+    imgPath: string;
+    heroImgPath: string;
+}
+
+export interface VillainCatalogEntry {
+    id: number;
+    name: string;
+    imgPath: string;
+    expertImgPath?: string;
+    mainSchemeId: number;
+    villainDeckIds: number[];
+    standardPhaseChain: number[];
+    expertPhaseChain: number[];
+    color: string;
+}
+
+export interface EncounterCatalogEntry {
+    id: number;
+    name: string;
+    imgPath: string;
+    description: string;
+    cardIds: number[];
+    cardNames: Record<number, string>;
+}
 
 export const useSetupStore = defineStore('setup', {
     state: () => ({
@@ -15,6 +45,12 @@ export const useSetupStore = defineStore('setup', {
         selectedVillainId:      null as number | null,
         selectedEncounterSetId: null as number | null,
         expertMode:             false,
+
+        catalog: {
+            heroes:    [] as HeroCatalogEntry[],
+            villains:  [] as VillainCatalogEntry[],
+            encounters: [] as EncounterCatalogEntry[],
+        },
     }),
 
     getters: {
@@ -27,23 +63,32 @@ export const useSetupStore = defineStore('setup', {
         },
 
         selectedHero(state) {
-            return heroLibrary.find(h => h.id === state.selectedHeroId) ?? null;
+            return state.catalog.heroes.find(h => h.id === state.selectedHeroId) ?? null;
         },
 
         selectedVillain(state) {
-            return villainLibrary.find(v => v.id === state.selectedVillainId) ?? null;
+            return state.catalog.villains.find(v => v.id === state.selectedVillainId) ?? null;
         },
 
         selectedEncounterSet(state) {
-            return encounterLibrary.find(e => e.id === state.selectedEncounterSetId) ?? null;
+            return state.catalog.encounters.find(e => e.id === state.selectedEncounterSetId) ?? null;
         },
     },
 
     actions: {
+        async fetchCatalog() {
+            if (this.catalog.heroes.length > 0) return; // already loaded
+            try {
+                const data = await fetch('http://localhost:3000/api/cards/catalog').then(r => r.json());
+                this.catalog.heroes    = data.heroes    ?? [];
+                this.catalog.villains  = data.villains  ?? [];
+                this.catalog.encounters = data.encounters ?? [];
+            } catch { /* non-fatal */ }
+        },
+
         selectHero(heroId: number) {
             this.selectedHeroId = heroId;
-            // Pre-populate deck with hero's default cards
-            const hero = heroLibrary.find(h => h.id === heroId);
+            const hero = this.catalog.heroes.find(h => h.id === heroId);
             if (hero) this.playerDeckIds = [...hero.heroDeckIds];
         },
 
@@ -76,7 +121,7 @@ export const useSetupStore = defineStore('setup', {
         },
 
         async launchGame() {
-            const hero = heroLibrary.find(h => h.id === this.selectedHeroId)!;
+            const hero = this.catalog.heroes.find(h => h.id === this.selectedHeroId)!;
 
             const gameStore = useGameStore();
 

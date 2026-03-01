@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import { ref } from 'vue';
-    import type { Attachment, Upgrade } from '../../types/card';
+    import type { Attachment, Upgrade } from '@shared/types/card';
     import { useGameStore } from '../../stores/gameStore';
 
     const store = useGameStore();

@@ -15,15 +15,16 @@ const store = useGameStore();
 
 import { ref, computed, onMounted } from 'vue';
 import { useGameScale } from '../composables/useGameScale';
-import { heroLibrary, villainLibrary } from '../cards/cardStore';
+import { useSetupStore } from '../stores/setupStore';
 
+const setup = useSetupStore();
 const { scaleStyle } = useGameScale();
 
 onMounted(() => { store.loadCardRegistry(); });
 
 const heroColors = computed(() => {
   const id = store.playerIdentity?.storageId;
-  const hero = id != null ? heroLibrary.find(h => h.id === id) : undefined;
+  const hero = id != null ? setup.catalog.heroes.find(h => h.id === id) : undefined;
   return {
     primary:   hero?.primaryColor   ?? '#140c36',
     secondary: hero?.secondaryColor ?? '#f3bbbb',
@@ -32,7 +33,7 @@ const heroColors = computed(() => {
 
 const villainColor = computed(() => {
   const chain = store.villainPhaseChain.join(',');
-  const villain = villainLibrary.find(v =>
+  const villain = setup.catalog.villains.find(v =>
     v.standardPhaseChain.join(',') === chain ||
     v.expertPhaseChain.join(',') === chain
   );

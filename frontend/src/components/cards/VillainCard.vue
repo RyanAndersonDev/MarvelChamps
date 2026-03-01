@@ -1,6 +1,6 @@
 <script setup lang="ts">
     import { computed } from "vue";
-    import type { Minion, Treachery, Attachment, SideScheme } from '../../types/card';
+    import type { Minion, Treachery, Attachment, SideScheme } from '@shared/types/card';
     import BaseCard from './BaseCard.vue';
     import { useGameStore } from '../../stores/gameStore';
 

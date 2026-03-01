@@ -3,7 +3,7 @@
     import { useGameStore } from '../../stores/gameStore';
     import BaseCard from './BaseCard.vue';
     import StatusPips from './StatusPips.vue';
-    import type { VillainIdentityCardInstance } from '../../types/card';
+    import type { VillainIdentityCardInstance } from '@shared/types/card';
 
     const props = defineProps<{ cardInstance: VillainIdentityCardInstance }>();
     const store = useGameStore();

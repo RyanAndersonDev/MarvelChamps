@@ -3,9 +3,9 @@ import { socket } from '../socket';
 import type {
     Ally, Event, Upgrade, Support, IdentityCardInstance, VillainIdentityCardInstance,
     MainSchemeInstance, Treachery, Attachment, Minion, SideScheme, Resource,
-} from '../types/card';
+} from '@shared/types/card';
 import type { LogEntry, LogType } from '../types/log';
-import type { GamePhaseType } from '../types/phases';
+import type { GamePhaseType } from '@shared/types/phases';
 import type { ActivePrompt, PlayerGameView, PromptResponse } from '../../../backend/types/game';
 
 // Module-level timer — holds the boost card visible on the frontend for a
@@ -54,6 +54,7 @@ export const useGameStore = defineStore('game', {
 
     // ── Card registry (storageId → imgPath, populated from /api/cards) ──
     playerCardRegistry: {} as Record<number, string>,
+    villainCardRegistry: {} as Record<number, { imgPath: string; name: string }>,
 
     // ── Active prompt (interrupt / defense / choice window) ──
     activePrompt: null as ActivePrompt | null,
@@ -429,10 +430,16 @@ export const useGameStore = defineStore('game', {
     async loadCardRegistry() {
         if (Object.keys(this.playerCardRegistry).length > 0) return; // already loaded
         try {
-            const cards: any[] = await fetch('http://localhost:3000/api/cards').then(r => r.json());
+            const [playerCards, villainCards]: [any[], any[]] = await Promise.all([
+                fetch('http://localhost:3000/api/cards').then(r => r.json()),
+                fetch('http://localhost:3000/api/villain-cards').then(r => r.json()),
+            ]);
             const reg: Record<number, string> = {};
-            for (const card of cards) reg[card.storageId] = card.imgPath;
+            for (const card of playerCards) reg[card.storageId] = card.imgPath;
             this.playerCardRegistry = reg;
+            const vReg: Record<number, { imgPath: string; name: string }> = {};
+            for (const card of villainCards) vReg[card.storageId] = { imgPath: card.imgPath, name: card.name };
+            this.villainCardRegistry = vReg;
         } catch { /* non-fatal — images fall back to placeholder */ }
     },
 
