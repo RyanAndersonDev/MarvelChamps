@@ -21,6 +21,7 @@ import type {
     SideScheme,
     Minion,
     Treachery,
+    Obligation,
     Attachment,
     Ally,
     Event,
@@ -120,7 +121,7 @@ export interface PlayerGameState {
     /** storageIds of encounter cards queued for this player to reveal. */
     encounterPileIds: number[];
     /** The card this player is currently in the process of resolving. */
-    revealedEncounterCard: (Treachery | Attachment | Minion | SideScheme) | null;
+    revealedEncounterCard: (Treachery | Obligation | Attachment | Minion | SideScheme) | null;
 
     // Ability tracking
     abilityUseCounts: Record<string, number>;
@@ -326,6 +327,9 @@ export interface PlayerGameView {
 
     /** Phase chain for the current villain — used by the client to look up villain color/theme. */
     villainPhaseChain: number[];
+
+    /** Non-null when the player must answer a yes/no question before the engine continues. */
+    pendingYesNo: { question: string } | null;
 
     gameLog: LogEntry[];
 }

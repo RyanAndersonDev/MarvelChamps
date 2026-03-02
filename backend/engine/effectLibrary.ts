@@ -112,10 +112,20 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
         }
 
         case 'chooseOne': {
-            const options = effect.options.map((o: any, i: number) => ({ id: String(i), name: o.label }));
-            const chosen = await state.requestChoice('Choose one', options);
-            const idx = effect.options.findIndex((_: any, i: number) => String(i) === chosen?.id);
-            if (idx >= 0) await executeEffect(effect.options[idx]!.effect, state, context);
+            // Filter out options whose condition is not satisfied
+            const available = effect.options.filter((o: any) =>
+                !o.condition || evaluateCondition(o.condition, state, context)
+            );
+            if (available.length === 0) break;
+            if (available.length === 1) {
+                // Only one valid option — auto-resolve
+                await executeEffect(available[0]!.effect, state, context);
+                break;
+            }
+            const promptOptions = available.map((o: any, i: number) => ({ id: String(i), name: o.label }));
+            const chosen = await state.requestChoice('Choose one', promptOptions);
+            const idx = available.findIndex((_: any, i: number) => String(i) === chosen?.id);
+            if (idx >= 0) await executeEffect(available[idx]!.effect, state, context);
             break;
         }
 
@@ -217,6 +227,7 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
                 overkill: (state.villainCard?.attachments ?? []).some((att: any) => att.overkill)
             };
             await state.villainActivationAttack(attackPayload);
+            if (attackPayload.damageWasDealt) context.damageWasDealt = true;
             if (effect.stunOnHit && attackPayload.damageWasDealt) {
                 if (attackPayload.targetType === 'identity') {
                     state.hero.stunned = true;
@@ -756,6 +767,299 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             break;
         }
 
+        case 'addVillainHp': {
+            if (!state.villainCard) break;
+            state.villainCard.hitPointsRemaining = (state.villainCard.hitPointsRemaining ?? 0) + effect.amount;
+            const label = effect.amount > 0 ? `+${effect.amount}` : `${effect.amount}`;
+            state.addLog(`${state.villainCard.name} ${label} hit points.`, 'status');
+            if (state.villainCard.hitPointsRemaining <= 0) {
+                await state.handleVillainDefeated();
+            }
+            break;
+        }
+
+        case 'exhaustAllCharacters': {
+            state.hero.exhausted = true;
+            for (const card of state.tableauCards) {
+                if (card.type === 'ally') (card as any).exhausted = true;
+            }
+            state.addLog(`All characters exhausted.`, 'status');
+            break;
+        }
+
+        case 'payResources': {
+            const required = effect.resources;
+            const handResources = state.hand.flatMap((c: any) => c.resources ?? []);
+            if (!satisfiesResourceRequirements(required, handResources)) {
+                state.addLog(`Not enough resources in hand to pay — effect skipped.`, 'system');
+                break;
+            }
+            const selectedIds = await state.requestHandDiscard(
+                required.length,
+                'PAY RESOURCES',
+                `Discard cards providing: ${required.join(' + ')}.`
+            );
+            if (!selectedIds || selectedIds.length === 0) {
+                state.addLog(`Resource payment skipped.`, 'system');
+                break;
+            }
+            const selected = selectedIds.map((id: number) => state.hand.find((c: any) => c.instanceId === id)).filter(Boolean);
+            const paid = selected.flatMap((c: any) => c.resources ?? []);
+            if (!satisfiesResourceRequirements(required, paid)) {
+                state.addLog(`Invalid resource selection — payment skipped.`, 'system');
+                break;
+            }
+            for (const card of selected) {
+                state.hand = state.hand.filter((c: any) => c.instanceId !== (card as any).instanceId);
+                if ((card as any).storageId != null) state.playerDiscardIds.push((card as any).storageId);
+            }
+            state.addLog(`Paid ${required.join('+')} — cards discarded.`, 'discard');
+            break;
+        }
+
+        case 'exhaustAllAllies': {
+            for (const card of state.tableauCards) {
+                if (card.type === 'ally') (card as any).exhausted = true;
+            }
+            state.addLog(`All allies exhausted.`, 'status');
+            break;
+        }
+
+        case 'allTaggedMinionsAttack': {
+            const minionsToAttack = state.engagedMinions.filter(m => {
+                const bp = villainCardMap.get(m.storageId!);
+                return bp?.tags?.includes(effect.tag);
+            });
+            for (const minion of [...minionsToAttack]) {
+                if (state.engagedMinions.some(m => m.instanceId === minion.instanceId)) {
+                    await state.minionActivationAttack(minion);
+                }
+            }
+            break;
+        }
+
+        case 'discardUntilTaggedMinionIntoPlay': {
+            let found = false;
+            while (state.villainDeckIds.length > 0 && !found) {
+                const cardId = state.villainDeckIds.shift()!;
+                const bp = villainCardMap.get(cardId);
+                if (bp?.type === 'minion' && bp.tags?.includes(effect.tag)) {
+                    state.addLog(`${bp.name} revealed — enters play!`, 'villain');
+                    const minionCard = createVillainCard(cardId, state.getNextId());
+                    await state.handleMinionEntry(minionCard);
+                    found = true;
+                } else {
+                    state.villainDiscardIds.push(cardId);
+                    state.addLog(`${bp?.name ?? `Card #${cardId}`} discarded.`, 'discard');
+                }
+            }
+            if (!found) state.addLog(`No ${effect.tag} minion found in villain deck.`, 'system');
+            break;
+        }
+
+        case 'searchForTaggedMinionIntoPlay': {
+            let foundId: number | null = null;
+            const deckIdx = state.villainDeckIds.findIndex(id => {
+                const bp = villainCardMap.get(id);
+                return bp?.type === 'minion' && bp.tags?.includes(effect.tag);
+            });
+            if (deckIdx !== -1) {
+                [foundId] = state.villainDeckIds.splice(deckIdx, 1);
+            } else {
+                const discardIdx = state.villainDiscardIds.findIndex(id => {
+                    const bp = villainCardMap.get(id);
+                    return bp?.type === 'minion' && bp.tags?.includes(effect.tag);
+                });
+                if (discardIdx !== -1) [foundId] = state.villainDiscardIds.splice(discardIdx, 1);
+            }
+            if (foundId != null) {
+                const bp = villainCardMap.get(foundId);
+                state.addLog(`${bp?.name ?? `Card #${foundId}`} found — enters play!`, 'villain');
+                const minionCard = createVillainCard(foundId, state.getNextId());
+                await state.handleMinionEntry(minionCard);
+            } else {
+                state.addLog(`No ${effect.tag} minion found.`, 'system');
+            }
+            break;
+        }
+
+        case 'revealNemesisSet': {
+            if (state.nemesisSetAdded) {
+                context.surge = (context.surge ?? 0) + 1;
+                state.addLog(`Nemesis set already in play — Shadow of the Past surges!`, 'surge');
+                break;
+            }
+            state.nemesisSetAdded = true;
+
+            // Pull nemesis minion from set-aside pile and put it into play
+            const minionIdx = state.setAsideNemesisIds.indexOf(state.nemesisMinionStorageId!);
+            if (minionIdx !== -1 && state.nemesisMinionStorageId != null) {
+                state.setAsideNemesisIds.splice(minionIdx, 1);
+                const minionCard = createVillainCard(state.nemesisMinionStorageId, state.getNextId());
+                const bp = villainCardMap.get(state.nemesisMinionStorageId);
+                state.addLog(`${bp?.name ?? 'Nemesis minion'} revealed — enters play!`, 'villain');
+                await state.handleMinionEntry(minionCard);
+            }
+
+            // Pull nemesis side scheme from set-aside pile and put it into play
+            const ssIdx = state.setAsideNemesisIds.indexOf(state.nemesisSideSchemeStorageId!);
+            if (ssIdx !== -1 && state.nemesisSideSchemeStorageId != null) {
+                state.setAsideNemesisIds.splice(ssIdx, 1);
+                const ssCard = createVillainCard(state.nemesisSideSchemeStorageId, state.getNextId());
+                const bp = villainCardMap.get(state.nemesisSideSchemeStorageId);
+                state.addLog(`${bp?.name ?? 'Nemesis side scheme'} revealed — enters play!`, 'villain');
+                await state.handleSideSchemeEntry(ssCard);
+            }
+
+            // Shuffle remaining set-aside nemesis cards into the villain deck
+            if (state.setAsideNemesisIds.length > 0) {
+                state.villainDeckIds.push(...state.setAsideNemesisIds);
+                state.shufflePile(state.villainDeckIds);
+                state.addLog(`${state.setAsideNemesisIds.length} nemesis card(s) shuffled into the encounter deck.`, 'villain');
+                state.setAsideNemesisIds = [];
+            }
+            break;
+        }
+
+        case 'taggedMinionAttacks': {
+            const minion = state.engagedMinions.find(m => {
+                const bp = villainCardMap.get(m.storageId!);
+                return bp?.tags?.includes(effect.tag);
+            });
+            if (!minion) { state.addLog(`No ${effect.tag} minion in play — attack skipped.`, 'system'); break; }
+            if (minion.stunned) {
+                minion.stunned = false;
+                state.addLog(`${minion.name} is stunned — attack prevented, stun removed.`, 'status');
+                break;
+            }
+            if (minion.confused) {
+                minion.confused = false;
+                state.addLog(`${minion.name} is confused — attack prevented, status removed.`, 'status');
+                break;
+            }
+            context.minionAttacked = true;
+            await state.minionActivationAttack(minion);
+            break;
+        }
+
+        case 'healTaggedMinionFully': {
+            const minion = state.engagedMinions.find(m => {
+                const bp = villainCardMap.get(m.storageId!);
+                return bp?.tags?.includes(effect.tag);
+            });
+            if (!minion) { state.addLog(`No ${effect.tag} minion in play to heal.`, 'system'); break; }
+            const maxHp = minion.hitPoints ?? villainCardMap.get(minion.storageId!)?.hitPoints ?? 0;
+            minion.hitPointsRemaining = maxHp;
+            state.addLog(`${minion.name} healed to full HP (${maxHp}).`, 'system');
+            break;
+        }
+
+        case 'selfMinionAttack': {
+            const minion = context.sourceCard;
+            if (!minion) { state.addLog(`selfMinionAttack: no source minion in context.`, 'system'); break; }
+            state.addLog(`${minion.name} quickstrikes!`, 'villain');
+            await state.minionActivationAttack(minion);
+            break;
+        }
+
+        case 'storeRandomHandCardOnScheme': {
+            if (state.hand.length === 0) { state.addLog(`No cards in hand to place facedown.`, 'system'); break; }
+            const idx = Math.floor(Math.random() * state.hand.length);
+            const [card] = state.hand.splice(idx, 1);
+            if (!context.sourceCard.heldCards) context.sourceCard.heldCards = [];
+            context.sourceCard.heldCards.push(card.storageId!);
+            state.addLog(`${card.name} placed facedown on ${context.sourceCard.name}.`, 'villain');
+            break;
+        }
+
+        case 'returnHeldCardsToHand': {
+            const heldIds: number[] = context.sourceCard?.heldCards ?? [];
+            for (const storageId of heldIds) {
+                const newCard = createHandCard(storageId, state.getNextId());
+                state.hand.push(newCard);
+                const bp = cardMap.get(storageId);
+                state.addLog(`${bp?.name ?? 'Card'} returned to hand from ${context.sourceCard.name}.`, 'system');
+            }
+            if (context.sourceCard) context.sourceCard.heldCards = [];
+            break;
+        }
+
+        case 'discardRandomAndThreatPerResourceType': {
+            if (state.hand.length === 0) { state.addLog(`No cards in hand to discard.`, 'system'); break; }
+            const idx = Math.floor(Math.random() * state.hand.length);
+            const [discarded] = state.hand.splice(idx, 1);
+            if (discarded.storageId != null) state.playerDiscardIds.push(discarded.storageId);
+            const bp = cardMap.get(discarded.storageId!);
+            const distinctTypes = new Set(bp?.resources ?? []).size;
+            state.addLog(`${discarded.name} discarded randomly — ${distinctTypes} distinct resource type(s), placing ${distinctTypes} threat on the main scheme.`, 'villain');
+            if (distinctTypes > 0) {
+                await state.applyThreatToMainScheme({ amount: distinctTypes, source: 'vultures_plans', isCanceled: false });
+            }
+            break;
+        }
+
+        case 'addBoostCard': {
+            context.extraBoostCards = (context.extraBoostCards ?? 0) + 1;
+            state.addLog(`Extra boost card granted for this activation.`, 'status');
+            break;
+        }
+
+        case 'putBoostCardIntoPlay': {
+            const storageId = context.boostCardId;
+            if (storageId == null) break;
+            // Remove from discard (was just pushed by flipBoostCard)
+            const discardIdx = state.villainDiscardIds.lastIndexOf(storageId);
+            if (discardIdx !== -1) state.villainDiscardIds.splice(discardIdx, 1);
+            const bp = villainCardMap.get(storageId);
+            state.addLog(`${bp?.name ?? `Card #${storageId}`} enters play as a minion!`, 'villain');
+            const minionCard = createVillainCard(storageId, state.getNextId());
+            await state.handleMinionEntry(minionCard);
+            break;
+        }
+
+        case 'discardRandomFromHand': {
+            if (state.hand.length === 0) {
+                state.addLog(`No cards in hand to discard.`, 'system');
+                break;
+            }
+            const randIdx = Math.floor(Math.random() * state.hand.length);
+            const [discarded] = state.hand.splice(randIdx, 1);
+            if (discarded.storageId != null) state.playerDiscardIds.push(discarded.storageId);
+            state.addLog(`${discarded.name} discarded randomly from hand.`, 'discard');
+            break;
+        }
+
+        case 'discardUntilMinionIntoPlay': {
+            let found = false;
+            while (state.villainDeckIds.length > 0 && !found) {
+                const cardId = state.villainDeckIds.shift()!;
+                const bp = villainCardMap.get(cardId);
+                if (bp?.type === 'minion') {
+                    state.addLog(`${bp.name} revealed from villain deck — enters play!`, 'villain');
+                    const minionCard = createVillainCard(cardId, state.getNextId());
+                    await state.handleMinionEntry(minionCard);
+                    found = true;
+                } else {
+                    state.villainDiscardIds.push(cardId);
+                    state.addLog(`${bp?.name ?? `Card #${cardId}`} discarded from villain deck.`, 'discard');
+                }
+            }
+            if (!found) state.addLog(`No minions found in villain deck.`, 'system');
+            break;
+        }
+
+        case 'removeFromGame': {
+            context.removedFromGame = true;
+            state.addLog(`Card removed from the game.`, 'system');
+            break;
+        }
+
+        case 'addAccelerationToken': {
+            state.accelerationTokens += effect.amount;
+            state.addLog(`${effect.amount} acceleration token(s) added (now ${state.accelerationTokens}).`, 'villain');
+            break;
+        }
+
         default: {
             const _exhaustive: never = effect;
             state.addLog(`Unknown effect op: ${(_exhaustive as any).op}`, 'system');
@@ -789,7 +1093,11 @@ async function resolveTargetId(target: EffectTarget, state: GameRoom, context: a
         case 'chooseMinion':             return await state.requestTarget(context.sourceCard, 'minion');
         case 'chooseScheme':             return await state.requestTarget(context.sourceCard, 'scheme');
         case 'chooseFriendly':           return await state.requestTarget(context.sourceCard, 'friendly');
-        case 'payloadTarget': return context.targetId ?? null;
+        case 'payloadTarget': {
+            const tid = context.targetId;
+            if (tid === 'hero') return state.hero?.instanceId ?? null;
+            return tid ?? null;
+        }
     }
 }
 
@@ -847,5 +1155,14 @@ function evaluateCondition(condition: EffectCondition, state: GameRoom, context:
         }
         case 'selfHasCounters':
             return ((context.sourceCard as any)?.counters ?? 0) > 0;
+        case 'taggedMinionInPlay':
+            return state.engagedMinions.some(m => {
+                const bp = villainCardMap.get(m.storageId!);
+                return bp?.tags?.includes(condition.tag);
+            });
+        case 'minionAttacked':
+            return context.minionAttacked === true;
+        case 'identityNotExhausted':
+            return state.hero?.exhausted !== true;
     }
 }

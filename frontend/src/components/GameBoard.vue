@@ -255,6 +255,23 @@ function friendlyEvent(event: string): string {
   </Teleport>
 
   <Teleport to="body">
+    <Transition name="prompt-fade">
+      <div v-if="store.pendingYesNo" class="prompt-overlay">
+        <div class="prompt-modal yes-no-modal">
+          <div class="prompt-top">
+            <span class="prompt-tag">OBLIGATION</span>
+          </div>
+          <p class="yes-no-question">{{ store.pendingYesNo.question }}</p>
+          <div class="yes-no-actions">
+            <button class="btn-yes" @click="store.respondYesNo(true)">Yes</button>
+            <button class="btn-pass" @click="store.respondYesNo(false)">No</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <Teleport to="body">
     <Transition name="fade">
       <div v-if="store.gameOver" class="game-over-overlay" :class="store.gameOver">
         <div class="game-over-box">
@@ -531,4 +548,20 @@ function friendlyEvent(event: string): string {
   .resource-mental    { background: #2980b9; }
   .resource-energy    { background: #e67e22; }
   .resource-wild      { background: #27ae60; }
+
+  .yes-no-modal { width: 420px; text-align: center; }
+  .yes-no-question { font-size: 1.2rem; color: rgba(255,255,255,0.85); margin: 20px 0 28px; line-height: 1.5; }
+  .yes-no-actions { display: flex; justify-content: center; gap: 20px; }
+  .btn-yes {
+    background: #2ecc71;
+    border: none;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 10px 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-yes:hover { background: #27ae60; }
 </style>

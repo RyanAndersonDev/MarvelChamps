@@ -131,6 +131,9 @@ export interface ClientToServerEvents {
      */
     'action:resolveEncounterCard': () => void;
 
+    /** Respond to a pending yes/no question (e.g. obligation flip offer). */
+    'action:yesNoResponse': (data: { accepted: boolean }) => void;
+
     // ── Profile ──
     'profile:getStats': (ack: AckCallback<{ stats: UserStats }>) => void;
 }

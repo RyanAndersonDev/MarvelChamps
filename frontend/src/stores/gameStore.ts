@@ -78,6 +78,9 @@ export const useGameStore = defineStore('game', {
     // ── Pending hand discard (e.g. Legal Practice) ──
     pendingHandDiscard: null as { maxCount: number; title: string; hint: string; resourceFilter?: string[] } | null,
 
+    // ── Pending yes/no prompt (e.g. obligation flip offer) ──
+    pendingYesNo: null as { question: string } | null,
+
     // ── Boost card ──
     boostCard: null as { storageId: number; boostIcons: number; imgPath: string; name: string } | null,
 
@@ -260,6 +263,9 @@ export const useGameStore = defineStore('game', {
         this.endOfTurnPhase       = view.endOfTurnPhase;
         this.pendingHandDiscard   = view.pendingHandDiscard;
 
+        // Yes/no prompt
+        this.pendingYesNo         = view.pendingYesNo;
+
         // Prompt
         this.activePrompt         = view.activePrompt;
 
@@ -423,6 +429,10 @@ export const useGameStore = defineStore('game', {
 
     cancelHandDiscard() {
         socket.emit('action:confirmDiscardSelection', { instanceIds: [] });
+    },
+
+    respondYesNo(accepted: boolean) {
+        socket.emit('action:yesNoResponse', { accepted });
     },
 
     // ── Card registry ─────────────────────────────────────────────────────────

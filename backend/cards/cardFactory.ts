@@ -245,7 +245,9 @@ export function printVillainCard(blueprint: VillainCard, instanceId: number) : V
                 logic: blueprint.logic,
                 damageAccumulated: 0,
                 overkill: blueprint.overkill || false,
-                removal: blueprint.removal
+                removal: blueprint.removal,
+                removalCost: blueprint.removalCost,
+                retaliate: blueprint.retaliate,
             } as Attachment;
 
         case "minion":
@@ -264,6 +266,7 @@ export function printVillainCard(blueprint: VillainCard, instanceId: number) : V
             } as SideScheme;
 
         case "treachery":
+        case "obligation":
             return {
                 ...base,
                 logic: blueprint.logic
@@ -303,6 +306,8 @@ function printEngagedMinion(blueprint: VillainCard, instanceId: number) : Minion
         ...base,
         sch: blueprint.sch,
         atk: blueprint.atk,
+        dynamicAtk: blueprint.dynamicAtk,
+        hitPoints: blueprint.hitPoints!,
         hitPointsRemaining: blueprint.hitPoints,
         attachments: [],
         stunned: false,

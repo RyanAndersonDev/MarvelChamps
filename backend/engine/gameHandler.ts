@@ -37,4 +37,5 @@ export function registerGameHandlers(
     socket.on('action:resolveEncounterCard',     ()     => getRoom()?.handleResolveEncounterCard());
     socket.on('action:activateTableauCard',      (data) => getRoom()?.handleTableauCardActivation(data.instanceId));
     socket.on('action:removeAttachment',         (data) => getRoom()?.handleStartAttachmentRemoval(data.attachmentInstanceId, data.hostId));
+    socket.on('action:yesNoResponse',            (data) => getRoom()?.resolveYesNo(data.accepted));
 }

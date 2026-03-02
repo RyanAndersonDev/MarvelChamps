@@ -4,7 +4,7 @@ export type IdentityStatus = "hero" | "alter-ego" | "dead";
 
 export type PlayerCardType = "ally" | "event" | "support" | "upgrade" | "resource";
 
-export type VillainCardType = "minion" | "treachery" | "side-scheme" | "attachment";
+export type VillainCardType = "minion" | "treachery" | "side-scheme" | "attachment" | "obligation";
 
 export type Aspect = "neutral" | "hero" | "aggression" | "justice" | "protection" | "leadership";
 
@@ -14,7 +14,7 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
-export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "ALLY_ATTACKS" | "FLIP_TO_HERO" | "HERO_DEFENDS" | "ALLY_THWARTS" | "MINION_DEFEATED" | "MINION_ENTERED_PLAY";
+export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "ALLY_ATTACKS" | "FLIP_TO_HERO" | "HERO_DEFENDS" | "ALLY_THWARTS" | "MINION_DEFEATED" | "MINION_ENTERED_PLAY" | "MINION_ATTACK";
 
 // ======================== EFFECT DSL ========================
 
@@ -50,7 +50,10 @@ export type EffectCondition =
   | { type: 'targetIsConfused'; target: EffectTarget }
   | { type: 'payloadTargetAlive' }
   | { type: 'noActiveSideSchemes' }
-  | { type: 'selfHasCounters' };
+  | { type: 'selfHasCounters' }
+  | { type: 'taggedMinionInPlay'; tag: string }
+  | { type: 'minionAttacked' }
+  | { type: 'identityNotExhausted' };
 
 export type EffectDef =
   | { op: 'dealDamage';       target: EffectTarget; amount: number }
@@ -73,7 +76,7 @@ export type EffectDef =
   | { op: 'exhaust' }
   | { op: 'surge' }
   | { op: 'confuse'; target: EffectTarget }
-  | { op: 'chooseOne'; options: { label: string; effect: EffectDef }[] }
+  | { op: 'chooseOne'; options: { label: string; effect: EffectDef; condition?: EffectCondition }[] }
   | { op: 'dealDamageBySideSchemeThreat'; schemeName: string; target: EffectTarget }
   | { op: 'discardTableauCard'; types: string[]; surgeIfNone?: boolean }
   | { op: 'addThreat'; amount: number }
@@ -105,7 +108,27 @@ export type EffectDef =
   | { op: 'modifyAllyStat'; target: EffectTarget; stat: 'atk' | 'thw'; amount: number }
   | { op: 'boostAllCharacters'; stat: 'atk' | 'thw' | 'both'; amount: number }
   | { op: 'putAllyFromDiscardIntoPlay' }
-  | { op: 'redirectThreatAsDamage' };
+  | { op: 'redirectThreatAsDamage' }
+  | { op: 'addBoostCard' }
+  | { op: 'putBoostCardIntoPlay' }
+  | { op: 'discardRandomFromHand' }
+  | { op: 'discardUntilMinionIntoPlay' }
+  | { op: 'addVillainHp'; amount: number }
+  | { op: 'exhaustAllCharacters' }
+  | { op: 'payResources'; resources: Resource[] }
+  | { op: 'exhaustAllAllies' }
+  | { op: 'allTaggedMinionsAttack'; tag: string }
+  | { op: 'discardUntilTaggedMinionIntoPlay'; tag: string }
+  | { op: 'searchForTaggedMinionIntoPlay'; tag: string }
+  | { op: 'revealNemesisSet' }
+  | { op: 'selfMinionAttack' }
+  | { op: 'storeRandomHandCardOnScheme' }
+  | { op: 'returnHeldCardsToHand' }
+  | { op: 'discardRandomAndThreatPerResourceType' }
+  | { op: 'taggedMinionAttacks'; tag: string }
+  | { op: 'healTaggedMinionFully'; tag: string }
+  | { op: 'removeFromGame' }
+  | { op: 'addAccelerationToken'; amount: number };
 
 // ======================== CARD INTERFACES ========================
 
@@ -210,6 +233,7 @@ export interface VillainIdentityCard extends CardBase {
     storageId?: number;
     nextPhaseId?: number;
     whenFlipped?: EffectDef[];
+    toughOnEntry?: boolean;
 }
 
 export interface VillainIdentityCardInstance extends VillainIdentityCard {
@@ -239,12 +263,21 @@ export interface VillainCard extends CardBase {
     toughOnEntry?: boolean;
     overkill?: boolean;
     removal?: { cost: number; resourceType?: Resource; formRequired?: 'hero' | 'alter-ego' };
+    removalCost?: Resource[];
+    retaliate?: number;
+    boostEffect?: EffectDef[];
     whenRevealedThreat?: number;
     whenRevealedThreatIsPerPlayer?: boolean;
     crisis?: boolean;
     hazard?: boolean;
     acceleration?: boolean;
     surgeKeyword?: number;
+    whenRevealedEffects?: EffectDef[];
+    whenDefeatedEffects?: EffectDef[];
+    boostResponseEffect?: EffectDef[];
+    dynamicAtk?: 'hitPointsRemaining';
+    attachmentTarget?: 'highestHpMinion';
+    hpMod?: number;
 }
 
 export interface VillainCardInstance extends VillainCard {
@@ -254,9 +287,11 @@ export interface VillainCardInstance extends VillainCard {
 
 export interface Minion extends VillainCardInstance {
     hitPointsRemaining: number;
+    hitPoints: number;
     attachments: (Upgrade | Attachment)[];
     sch: number;
     atk: number;
+    dynamicAtk?: 'hitPointsRemaining';
     stunned: boolean;
     confused: boolean;
     tough: boolean;
@@ -264,6 +299,10 @@ export interface Minion extends VillainCardInstance {
 }
 
 export interface Treachery extends VillainCardInstance {
+
+}
+
+export interface Obligation extends VillainCardInstance {
 
 }
 
@@ -283,6 +322,7 @@ export interface SideScheme extends VillainCardInstance {
     crisis: boolean;
     hazard: boolean;
     acceleration: boolean;
+    heldCards?: number[];
 }
 
 export interface MainScheme extends CardBase {
@@ -293,6 +333,7 @@ export interface MainScheme extends CardBase {
     threatIncrement: number;
     threatIncrementIsPerPlayer: boolean;
     nextMainSchemeId: number | null;
+    whenRevealedEffects?: EffectDef[];
 }
 
 export interface MainSchemeInstance extends MainScheme {

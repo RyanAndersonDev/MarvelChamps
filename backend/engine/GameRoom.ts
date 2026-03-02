@@ -3,18 +3,18 @@ import type { ClientToServerEvents, ServerToClientEvents } from '../types/socket
 import type { AuthPayload } from '../types/user';
 import type {
     Ally, Event, Upgrade, Support, IdentityCardInstance, VillainIdentityCardInstance,
-    MainSchemeInstance, Treachery, Attachment, Minion, SideScheme, PlayerCardInstance, Resource
+    MainSchemeInstance, Treachery, Obligation, Attachment, Minion, SideScheme, PlayerCardInstance, Resource
 } from '../../shared/types/card';
 import type { LogEntry, LogType } from '../../frontend/src/types/log';
 import type { GamePhaseType } from '../../shared/types/phases';
 import type { ActivePrompt, PlayerGameView, PlayerGameState, GameConfig, PromptResponse } from '../types/game';
 import { GamePhase } from '../../shared/types/phases';
-import { villainCardMap, villainIdCardMap } from '../cards/cardStore';
+import { villainCardMap, villainIdCardMap, villainMainSchemeMap, heroLibrary } from '../cards/cardStore';
 import {
     createHandCard, createMainSchemeCard, createTableauCard, createVillainCard,
     createVillainIdentityCard, createEngagedMinion, createSideScheme, createIdentityCard
 } from '../cards/cardFactory';
-import { executeEffects } from './effectLibrary';
+import { executeEffects, satisfiesResourceRequirements } from './effectLibrary';
 
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, { user: AuthPayload }>;
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, { user: AuthPayload }>;
@@ -43,7 +43,13 @@ export class GameRoom {
     engagedMinions: Minion[] = [];
 
     encounterPileIds: number[] = [];
-    revealedEncounterCard: (Treachery | Attachment | Minion | SideScheme) | null = null;
+    revealedEncounterCard: (Treachery | Obligation | Attachment | Minion | SideScheme) | null = null;
+
+    // Per-player nemesis tracking (single-player for now; expand to per-player map in multiplayer)
+    setAsideNemesisIds: number[] = [];
+    nemesisMinionStorageId: number | null = null;
+    nemesisSideSchemeStorageId: number | null = null;
+    nemesisSetAdded: boolean = false;
 
     playerIdentity: IdentityCardInstance | null = null;
     idCardHasFlippedThisTurn: boolean = false;
@@ -59,10 +65,12 @@ export class GameRoom {
     paymentBufferIds: number[] = [];
     generatedResources: Resource[] = [];
     pendingCostReduction: number = 0;
-    pendingRemoval: { attachmentInstanceId: number; hostId: number; cost: number; resourceType?: string; name: string } | null = null;
+    pendingRemoval: { attachmentInstanceId: number; hostId: number; cost: number; resourceType?: string; removalCost?: Resource[]; name: string } | null = null;
     playSnapshot: { hand: (Ally | Event | Upgrade | Support)[]; playerDiscardIds: number[] } | null = null;
     pendingHandDiscard: { maxCount: number; title: string; hint: string; resourceFilter?: string[] } | null = null;
     boostCard: { storageId: number; boostIcons: number; imgPath: string; name: string } | null = null;
+    pendingBoostResponseEffects: any[] = [];
+    pendingYesNo: { question: string } | null = null;
 
     roundNumber: number = 1;
     logIdCounter: number = 0;
@@ -76,6 +84,7 @@ export class GameRoom {
     private _pendingChoiceResolve: ((value: any) => void) | null = null;
     private _pendingHandDiscardResolve: ((ids: number[] | null) => void) | null = null;
     private _resolveEncounterCardPromise: (() => void) | null = null;
+    private _resolveYesNo: ((accepted: boolean) => void) | null = null;
 
     // ── Paid interrupt flow state ─────────────────────────────────────────────
     private _pendingInterruptCard: any = null;
@@ -151,6 +160,11 @@ export class GameRoom {
 
     get isCostMet(): boolean {
         if (!this.activeCard) return false;
+        if (this.pendingRemoval?.removalCost) {
+            const paid = Object.entries(this.committedResources)
+                .flatMap(([r, n]) => Array(n).fill(r));
+            return satisfiesResourceRequirements(this.pendingRemoval.removalCost, paid);
+        }
         if (this.pendingRemoval?.resourceType) {
             const typed = this.committedResources[this.pendingRemoval.resourceType] ?? 0;
             const wild = this.committedResources['wild'] ?? 0;
@@ -226,6 +240,7 @@ export class GameRoom {
             endOfTurnPhase: this.endOfTurnPhase,
             pendingHandDiscard: this.pendingHandDiscard,
             villainPhaseChain: this.villainPhaseChain,
+            pendingYesNo: this.pendingYesNo,
             gameLog: this.gameLog,
         };
     }
@@ -291,6 +306,10 @@ export class GameRoom {
         this.engagedMinions = [];
         this.encounterPileIds = [];
         this.revealedEncounterCard = null;
+        this.setAsideNemesisIds = [];
+        this.nemesisMinionStorageId = null;
+        this.nemesisSideSchemeStorageId = null;
+        this.nemesisSetAdded = false;
         this.playerIdentity = null;
         this.hand = [];
         this.deckIds = [];
@@ -300,6 +319,7 @@ export class GameRoom {
         this.paymentBufferIds = [];
         this.generatedResources = [];
         this.boostCard = null;
+        this.pendingBoostResponseEffects = [];
         this.roundNumber = 1;
         this.gameLog = [];
         this.logIdCounter = 0;
@@ -309,10 +329,26 @@ export class GameRoom {
         this.playerIdentity = createIdentityCard(player.heroId, ++initIdCounter);
         this.deckIds = [...player.deckIds];
         this.shufflePile(this.deckIds);
+
+        const heroEntry = heroLibrary.find(h => h.id === player.heroId);
+        if (heroEntry?.nemesisSet) {
+            const ns = heroEntry.nemesisSet;
+            this.nemesisMinionStorageId = ns.minionStorageId;
+            this.nemesisSideSchemeStorageId = ns.sideSchemeStorageId;
+            this.setAsideNemesisIds = [ns.minionStorageId, ns.sideSchemeStorageId, ...ns.otherStorageIds];
+            this.addLog(`Nemesis set (${heroEntry.name}) set aside.`, 'system');
+        }
         this.villainCard = createVillainIdentityCard(config.villainId, ++initIdCounter);
         this.mainScheme = createMainSchemeCard(config.mainSchemeId, ++initIdCounter);
         this.villainPhaseChain = [...config.villainPhaseChain];
         this.villainDeckIds = [...config.villainDeckIds];
+
+        // Inject obligation into villain deck before shuffle
+        if (heroEntry && (heroEntry as any).obligationId != null) {
+            this.villainDeckIds.push((heroEntry as any).obligationId);
+            this.addLog(`${heroEntry.name}'s obligation shuffled into the encounter deck.`, 'system');
+        }
+
         this.shufflePile(this.villainDeckIds);
 
         this.idIncrementer = initIdCounter;
@@ -322,6 +358,12 @@ export class GameRoom {
         if (startingBlueprint?.whenFlipped?.length) {
             this.addLog(`${startingBlueprint.name} — When Revealed:`, 'villain');
             await executeEffects(startingBlueprint.whenFlipped, this, {});
+        }
+
+        const mainSchemeBlueprint = villainMainSchemeMap.get(config.mainSchemeId);
+        if (mainSchemeBlueprint?.whenRevealedEffects?.length) {
+            this.addLog(`${mainSchemeBlueprint.name} — When Revealed:`, 'villain');
+            await executeEffects(mainSchemeBlueprint.whenRevealedEffects, this, {});
         }
 
         this.addLog('--- Round 1 ---', 'phase');
@@ -458,6 +500,14 @@ export class GameRoom {
         this.villainDiscardIds.push(cardId);
         this.boostCard = null;
 
+        if (blueprint?.boostEffect?.length) {
+            await executeEffects(blueprint.boostEffect, this, { boostCardId: cardId });
+        }
+
+        if (blueprint?.boostResponseEffect?.length) {
+            this.pendingBoostResponseEffects.push(...blueprint.boostResponseEffect);
+        }
+
         return boostIcons;
     }
 
@@ -477,10 +527,31 @@ export class GameRoom {
             this.mainScheme!.threatRemaining += threatPayload.amount;
             await this.emitEvent('THREAT_PLACED', threatPayload, async () => {
                 if (this.mainScheme!.threatRemaining >= this.mainScheme!.threatThreshold) {
-                    // Victory condition handled in handleVillainSchemeVictory if needed
+                    await this.advanceMainScheme();
                 }
             });
         });
+    }
+
+    async advanceMainScheme() {
+        const current = this.mainScheme!;
+        if (current.nextMainSchemeId != null) {
+            const nextBlueprint = villainMainSchemeMap.get(current.nextMainSchemeId);
+            if (!nextBlueprint) {
+                this.addLog(`Main scheme ${current.nextMainSchemeId} not found!`, 'system');
+                return;
+            }
+            this.addLog(`${current.name} completed! Advancing to ${nextBlueprint.name}...`, 'villain');
+            this.mainScheme = createMainSchemeCard(current.nextMainSchemeId, this.getNextId());
+            if (nextBlueprint.whenRevealedEffects?.length) {
+                this.addLog(`${nextBlueprint.name} — When Revealed:`, 'villain');
+                await executeEffects(nextBlueprint.whenRevealedEffects, this, {});
+            }
+        } else {
+            this.addLog(`${current.name} completed! The players have LOST!`, 'villain');
+            this.gameOver = 'lose';
+            this.io.to(this.roomCode).emit('game:over', { outcome: 'lose', roundsPlayed: this.roundNumber });
+        }
     }
 
     async villainActivationAttack(attackPayload: any) {
@@ -499,6 +570,10 @@ export class GameRoom {
             if (this.canAnyoneDefend) await this.handleDefenseStep(attackPayload);
 
             attackPayload.boostDamage = await this.flipBoostCard();
+            const extraBoostCount = attackPayload.extraBoostCards ?? 0;
+            for (let i = 0; i < extraBoostCount; i++) {
+                attackPayload.boostDamage += await this.flipBoostCard();
+            }
 
             let reduction = 0;
             if (attackPayload.isDefended && attackPayload.targetType === 'identity')
@@ -535,6 +610,11 @@ export class GameRoom {
             }
 
             await this.emitEvent('VILLAIN_ATTACK_CONCLUDED', attackPayload, async () => {});
+
+            if (this.pendingBoostResponseEffects.length > 0) {
+                const effects = this.pendingBoostResponseEffects.splice(0);
+                await executeEffects(effects, this, attackPayload);
+            }
 
             if (attackPayload.defBonus && !attackPayload.damageWasDealt) {
                 this.hero.exhausted = false;
@@ -573,8 +653,9 @@ export class GameRoom {
     }
 
     async minionActivationAttack(minion: Minion) {
+        const baseDamage = minion.dynamicAtk === 'hitPointsRemaining' ? minion.hitPointsRemaining : minion.atk;
         const attackPayload = {
-            attacker: minion.name, attackerId: minion.instanceId, baseDamage: minion.atk,
+            attacker: minion.name, attackerId: minion.instanceId, source: minion, baseDamage,
             isDefended: false, targetType: 'identity', targetId: 'hero',
             isCanceled: false, damageWasDealt: false, defBonus: 0,
         };
@@ -783,6 +864,11 @@ export class GameRoom {
             await this.applyDamageToEntity({ targetId: target.instanceId, amount: attackContext.damage });
             (ally as any).exhausted = true;
             ally.hitPointsRemaining -= ally.atkPain ?? 0;
+            const retaliateAmt = this.getRetaliateAmount(target.instanceId);
+            if (retaliateAmt > 0) {
+                this.addLog(`Retaliate ${retaliateAmt}! ${ally.name} takes ${retaliateAmt} damage.`, 'damage');
+                ally.hitPointsRemaining -= retaliateAmt;
+            }
             if (target.type === 'minion' && target.hitPointsRemaining === 0) {
                 attackContext.targetDefeated = true;
                 await this.discardFromEngagedMinions(target.instanceId);
@@ -790,6 +876,21 @@ export class GameRoom {
             if (ally.hitPointsRemaining <= 0) await this.handleAllyDefeat(ally);
         });
         this.broadcastStateUpdate();
+    }
+
+    getRetaliateAmount(targetId: number): number {
+        const villain = this.villainCard;
+        if (villain?.instanceId === targetId) {
+            return (villain.attachments ?? []).reduce((sum: number, a: any) => sum + (a.retaliate ?? 0), 0);
+        }
+        const minion = this.engagedMinions.find(m => m.instanceId === targetId);
+        if (minion) {
+            const bp = villainCardMap.get(minion.storageId!);
+            const base = bp?.retaliate ?? 0;
+            const attRetaliate = (minion.attachments ?? []).reduce((sum: number, a: any) => sum + (a.retaliate ?? 0), 0);
+            return base + attRetaliate;
+        }
+        return 0;
     }
 
     useAllyAbility(data: { allyInstanceId: number; abilityType: 'attack' | 'thwart'; targetId?: number }) {
@@ -823,6 +924,7 @@ export class GameRoom {
             if (payload.isCanceled) return;
             switch (card.type) {
                 case 'treachery':   await this.handleTreacheryResolution(card); break;
+                case 'obligation':  await this.handleObligationReveal(card);    break;
                 case 'minion':      await this.handleMinionEntry(card);         break;
                 case 'side-scheme': await this.handleSideSchemeEntry(card);     break;
                 case 'attachment':  await this.handleAttachmentEntry(card);     break;
@@ -860,12 +962,40 @@ export class GameRoom {
         }
     }
 
+    async handleObligationReveal(card: any) {
+        // Always offer the option to flip to alter-ego if currently in hero form
+        if (this.hero.identityStatus === 'hero' && !this.idCardHasFlippedThisTurn) {
+            const wantsFlip = await this.requestYesNo(`Flip ${this.hero.name} to alter-ego form?`);
+            if (wantsFlip) {
+                await this.flipIdentity();
+            }
+        }
+
+        // Execute obligation effects (chooseOne with conditional options)
+        const obligationPayload: any = { card, isCanceled: false, removedFromGame: false };
+        if (card.logic?.effects) {
+            await executeEffects(card.logic.effects, this, obligationPayload);
+        }
+
+        if (!obligationPayload.removedFromGame) {
+            this.villainDiscardIds.push(card.storageId);
+            this.addLog(`${card.name} discarded.`, 'discard');
+        } else {
+            this.addLog(`${card.name} removed from the game permanently.`, 'system');
+        }
+    }
+
     async handleMinionEntry(card: any) {
         const minion = createEngagedMinion(card.storageId, this.getNextId());
         this.engagedMinions.push(minion);
+        const minionContext: any = { minion, sourceCard: minion, surge: 0 };
         if (minion.logic?.effects)
-            await executeEffects(minion.logic.effects, this, { minion, sourceCard: minion });
+            await executeEffects(minion.logic.effects, this, minionContext);
         await this.emitEvent('MINION_ENTERED_PLAY', { minion, targetId: minion.instanceId }, async () => {});
+        for (let i = 0; i < minionContext.surge; i++) {
+            this.addLog(`${minion.name} — Surge! Drawing additional encounter card.`, 'surge');
+            this.drawFromVillainDeckAsEncounterCard();
+        }
     }
 
     async handleSideSchemeEntry(card: any) {
@@ -883,11 +1013,38 @@ export class GameRoom {
             }
             this.activeSideSchemes.push(sideScheme);
             this.addLog(`Side Scheme ${card.name} entered with ${sideScheme.threatRemaining} threat.`, 'villain');
+            if (blueprint?.whenRevealedEffects?.length) {
+                await executeEffects(blueprint.whenRevealedEffects, this, { sourceCard: sideScheme });
+            }
             await this.emitEvent('SIDE_SCHEME_ENTERED', payload, async () => {});
         });
     }
 
     async handleAttachmentEntry(card: any) {
+        const blueprint = villainCardMap.get(card.storageId);
+
+        if (blueprint?.attachmentTarget === 'highestHpMinion') {
+            if (this.engagedMinions.length === 0) {
+                this.addLog(`${card.name} — no minions in play. Surge!`, 'surge');
+                this.drawFromVillainDeckAsEncounterCard();
+                if (card.storageId != null) this.villainDiscardIds.push(card.storageId);
+                return;
+            }
+            const target = this.engagedMinions.reduce((best, m) => {
+                const bpHp = villainCardMap.get(m.storageId!)?.hitPoints ?? 0;
+                const bestHp = villainCardMap.get(best.storageId!)?.hitPoints ?? 0;
+                return bpHp > bestHp ? m : best;
+            });
+            const attachment = createVillainCard(card.storageId, this.getNextId());
+            target.attachments.push(attachment as any);
+            if (blueprint.hpMod) {
+                target.hitPoints += blueprint.hpMod;
+                target.hitPointsRemaining += blueprint.hpMod;
+            }
+            this.addLog(`${card.name} attached to ${target.name} (+${blueprint.hpMod} HP).`, 'villain');
+            return;
+        }
+
         const attachment = createVillainCard(card.storageId, this.getNextId());
         const payload = { attachment, target: this.villainCard, isCanceled: false };
 
@@ -934,6 +1091,10 @@ export class GameRoom {
             if (sideScheme.storageId) this.villainDiscardIds.push(sideScheme.storageId);
             this.activeSideSchemes = this.activeSideSchemes.filter(s => s.instanceId !== instanceIdToDc);
             this.addLog(`Side Scheme ${sideScheme.name} has been defeated and discarded.`, 'discard');
+            const blueprint = villainCardMap.get(sideScheme.storageId!);
+            if (blueprint?.whenDefeatedEffects?.length) {
+                await executeEffects(blueprint.whenDefeatedEffects, this, { sourceCard: sideScheme });
+            }
         });
     }
 
@@ -1075,6 +1236,11 @@ export class GameRoom {
         await this.emitEvent('BASIC_ATTACK', attackPayload, async () => {
             if (attackPayload.isCanceled) return;
             await this.applyDamageToEntity({ targetId: id, amount: atkAmt });
+            const retaliateAmt = this.getRetaliateAmount(id);
+            if (retaliateAmt > 0) {
+                this.addLog(`Retaliate ${retaliateAmt}! ${this.hero.name} takes ${retaliateAmt} damage.`, 'damage');
+                await this.applyDamageToEntity({ targetId: this.hero.instanceId, amount: retaliateAmt });
+            }
             const target = this.findTargetById(id);
             if (target && 'type' in target && target.type === 'minion') {
                 if ((target as Minion).hitPointsRemaining <= 0) {
@@ -1089,13 +1255,23 @@ export class GameRoom {
     // ── Payment system ────────────────────────────────────────────────────────
 
     startAttachmentRemoval(attachment: any, hostId: number) {
-        this.pendingRemoval = {
-            attachmentInstanceId: attachment.instanceId,
-            hostId,
-            cost: attachment.removal.cost,
-            resourceType: attachment.removal.resourceType,
-            name: `Remove: ${attachment.name}`
-        };
+        if (attachment.removalCost) {
+            this.pendingRemoval = {
+                attachmentInstanceId: attachment.instanceId,
+                hostId,
+                cost: attachment.removalCost.length,
+                removalCost: attachment.removalCost,
+                name: `Remove: ${attachment.name}`
+            };
+        } else {
+            this.pendingRemoval = {
+                attachmentInstanceId: attachment.instanceId,
+                hostId,
+                cost: attachment.removal.cost,
+                resourceType: attachment.removal.resourceType,
+                name: `Remove: ${attachment.name}`
+            };
+        }
         this.activeCardId = -1;
         this.broadcastStateUpdate();
     }
@@ -1618,6 +1794,10 @@ export class GameRoom {
             if (nextBlueprint) {
                 this.addLog(`${current.name} Phase ${current.phase} defeated! Flipping to Phase ${current.phase + 1}!`, 'villain');
                 this.villainCard = createVillainIdentityCard(nextPhaseId, current.instanceId);
+                if (nextBlueprint.toughOnEntry) {
+                    this.villainCard.tough = true;
+                    this.addLog(`${nextBlueprint.name} Phase ${nextBlueprint.phase} enters with Tough!`, 'status');
+                }
                 if (nextBlueprint.whenFlipped?.length) await executeEffects(nextBlueprint.whenFlipped, this, {});
                 return;
             }
@@ -1682,6 +1862,19 @@ export class GameRoom {
         this.pendingHandDiscard = { maxCount, title, hint, ...(resourceFilter ? { resourceFilter } : {}) };
         this.broadcastStateUpdate();
         return new Promise(resolve => { this._pendingHandDiscardResolve = resolve; });
+    }
+
+    async requestYesNo(question: string): Promise<boolean> {
+        this.pendingYesNo = { question };
+        this.broadcastStateUpdate();
+        return new Promise<boolean>(resolve => { this._resolveYesNo = resolve; });
+    }
+
+    resolveYesNo(accepted: boolean): void {
+        const resolve = this._resolveYesNo;
+        this._resolveYesNo = null;
+        this.pendingYesNo = null;
+        resolve?.(accepted);
     }
 
     // ── Socket event handlers ─────────────────────────────────────────────────

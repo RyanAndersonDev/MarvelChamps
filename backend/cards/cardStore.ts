@@ -876,11 +876,57 @@ export const villainIdCardMap: Map<number, VillainIdentityCard> = new Map<number
     }],
     [3, { name: "Rhino", side: "villain", imgPath: "/cards/villains/rhino/Rhino-Phase3.png", tags: ["brute", "criminal"], phase: 3, hitPointsPerPlayer: 16, sch: 1, atk: 4,
         flavorText: `"You brought this on yourself!"` }],
+    [4, { name: "Klaw", side: "villain", imgPath: "/cards/villains/klaw/Klaw-Phase1.png", tags: ["masters of evil"], phase: 1, hitPointsPerPlayer: 14, sch: 2, atk: 0,
+        flavorText: `"Come meet your doom!"`,
+        logic: {
+            type: "interrupt", forced: true, formRequired: "any", timing: "VILLAIN_ATTACK",
+            effects: [{ op: 'addBoostCard' }]
+        }
+    }],
+    [5, { name: "Klaw", side: "villain", imgPath: "/cards/villains/klaw/Klaw-Phase2.png", tags: ["masters of evil"], phase: 2, hitPointsPerPlayer: 16, sch: 2, atk: 1,
+        flavorText: "",
+        whenFlipped: [
+            { op: 'fetchAndRevealVillainCard', storageId: 25 },
+            { op: 'shuffleVillainDeck' },
+        ],
+        logic: {
+            type: "interrupt", forced: true, formRequired: "any", timing: "VILLAIN_ATTACK",
+            effects: [{ op: 'addBoostCard' }]
+        }
+    }],
+    [6, { name: "Klaw", side: "villain", imgPath: "/cards/villains/klaw/Klaw-Phase3.png", tags: ["masters of evil"], phase: 3, hitPointsPerPlayer: 18, sch: 3, atk: 2,
+        flavorText: "",
+        toughOnEntry: true,
+        logic: {
+            type: "interrupt", forced: true, formRequired: "any", timing: "VILLAIN_ATTACK",
+            effects: [{ op: 'addBoostCard' }]
+        }
+    }],
 ]);
 
 export const villainMainSchemeMap: Map<number, MainScheme> = new Map<number, MainScheme>([
     [1, { name: "The Break-In!", side: "villain", imgPath: "/cards/villains/rhino/TheBreakIn-MainScheme1.png", tags: [], flavorText: "Rhino is trying to smash through the facility wall and steal a shipment of vibranium. You must stop him!",
-        threatThreshold: 7, threatThresholdIsPerPlayer: true, startingThreat: 0, startingThreatIsPerPlayer: false, threatIncrement: 1, threatIncrementIsPerPlayer: true, nextMainSchemeId: null }]
+        threatThreshold: 7, threatThresholdIsPerPlayer: true, startingThreat: 0, startingThreatIsPerPlayer: false, threatIncrement: 1, threatIncrementIsPerPlayer: true, nextMainSchemeId: null }],
+    [2, { name: "Underground Distribution", side: "villain", imgPath: "/cards/villains/klaw/UndergroundDistribution-MainScheme.png", tags: [], flavorText: "",
+        threatThreshold: 6, threatThresholdIsPerPlayer: true,
+        startingThreat: 0, startingThreatIsPerPlayer: false,
+        threatIncrement: 1, threatIncrementIsPerPlayer: true,
+        nextMainSchemeId: 3,
+        whenRevealedEffects: [
+            { op: 'fetchAndRevealVillainCard', storageId: 24 },
+            { op: 'shuffleVillainDeck' },
+            { op: 'discardUntilMinionIntoPlay' },
+        ]
+    }],
+    [3, { name: "Secret Rendezvous", side: "villain", imgPath: "/cards/villains/klaw/SecretRendezvous-MainScheme.png", tags: [], flavorText: "",
+        threatThreshold: 8, threatThresholdIsPerPlayer: true,
+        startingThreat: 0, startingThreatIsPerPlayer: false,
+        threatIncrement: 1, threatIncrementIsPerPlayer: true,
+        nextMainSchemeId: null,
+        whenRevealedEffects: [
+            { op: 'discardUntilMinionIntoPlay' },
+        ]
+    }],
 ]);
 
 export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainCard>([
@@ -972,7 +1018,7 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
     [16, { name: "Shadow of the Past", side: "villain", imgPath: "/cards/villains/standard/ShadowOfThePast-Treachery.png", tags: [], flavorText: "",
         type: "treachery", boostIcons: 2,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
-            effects: [{ op: 'surge' }] } }],
+            effects: [{ op: 'revealNemesisSet' }] } }],
 
     // ── Bomb Scare modular encounter set ──
     [17, { name: "Bomb Scare", side: "villain", imgPath: "/cards/modular/bomb-scare/BombScare-SideScheme.png", tags: [], flavorText: "",
@@ -1014,6 +1060,179 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
         type: "treachery", boostIcons: 3, surgeKeyword: 1,
         logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'revealTopEncounterCard' }] } }],
+
+    // ── Klaw villain cards ──
+    [24, { name: "Defense Network", side: "villain", imgPath: "/cards/villains/klaw/DefenseNetwork-SideScheme.png", tags: [], flavorText: `Klaw's criminal enterprise is protected by a gang of hired thugs.`,
+        type: "side-scheme", boostIcons: 2, startingThreat: 3, startingThreatIsPerPlayer: false, crisis: true,
+        whenRevealedThreat: 1, whenRevealedThreatIsPerPlayer: true }],
+    [25, { name: `The "Immortal" Klaw`, side: "villain", imgPath: "/cards/villains/klaw/TheImmortalKlaw-SideScheme.png", tags: [], flavorText: `"You cannot destroy me—I am sound itself!" - Klaw`,
+        type: "side-scheme", boostIcons: 2, startingThreat: 3, startingThreatIsPerPlayer: true, acceleration: true,
+        whenRevealedEffects: [{ op: 'addVillainHp', amount: 10 }],
+        whenDefeatedEffects: [{ op: 'addVillainHp', amount: -10 }] }],
+    [26, { name: "Sonic Converter", side: "villain", imgPath: "/cards/villains/klaw/SonicConverter-Attachment.png", tags: ["weapon"], flavorText: "",
+        type: "attachment", boostIcons: 3, atkMod: 1, retaliate: 0,
+        removalCost: ["energy", "mental", "physical"] as const,
+        logic: {
+            type: "response", forced: true, formRequired: "any", timing: "VILLAIN_ATTACK_CONCLUDED",
+            effects: [{ op: 'if', condition: { type: 'damageWasDealt' }, then: [{ op: 'stun', target: 'payloadTarget' }] }]
+        }
+    }],
+    [27, { name: "Solid-Sound Body", side: "villain", imgPath: "/cards/villains/klaw/SolidSoundBody-Attachment.png", tags: ["condition"], flavorText: "",
+        type: "attachment", boostIcons: 3, retaliate: 1,
+        removalCost: ["energy", "mental", "physical"] as const,
+    }],
+    [28, { name: "Armored Guard", side: "villain", imgPath: "/cards/villains/klaw/ArmoredGuard-Minion.png", tags: ["mercenary"], flavorText: "",
+        type: "minion", boostIcons: 1, sch: 0, atk: 1, hitPoints: 3, guard: true, toughOnEntry: true }],
+    [29, { name: "Weapons Runner", side: "villain", imgPath: "/cards/villains/klaw/WeaponsRunner-Minion.png", tags: ["mercenary"], flavorText: "",
+        type: "minion", boostIcons: 0, sch: 1, atk: 1, hitPoints: 2,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "minionEntered",
+            effects: [{ op: 'surge' }] },
+        boostEffect: [{ op: 'putBoostCardIntoPlay' }] }],
+    [30, { name: "Klaw's Vengeance", side: "villain", imgPath: "/cards/villains/klaw/KlawsVengeance-Treachery.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 1,
+        logic: {
+            type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{
+                op: 'if', condition: { type: 'identityStatus', value: 'alter-ego' },
+                then: [{ op: 'discardRandomFromHand' }],
+                else: [{ op: 'sequence', effects: [
+                    { op: 'villainAttack' },
+                    { op: 'if', condition: { type: 'damageWasDealt' }, then: [{ op: 'addThreat', amount: 1 }] }
+                ]}]
+            }]
+        }
+    }],
+    [31, { name: "Illegal Arms Factory", side: "villain", imgPath: "/cards/villains/klaw/IllegalArmsFactory-SideScheme.png", tags: [], flavorText: `Klaw is supplying villains with advanced weaponry from a clandestine arms facility.`,
+        type: "side-scheme", boostIcons: 2, startingThreat: 3, startingThreatIsPerPlayer: false, hazard: true,
+        whenRevealedThreat: 1, whenRevealedThreatIsPerPlayer: true }],
+    [32, { name: "Sonic Boom", side: "villain", imgPath: "/cards/villains/klaw/SonicBoom-Treachery.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 0,
+        logic: {
+            type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'chooseOne', options: [
+                { label: "Pay 1 Energy, 1 Mental, 1 Physical", effect: { op: 'payResources', resources: ["energy", "mental", "physical"] } },
+                { label: "Exhaust each character you control", effect: { op: 'exhaustAllCharacters' } },
+            ]}]
+        },
+        boostResponseEffect: [{ op: 'if', condition: { type: 'damageWasDealt' }, then: [{ op: 'exhaustIdentity' }] }],
+    }],
+    [33, { name: "Sound Manipulation", side: "villain", imgPath: "/cards/villains/klaw/SoundManipulation-Treachery.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 2,
+        logic: {
+            type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{
+                op: 'if', condition: { type: 'identityStatus', value: 'alter-ego' },
+                then: [{ op: 'if', condition: { type: 'targetHpFull', target: 'villain' },
+                    then: [{ op: 'surge' }],
+                    else: [{ op: 'heal', target: 'villain', amount: 4 }]
+                }],
+                else: [
+                    { op: 'dealDamage', target: 'identity', amount: 2 },
+                    { op: 'heal', target: 'villain', amount: 2 }
+                ]
+            }]
+        }
+    }],
+    // ── Masters of Evil modular encounter set ──
+    [34, { name: "The Masters of Evil", side: "villain", imgPath: "/cards/modular/the-masters-of-evil/TheMastersOfEvil-SideScheme.png", tags: [], flavorText: `The Masters of Evil have arrived to attack the heroes!`,
+        type: "side-scheme", boostIcons: 2, startingThreat: 3, startingThreatIsPerPlayer: true, acceleration: true,
+        whenRevealedEffects: [{ op: 'discardUntilTaggedMinionIntoPlay', tag: 'masters of evil' }] }],
+    [35, { name: "Radioactive Man", side: "villain", imgPath: "/cards/modular/the-masters-of-evil/RadioactiveMan-Minion.png", tags: ["elite", "masters of evil"], flavorText: "",
+        type: "minion", boostIcons: 0, sch: 1, atk: 1, hitPoints: 7,
+        logic: {
+            type: "response", forced: true, formRequired: "any", timing: "MINION_ATTACK",
+            effects: [{ op: 'if', condition: { type: 'selfIsAttacker' }, then: [{ op: 'discardRandomFromHand' }] }]
+        },
+        boostResponseEffect: [{ op: 'discardRandomFromHand' }] }],
+    [36, { name: "Whirlwind", side: "villain", imgPath: "/cards/modular/the-masters-of-evil/Whirlwind-Minion.png", tags: ["masters of evil"], flavorText: "",
+        type: "minion", boostIcons: 0, sch: 1, atk: 2, hitPoints: 6,
+        boostResponseEffect: [{ op: 'if', condition: { type: 'identityStatus', value: 'hero' }, then: [{ op: 'dealDamage', target: 'identity', amount: 1 }] }] }],
+    [37, { name: "Tiger Shark", side: "villain", imgPath: "/cards/modular/the-masters-of-evil/TigerShark-Minion.png", tags: ["masters of evil"], flavorText: "",
+        type: "minion", boostIcons: 0, sch: 1, atk: 3, hitPoints: 6,
+        logic: {
+            type: "response", forced: true, formRequired: "any", timing: "MINION_ATTACK",
+            effects: [{ op: 'if', condition: { type: 'selfIsAttacker' }, then: [{ op: 'giveTough', target: 'self' }] }]
+        },
+        boostResponseEffect: [{ op: 'giveTough', target: 'villain' }] }],
+    [38, { name: "Melter", side: "villain", imgPath: "/cards/modular/the-masters-of-evil/Melter-Minion.png", tags: ["masters of evil"], flavorText: "",
+        type: "minion", boostIcons: 0, sch: 1, atk: 3, hitPoints: 5,
+        boostResponseEffect: [{ op: 'exhaustAllAllies' }] }],
+    [39, { name: "Masters of Mayhem", side: "villain", imgPath: "/cards/modular/the-masters-of-evil/MastersOfMayhem-Treachery.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 2,
+        logic: {
+            type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{
+                op: 'if', condition: { type: 'taggedMinionInPlay', tag: 'masters of evil' },
+                then: [{ op: 'allTaggedMinionsAttack', tag: 'masters of evil' }],
+                else: [
+                    { op: 'searchForTaggedMinionIntoPlay', tag: 'masters of evil' },
+                    { op: 'shuffleVillainDeck' },
+                ]
+            }]
+        }
+    }],
+
+    // ── Spider-Man nemesis set ──
+    [40, { name: "Highway Robbery", side: "villain", imgPath: "/cards/heroes/spider-man/nemesis/HighwayRobbery-SideScheme.png", tags: [], flavorText: "",
+        type: "side-scheme", boostIcons: 3, startingThreat: 3, startingThreatIsPerPlayer: true, acceleration: true,
+        whenRevealedEffects: [{ op: 'storeRandomHandCardOnScheme' }],
+        whenDefeatedEffects: [{ op: 'returnHeldCardsToHand' }] }],
+    [41, { name: "Vulture", side: "villain", imgPath: "/cards/heroes/spider-man/nemesis/Vulture-Minion.png", tags: ["criminal", "vulture"], flavorText: `"I'm faster, stronger, and smarter than a hundred men my age!"`,
+        type: "minion", boostIcons: 2, sch: 1, atk: 3, hitPoints: 4,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "minionEntered",
+            effects: [{ op: 'selfMinionAttack' }] } }],
+    [42, { name: "Sweeping Swoop", side: "villain", imgPath: "/cards/heroes/spider-man/nemesis/SweepingSwoop-Treachery.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 0,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [
+                { op: 'stun', target: 'identity' },
+                { op: 'if', condition: { type: 'taggedMinionInPlay', tag: 'vulture' }, then: [{ op: 'surge' }] }
+            ] },
+        boostResponseEffect: [{ op: 'if', condition: { type: 'damageWasDealt' }, then: [{ op: 'stun', target: 'payloadTarget' }] }] }],
+    [43, { name: "The Vulture's Plans", side: "villain", imgPath: "/cards/heroes/spider-man/nemesis/TheVulturesPlans-Treachery.png", tags: [], flavorText: `"Spider-Man will pay for interfering with my plans!" - The Vulture`,
+        type: "treachery", boostIcons: 2,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'discardRandomAndThreatPerResourceType' }] } }],
+
+    // ── She-Hulk nemesis set ──
+    [44, { name: "Personal Challenge", side: "villain", imgPath: "/cards/heroes/she-hulk/nemesis/PersonalChallenge-SideScheme.png", tags: [], flavorText: `Titania has held a grudge against She-Hulk for years. She won't rest until she settles the score.`,
+        type: "side-scheme", boostIcons: 3, startingThreat: 3, startingThreatIsPerPlayer: false, crisis: true,
+        whenRevealedThreat: 1, whenRevealedThreatIsPerPlayer: true }],
+    [45, { name: "Titania", side: "villain", imgPath: "/cards/heroes/she-hulk/nemesis/Titania-Minion.png", tags: ["brute", "elite", "titania"], flavorText: `"Face it, Greenie. There's only room for one strongest woman... and it ain't you!"`,
+        type: "minion", boostIcons: 2, sch: 1, atk: 0, dynamicAtk: 'hitPointsRemaining' as const, hitPoints: 6 }],
+    [46, { name: "Genetically Enhanced", side: "villain", imgPath: "/cards/heroes/she-hulk/nemesis/GeneticallyEnhanced-Attachment.png", tags: ["condition"], flavorText: "",
+        type: "attachment", boostIcons: 1, attachmentTarget: 'highestHpMinion' as const, hpMod: 3 }],
+    [47, { name: "Titania's Fury", side: "villain", imgPath: "/cards/heroes/she-hulk/nemesis/TitaniasFury-Treachery.png", tags: [], flavorText: "",
+        type: "treachery", boostIcons: 1,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [
+                { op: 'taggedMinionAttacks', tag: 'titania' },
+                { op: 'if', condition: { type: 'minionAttacked' }, then: [],
+                    else: [{ op: 'healTaggedMinionFully', tag: 'titania' }, { op: 'surge' }] }
+            ] },
+        boostEffect: [{ op: 'addBoostCard' }] }],
+
+    // ── Obligations ──
+    [48, { name: "Legal Work", side: "villain", imgPath: "/cards/heroes/she-hulk/LegalWork-Obligation.png", tags: [], flavorText: "",
+        type: "obligation", boostIcons: 2,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'chooseOne', options: [
+                { label: "Exhaust Jennifer Walters → Remove Legal Work from game",
+                  condition: { type: 'identityNotExhausted' },
+                  effect: { op: 'sequence', effects: [{ op: 'exhaustIdentity' }, { op: 'removeFromGame' }] } },
+                { label: "Add 1 acceleration token. Discard this obligation.",
+                  effect: { op: 'addAccelerationToken', amount: 1 } }
+            ]}] } }],
+    [49, { name: "Eviction Notice", side: "villain", imgPath: "/cards/heroes/spider-man/EvictionNotice-Obligation.png", tags: [], flavorText: "",
+        type: "obligation", boostIcons: 2,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'chooseOne', options: [
+                { label: "Exhaust Peter Parker → Remove Eviction Notice from game",
+                  condition: { type: 'identityNotExhausted' },
+                  effect: { op: 'sequence', effects: [{ op: 'exhaustIdentity' }, { op: 'removeFromGame' }] } },
+                { label: "Discard 1 card at random from your hand. Surge.",
+                  effect: { op: 'sequence', effects: [{ op: 'discardRandomFromHand' }, { op: 'surge' }] } }
+            ]}] } }],
 ]);
 
 export function getCardImgPathById(cardId: number): string {
@@ -1030,6 +1249,10 @@ export const rhinoVillainCardIds  = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 export const standardICardIds     = [12, 13, 14, 15, 16];
 export const expertICardIds       = [21, 22, 23];
 export const bombScareCardIds     = [17, 18, 18, 19, 20, 20];
+export const klawVillainCardIds   = [24, 25, 26, 27, 28, 28, 29, 29, 30, 30, 31, 32, 32, 33, 33];
+export const mastersOfEvilCardIds = [34, 35, 36, 37, 38, 39, 39];
+export const spiderManNemesisIds  = [41, 40, 42, 42, 43]; // minionId first, then sideSchemeId, then others
+export const sheHulkNemesisIds    = [45, 44, 46, 47, 47];
 
 export const heroLibrary = [
     {
@@ -1038,6 +1261,8 @@ export const heroLibrary = [
         heroDeckIds: [1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6, 7, 7, 8, 8],
         primaryColor:   '#b01020',
         secondaryColor: '#1565c0',
+        nemesisSet: { minionStorageId: 41, sideSchemeStorageId: 40, otherStorageIds: [42, 42, 43] },
+        obligationId: 49,
     },
     {
         id: 2,
@@ -1045,6 +1270,8 @@ export const heroLibrary = [
         heroDeckIds: [22, 23, 24, 24, 25, 25, 26, 26, 26, 27, 28, 29, 29, 30, 30],
         primaryColor:   '#2e7d32',
         secondaryColor: '#7b1fa2',
+        nemesisSet: { minionStorageId: 45, sideSchemeStorageId: 44, otherStorageIds: [46, 47, 47] },
+        obligationId: 48,
     },
 ];
 
@@ -1060,6 +1287,17 @@ export const villainLibrary = [
         expertPhaseChain:   [2, 3],
         color: '#b8bcc4',
     },
+    {
+        id: 2,
+        name: "Klaw",
+        imgPath: "/cards/villains/klaw/Klaw-Phase1.png",
+        expertImgPath: "/cards/villains/klaw/Klaw-Phase2.png",
+        mainSchemeId: 2,
+        villainDeckIds: klawVillainCardIds,
+        standardPhaseChain: [4, 5],
+        expertPhaseChain:   [5, 6],
+        color: '#2d0a6b',
+    },
 ];
 
 export const encounterLibrary = [
@@ -1069,5 +1307,12 @@ export const encounterLibrary = [
         imgPath: "/cards/misc/villain-card-back.png",
         description: "A bomb has been planted. Stop it before it goes off!",
         cardIds: bombScareCardIds,
+    },
+    {
+        id: 2,
+        name: "The Masters of Evil",
+        imgPath: "/cards/misc/villain-card-back.png",
+        description: "The Masters of Evil have arrived to attack the heroes!",
+        cardIds: mastersOfEvilCardIds,
     },
 ];
