@@ -587,7 +587,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     }],
     [41, { name: "Vision", side: "player", type: "ally", cost: 4, aspect: "leadership",
         imgPath: "/cards/player-cards/leadership/Vision-Ally.png",
-        tags: ["android", "avenger"], resources: ["energy"], flavorText: "",
+        tags: ["android", "avenger"], resources: ["physical"], flavorText: "",
         thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
         logic: {
             type: "action",
@@ -961,6 +961,40 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
         }
     }],
     [71, {
+        name: "Explosive Arrow", side: "player", type: "event", cost: 1, aspect: "hero",
+        imgPath: "/cards/heroes/hawkeye/ExplosiveArrow-Event.png",
+        tags: ["arrow"], resources: ["physical"], flavorText: `"Anyone ever tell you how your eyes sparkle when you're angry?" - Clint Barton`,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [
+                { op: 'exhaustUpgradeByStorageId', storageId: 66, cardName: "Hawkeye's Bow" },
+                // TODO: must be "Deal 3 damage to the villain and each minion engaged with that player"
+                { op: 'dealDamagePiercing', target: 'chooseEnemy', amount: 6 }
+            ]
+        }
+    }],
+    [72, {
+        name: "Electric Arrow", side: "player", type: "event", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/hawkeye/ElectricArrow-Event.png",
+        tags: ["arrow", "attack"], resources: ["energy"], flavorText: `"H:ail Hawkeye!" - Clint Barton`,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [
+                { op: 'exhaustUpgradeByStorageId', storageId: 66, cardName: "Hawkeye's Bow" },
+                // TODO: must be "Stun an enemy and deal 3 damage to it (5 damage instead if it is already stunned)"
+                { op: 'dealDamagePiercing', target: 'chooseEnemy', amount: 6 }
+            ]
+        }
+    }],
+    [73, {
         name: "Vibranium Arrow", side: "player", type: "event", cost: 2, aspect: "hero",
         imgPath: "/cards/heroes/hawkeye/VibraniumArrow-Event.png",
         tags: ["arrow", "attack"], resources: ["energy"], flavorText: "",
@@ -976,7 +1010,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             ]
         }
     }],
-    [72, {
+    [74, {
         name: "Expert Marksman", side: "player", type: "upgrade", cost: 1, aspect: "hero",
         imgPath: "/cards/heroes/hawkeye/ExpertMarksman-Upgrade.png",
         tags: ["skill"], resources: ["wild"],
@@ -989,7 +1023,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             timing: "PLAYER_TURN",
             effects: [{ op: 'generateResource', resourceType: 'wild' }]
         }
-    }],
+    }]
 ]);
 
 export const villainIdCardMap: Map<number, VillainIdentityCard> = new Map<number, VillainIdentityCard>([
@@ -1436,7 +1470,7 @@ export const heroLibrary = [
     {
         id: 3,
         name: "Hawkeye",
-        heroDeckIds: [66, 67, 68, 69, 69, 70, 70, 71, 71, 72, 72],
+        heroDeckIds: [66, 67, 68, 69, 69, 70, 70, 71, 71, 72, 72, 73, 73, 74, 74],
         primaryColor: '#7b52a6',
         secondaryColor: '#ab119e',
         nemesisSet: { minionStorageId: 74, sideSchemeStorageId: 75, otherStorageIds: [76, 77, 77] },

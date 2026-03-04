@@ -172,8 +172,8 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             await state.emitEvent('ENTITY_TAKES_DAMAGE', dmgPayload, async () => {
                 if (!dmgPayload.isCanceled && dmgPayload.amount > 0) await state.applyDamageToEntity(dmgPayload);
             });
-            if ((target as any).type === 'minion' && target.hitPointsRemaining <= 0)
-                await state.discardFromEngagedMinions(target.instanceId);
+            if ((target as any).type === 'minion' && target.hitPointsRemaining! <= 0)
+                await state.discardFromEngagedMinions(target.instanceId!);
             // Retaliate — skipped if arrow event + bow in play (ranged)
             const src69 = context.sourceCard;
             if (src69?.type === 'event' && src69?.tags?.includes('attack')) {
@@ -203,8 +203,8 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             await state.emitEvent('ENTITY_TAKES_DAMAGE', piercingPayload, async () => {
                 if (!piercingPayload.isCanceled && piercingPayload.amount > 0) await state.applyDamageToEntity(piercingPayload);
             });
-            if ((target as any).type === 'minion' && target.hitPointsRemaining <= 0)
-                await state.discardFromEngagedMinions(target.instanceId);
+            if ((target as any).type === 'minion' && target.hitPointsRemaining! <= 0)
+                await state.discardFromEngagedMinions(target.instanceId!);
             // Retaliate — skipped if ranged arrow
             const src71 = context.sourceCard;
             if (src71?.type === 'event' && src71?.tags?.includes('attack')) {
