@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -72,25 +74,111 @@ io.use(devAuthMiddleware);
 
 const rooms = new Map<string, GameRoom>();
 
+// ── Pending resume offers (userId → raw snapshot) ─────────────────────────────
+// DB migration note: replace this Map with a GameRecord query in the accept handler.
+
+const pendingSnapshots = new Map<string, any>();
+
+// ── Snapshot helpers ──────────────────────────────────────────────────────────
+
+/** Find a snapshot file for the given user without restoring it. */
+function findSnapshotForUser(userId: string): any | null {
+    const dir = path.resolve(__dirname, '../snapshots');
+    if (!fs.existsSync(dir)) return null;
+    for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {
+        try {
+            const snap = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8'));
+            if (Array.isArray(snap.playerOrder) && snap.playerOrder.includes(userId)) {
+                return snap;
+            }
+        } catch { /* skip corrupt files */ }
+    }
+    return null;
+}
+
+/** Delete a snapshot file by room code. */
+function deleteSnapshot(roomCode: string): void {
+    const file = path.resolve(__dirname, `../snapshots/${roomCode}.json`);
+    try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch { /* ignore */ }
+}
+
 // ── Socket.IO connection ──────────────────────────────────────────────────────
 
 io.on('connection', (socket) => {
     const { userId, username } = socket.data.user;
     console.log(`[socket] connected:    ${username} (${userId}) — ${socket.id}`);
 
-    // Re-attach socket to any active game room this user already belongs to
+    // Re-attach socket to any active in-memory game room this user belongs to.
+    // This handles mid-session reconnects (tab refresh, brief disconnect).
+    let attachedRoom: GameRoom | null = null;
     for (const room of rooms.values()) {
-        if (room.sockets.has(userId)) {
+        if (room.playerOrder.includes(userId)) {
             room.sockets.set(userId, socket);
-            room.broadcastStateUpdate();
+            attachedRoom = room;
         }
     }
+
+    if (attachedRoom) {
+        socket.join(attachedRoom.roomCode);
+        attachedRoom.broadcastStateUpdate();
+    } else {
+        // No live room — check for a saved snapshot and offer to resume.
+        // DB migration: replace findSnapshotForUser with a GameRecord query.
+        const snap = findSnapshotForUser(userId);
+        if (snap) {
+            pendingSnapshots.set(userId, snap);
+            const playerSlot = (snap.players as any[]).find((p: any) => p.userId === userId);
+            socket.emit('game:resumeAvailable', {
+                roomCode:    snap.roomCode,
+                roundNumber: snap.roundNumber ?? 1,
+                villainName: snap.villainCard?.name ?? 'Unknown',
+                heroName:    playerSlot?.playerIdentity?.name ?? 'Unknown',
+                playerNames: (snap.players as any[]).map((p: any) => p.username as string),
+            });
+            console.log(`[snapshot] Resume offered to ${username} for room ${snap.roomCode}`);
+        }
+    }
+
+    // ── Resume handlers ──────────────────────────────────────────────────────
+
+    socket.on('game:resumeAccept', () => {
+        const snap = pendingSnapshots.get(userId);
+        if (!snap) return;
+        pendingSnapshots.delete(userId);
+
+        // Another player may have already restored the same room
+        if (rooms.has(snap.roomCode)) {
+            const room = rooms.get(snap.roomCode)!;
+            room.sockets.set(userId, socket);
+            socket.join(snap.roomCode);
+            room.broadcastStateUpdate();
+            return;
+        }
+
+        const room = GameRoom.restoreFromSnapshot(snap, io);
+        rooms.set(room.roomCode, room);
+        room.sockets.set(userId, socket);
+        socket.join(room.roomCode);
+        console.log(`[snapshot] Restored room ${room.roomCode} for ${username}`);
+        room.broadcastStateUpdate();
+    });
+
+    socket.on('game:resumeDecline', () => {
+        const snap = pendingSnapshots.get(userId);
+        if (!snap) return;
+        pendingSnapshots.delete(userId);
+        deleteSnapshot(snap.roomCode);
+        console.log(`[snapshot] Discarded snapshot for room ${snap.roomCode} by ${username}`);
+    });
+
+    // ────────────────────────────────────────────────────────────────────────
 
     registerLobbyHandlers(io, socket, rooms);
     registerGameHandlers(io, socket, rooms);
 
     socket.on('disconnect', () => {
         console.log(`[socket] disconnected: ${username} (${userId}) — ${socket.id}`);
+        pendingSnapshots.delete(userId);
         for (const room of rooms.values()) {
             if (room.sockets.get(userId)?.id === socket.id) {
                 room.sockets.delete(userId);

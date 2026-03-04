@@ -6,8 +6,8 @@
  * 1. Server owns all mutable game state. Clients receive read-only snapshots.
  * 2. Instance IDs are assigned by the server's global idIncrementer so they are
  *    unique across all players in a room.
- * 3. A player's hand is private. The server sends each client their own full
- *    hand but sends only a count to other players (PublicPlayerState).
+ * 3. In coop mode all hand cards are visible to all players. The full hand
+ *    array is included in PublicPlayerState so teammates can see each other's cards.
  * 4. The villain phase loops over each player in playerOrder sequentially.
  *    villainPhaseTargetIndex tracks who is currently being targeted.
  * 5. Interrupt windows are multiplayer-aware: any eligible player may respond.
@@ -60,6 +60,7 @@ export interface PlayerConfig {
     aspect: string;
     /** Ordered list of storageIds for this player's deck. */
     deckIds: number[];
+    username: string;
 }
 
 // ─── Shared Board State (visible to all players) ──────────────────────────────
@@ -270,7 +271,7 @@ export interface PublicPlayerState {
     username: string;
     seat: number;
     identity: IdentityCardInstance | null;
-    /** How many cards are in this player's hand (not the cards themselves). */
+    hand: (Ally | Event | Upgrade | Support)[];
     handCount: number;
     deckCount: number;
     playerDiscardIds: number[];

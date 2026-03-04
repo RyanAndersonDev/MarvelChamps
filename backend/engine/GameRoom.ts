@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import type { Server, Socket } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types/socket';
 import type { AuthPayload } from '../types/user';
@@ -7,7 +9,7 @@ import type {
 } from '../../shared/types/card';
 import type { LogEntry, LogType } from '../../frontend/src/types/log';
 import type { GamePhaseType } from '../../shared/types/phases';
-import type { ActivePrompt, PlayerGameView, PlayerGameState, GameConfig, PromptResponse } from '../types/game';
+import type { ActivePrompt, PlayerGameView, PlayerGameState, PublicPlayerState, GameConfig, PromptResponse } from '../types/game';
 import { GamePhase } from '../../shared/types/phases';
 import { villainCardMap, villainIdCardMap, villainMainSchemeMap, heroLibrary } from '../cards/cardStore';
 import {
@@ -18,6 +20,28 @@ import { executeEffects, satisfiesResourceRequirements } from './effectLibrary';
 
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, { user: AuthPayload }>;
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, { user: AuthPayload }>;
+
+interface PlayerSlot {
+    userId: string;
+    seat: number;
+    username: string;
+    heroId: number;
+    playerIdentity: IdentityCardInstance | null;
+    idCardHasFlippedThisTurn: boolean;
+    abilityUseCounts: Record<string, number>;
+    abilityResetOn: Record<string, string>;
+    hand: (Ally | Event | Upgrade | Support)[];
+    deckIds: number[];
+    playerDiscardIds: number[];
+    tableauCards: (Ally | Upgrade | Support)[];
+    engagedMinions: Minion[];
+    encounterPileIds: number[];
+    revealedEncounterCard: (Treachery | Obligation | Attachment | Minion | SideScheme) | null;
+    setAsideNemesisIds: number[];
+    nemesisMinionStorageId: number | null;
+    nemesisSideSchemeStorageId: number | null;
+    nemesisSetAdded: boolean;
+}
 
 export class GameRoom {
 
@@ -40,25 +64,56 @@ export class GameRoom {
     villainDeckIds: number[] = [];
     villainDiscardIds: number[] = [];
     activeSideSchemes: SideScheme[] = [];
-    engagedMinions: Minion[] = [];
 
-    encounterPileIds: number[] = [];
-    revealedEncounterCard: (Treachery | Obligation | Attachment | Minion | SideScheme) | null = null;
+    // ── Per-player slots ──────────────────────────────────────────────────────
+    players: Map<string, PlayerSlot> = new Map();
+    playerOrder: string[] = [];           // userIds in seat order
+    activePlayerIndex: number = 0;        // index into playerOrder for current hero turn
+    villainPhaseTargetIndex: number | null = null;  // null during hero turns
+    firstPlayerIndex: number = 0;         // index of first-player-token holder
+    heroTurnsCompletedThisRound: number = 0;
+    pendingPiercingBoost: boolean = false; // set by makeAttackPiercing boostEffect, consumed in villainActivationAttack
 
-    // Per-player nemesis tracking (single-player for now; expand to per-player map in multiplayer)
-    setAsideNemesisIds: number[] = [];
-    nemesisMinionStorageId: number | null = null;
-    nemesisSideSchemeStorageId: number | null = null;
-    nemesisSetAdded: boolean = false;
+    // ── Proxy getters/setters — delegate to contextual player slot ────────────
 
-    playerIdentity: IdentityCardInstance | null = null;
-    idCardHasFlippedThisTurn: boolean = false;
-    abilityUseCounts: Record<string, number> = {};
-    abilityResetOn: Record<string, string> = {};
-    hand: (Ally | Event | Upgrade | Support)[] = [];
-    deckIds: number[] = [];
-    playerDiscardIds: number[] = [];
-    tableauCards: (Ally | Upgrade | Support)[] = [];
+    get p(): PlayerSlot {
+        const idx = this.villainPhaseTargetIndex ?? this.activePlayerIndex;
+        const userId = this.playerOrder[idx];
+        if (!userId || !this.players.has(userId))
+            throw new Error('No current player slot');
+        return this.players.get(userId)!;
+    }
+
+    get playerIdentity(): IdentityCardInstance | null { return this.p.playerIdentity; }
+    set playerIdentity(v: IdentityCardInstance | null) { this.p.playerIdentity = v; }
+    get idCardHasFlippedThisTurn(): boolean { return this.p.idCardHasFlippedThisTurn; }
+    set idCardHasFlippedThisTurn(v: boolean) { this.p.idCardHasFlippedThisTurn = v; }
+    get abilityUseCounts(): Record<string, number> { return this.p.abilityUseCounts; }
+    set abilityUseCounts(v: Record<string, number>) { this.p.abilityUseCounts = v; }
+    get abilityResetOn(): Record<string, string> { return this.p.abilityResetOn; }
+    set abilityResetOn(v: Record<string, string>) { this.p.abilityResetOn = v; }
+    get hand(): (Ally | Event | Upgrade | Support)[] { return this.p.hand; }
+    set hand(v: (Ally | Event | Upgrade | Support)[]) { this.p.hand = v; }
+    get deckIds(): number[] { return this.p.deckIds; }
+    set deckIds(v: number[]) { this.p.deckIds = v; }
+    get playerDiscardIds(): number[] { return this.p.playerDiscardIds; }
+    set playerDiscardIds(v: number[]) { this.p.playerDiscardIds = v; }
+    get tableauCards(): (Ally | Upgrade | Support)[] { return this.p.tableauCards; }
+    set tableauCards(v: (Ally | Upgrade | Support)[]) { this.p.tableauCards = v; }
+    get engagedMinions(): Minion[] { return this.p.engagedMinions; }
+    set engagedMinions(v: Minion[]) { this.p.engagedMinions = v; }
+    get encounterPileIds(): number[] { return this.p.encounterPileIds; }
+    set encounterPileIds(v: number[]) { this.p.encounterPileIds = v; }
+    get revealedEncounterCard(): (Treachery | Obligation | Attachment | Minion | SideScheme) | null { return this.p.revealedEncounterCard; }
+    set revealedEncounterCard(v: (Treachery | Obligation | Attachment | Minion | SideScheme) | null) { this.p.revealedEncounterCard = v; }
+    get setAsideNemesisIds(): number[] { return this.p.setAsideNemesisIds; }
+    set setAsideNemesisIds(v: number[]) { this.p.setAsideNemesisIds = v; }
+    get nemesisMinionStorageId(): number | null { return this.p.nemesisMinionStorageId; }
+    set nemesisMinionStorageId(v: number | null) { this.p.nemesisMinionStorageId = v; }
+    get nemesisSideSchemeStorageId(): number | null { return this.p.nemesisSideSchemeStorageId; }
+    set nemesisSideSchemeStorageId(v: number | null) { this.p.nemesisSideSchemeStorageId = v; }
+    get nemesisSetAdded(): boolean { return this.p.nemesisSetAdded; }
+    set nemesisSetAdded(v: boolean) { this.p.nemesisSetAdded = v; }
 
     activePrompt: ActivePrompt | null = null;
     activeCardId: number | null = null;
@@ -180,11 +235,17 @@ export class GameRoom {
     }
 
     get hasGuardMinion(): boolean {
-        return this.engagedMinions.some(m => m.guard);
+        return this.getAllEngagedMinions().some(m => m.guard);
     }
 
     get hasCrisisScheme(): boolean {
         return this.activeSideSchemes.some(ss => ss.crisis);
+    }
+
+    // ── Timing helpers ────────────────────────────────────────────────────────
+
+    private delay(ms: number): Promise<void> {
+        return new Promise(r => setTimeout(r, ms));
     }
 
     // ── Broadcast helpers ─────────────────────────────────────────────────────
@@ -193,31 +254,61 @@ export class GameRoom {
         for (const [userId, socket] of this.sockets) {
             socket.emit('game:stateUpdate', this.buildPlayerView(userId));
         }
+        if (this.currentPhase === 'PLAYER_TURN') this.saveSnapshot();
     }
 
     buildPlayerView(userId: string): PlayerGameView {
+        const slot = this.players.get(userId);
+        if (!slot) throw new Error(`No player slot for ${userId}`);
+
         const myState: PlayerGameState = {
             userId,
-            seat: 0,
-            identity: this.playerIdentity,
-            idCardHasFlippedThisTurn: this.idCardHasFlippedThisTurn,
-            hand: this.hand,
-            deckIds: this.deckIds,
-            playerDiscardIds: this.playerDiscardIds,
-            tableau: this.tableauCards,
-            engagedMinions: this.engagedMinions,
-            encounterPileIds: this.encounterPileIds,
-            revealedEncounterCard: this.revealedEncounterCard,
-            abilityUseCounts: this.abilityUseCounts,
-            abilityResetOn: this.abilityResetOn,
+            seat: slot.seat,
+            identity: slot.playerIdentity,
+            idCardHasFlippedThisTurn: slot.idCardHasFlippedThisTurn,
+            hand: slot.hand,
+            deckIds: slot.deckIds,
+            playerDiscardIds: slot.playerDiscardIds,
+            tableau: slot.tableauCards,
+            engagedMinions: slot.engagedMinions,
+            encounterPileIds: slot.encounterPileIds,
+            revealedEncounterCard: slot.revealedEncounterCard,
+            abilityUseCounts: slot.abilityUseCounts,
+            abilityResetOn: slot.abilityResetOn,
         };
+
+        const otherPlayers: PublicPlayerState[] = [];
+        for (const [otherId, otherSlot] of this.players) {
+            if (otherId === userId) continue;
+            otherPlayers.push({
+                userId: otherId,
+                username: otherSlot.username,
+                seat: otherSlot.seat,
+                identity: otherSlot.playerIdentity,
+                hand: otherSlot.hand,
+                handCount: otherSlot.hand.length,
+                deckCount: otherSlot.deckIds.length,
+                playerDiscardIds: otherSlot.playerDiscardIds,
+                tableau: otherSlot.tableauCards,
+                engagedMinions: otherSlot.engagedMinions,
+                encounterPileCount: otherSlot.encounterPileIds.length,
+                revealedEncounterCard: otherSlot.revealedEncounterCard,
+            });
+        }
+        otherPlayers.sort((a, b) => a.seat - b.seat);
+
+        const activeUserId = this.playerOrder[this.activePlayerIndex] ?? userId;
+        const villainTargetId = this.villainPhaseTargetIndex !== null
+            ? (this.playerOrder[this.villainPhaseTargetIndex] ?? null) : null;
+        const isActivePlayer = userId === activeUserId;
+        const isVillainTarget = userId === villainTargetId;
 
         return {
             roomId: this.roomCode,
             myUserId: userId,
             currentPhase: this.currentPhase,
-            activePlayerId: userId,
-            villainPhaseTargetId: null,
+            activePlayerId: activeUserId,
+            villainPhaseTargetId: villainTargetId,
             roundNumber: this.roundNumber,
             gameOver: this.gameOver,
             board: {
@@ -230,50 +321,65 @@ export class GameRoom {
                 boostCard: this.boostCard,
             },
             myState,
-            otherPlayers: [],
-            activePrompt: this.activePrompt,
-            activeCardId: this.activeCardId,
-            paymentBufferIds: this.paymentBufferIds,
-            generatedResources: this.generatedResources,
-            pendingCostReduction: this.pendingCostReduction,
-            pendingRemoval: this.pendingRemoval,
-            endOfTurnPhase: this.endOfTurnPhase,
-            pendingHandDiscard: this.pendingHandDiscard,
+            otherPlayers,
+            activePrompt: (isVillainTarget || (isActivePlayer && villainTargetId === null)) ? this.activePrompt : null,
+            activeCardId: isActivePlayer ? this.activeCardId : null,
+            paymentBufferIds: isActivePlayer ? this.paymentBufferIds : [],
+            generatedResources: isActivePlayer ? this.generatedResources : [],
+            pendingCostReduction: isActivePlayer ? this.pendingCostReduction : 0,
+            pendingRemoval: isActivePlayer ? this.pendingRemoval : null,
+            endOfTurnPhase: isActivePlayer ? this.endOfTurnPhase : null,
+            pendingHandDiscard: isActivePlayer ? this.pendingHandDiscard : null,
             villainPhaseChain: this.villainPhaseChain,
-            pendingYesNo: this.pendingYesNo,
+            pendingYesNo: (isVillainTarget || (isActivePlayer && villainTargetId === null))
+                ? this.pendingYesNo : null,
             gameLog: this.gameLog,
         };
     }
 
     getActiveUserId(): string {
-        return this.sockets.keys().next().value ?? '';
+        return this.playerOrder[this.villainPhaseTargetIndex ?? this.activePlayerIndex]
+            ?? this.sockets.keys().next().value
+            ?? '';
+    }
+
+    getAllEngagedMinions(): Minion[] {
+        const all: Minion[] = [];
+        for (const slot of this.players.values()) all.push(...slot.engagedMinions);
+        return all;
     }
 
     getValidTargetIds(type: string): number[] {
         if (type === 'enemy') {
             const ids: number[] = [];
             if (this.villainCard && !this.hasGuardMinion) ids.push(this.villainCard.instanceId);
-            this.engagedMinions.forEach(m => ids.push(m.instanceId));
+            this.getAllEngagedMinions().forEach(m => ids.push(m.instanceId));
             return ids;
         }
         if (type === 'enemy-ignore-guard') {
             const ids: number[] = [];
             if (this.villainCard) ids.push(this.villainCard.instanceId);
-            this.engagedMinions.forEach(m => ids.push(m.instanceId));
+            this.getAllEngagedMinions().forEach(m => ids.push(m.instanceId));
             return ids;
         }
         if (type === 'minion') {
-            return this.engagedMinions.map(m => m.instanceId);
+            return this.getAllEngagedMinions().map(m => m.instanceId);
         }
         if (type === 'villain') {
             return this.villainCard ? [this.villainCard.instanceId] : [];
         }
         if (type === 'ally') {
-            return (this.tableauCards.filter(c => c.type === 'ally') as Ally[]).map(c => c.instanceId!);
+            const ids: number[] = [];
+            for (const slot of this.players.values())
+                (slot.tableauCards.filter(c => c.type === 'ally') as Ally[]).forEach(c => ids.push(c.instanceId!));
+            return ids;
         }
         if (type === 'friendly') {
-            const ids: number[] = [this.hero.instanceId];
-            (this.tableauCards.filter(c => c.type === 'ally') as Ally[]).forEach(a => ids.push(a.instanceId!));
+            const ids: number[] = [];
+            for (const slot of this.players.values()) {
+                if (slot.playerIdentity) ids.push(slot.playerIdentity.instanceId);
+                (slot.tableauCards.filter(c => c.type === 'ally') as Ally[]).forEach(a => ids.push(a.instanceId!));
+            }
             return ids;
         }
         if (type === 'scheme') {
@@ -295,6 +401,7 @@ export class GameRoom {
     // ── Initialization ────────────────────────────────────────────────────────
 
     async initializeGame(config: GameConfig) {
+        // Reset shared state
         this.currentPhase = 'PLAYER_TURN';
         this.gameOver = null;
         this.accelerationTokens = 0;
@@ -303,18 +410,6 @@ export class GameRoom {
         this.villainDeckIds = [];
         this.villainDiscardIds = [];
         this.activeSideSchemes = [];
-        this.engagedMinions = [];
-        this.encounterPileIds = [];
-        this.revealedEncounterCard = null;
-        this.setAsideNemesisIds = [];
-        this.nemesisMinionStorageId = null;
-        this.nemesisSideSchemeStorageId = null;
-        this.nemesisSetAdded = false;
-        this.playerIdentity = null;
-        this.hand = [];
-        this.deckIds = [];
-        this.playerDiscardIds = [];
-        this.tableauCards = [];
         this.activeCardId = null;
         this.paymentBufferIds = [];
         this.generatedResources = [];
@@ -323,37 +418,71 @@ export class GameRoom {
         this.roundNumber = 1;
         this.gameLog = [];
         this.logIdCounter = 0;
+        this.activePlayerIndex = 0;
+        this.villainPhaseTargetIndex = null;
+        this.firstPlayerIndex = 0;
+        this.heroTurnsCompletedThisRound = 0;
 
-        const player = config.players[0]!;
+        // Build player slots in seat order
+        const sorted = [...config.players].sort((a, b) => a.seat - b.seat);
+        this.playerOrder = sorted.map(p => p.userId);
+        this.players = new Map();
+
         let initIdCounter = 0;
-        this.playerIdentity = createIdentityCard(player.heroId, ++initIdCounter);
-        this.deckIds = [...player.deckIds];
-        this.shufflePile(this.deckIds);
+        const extraObligationIds: number[] = [];
 
-        const heroEntry = heroLibrary.find(h => h.id === player.heroId);
-        if (heroEntry?.nemesisSet) {
-            const ns = heroEntry.nemesisSet;
-            this.nemesisMinionStorageId = ns.minionStorageId;
-            this.nemesisSideSchemeStorageId = ns.sideSchemeStorageId;
-            this.setAsideNemesisIds = [ns.minionStorageId, ns.sideSchemeStorageId, ...ns.otherStorageIds];
-            this.addLog(`Nemesis set (${heroEntry.name}) set aside.`, 'system');
+        for (const player of sorted) {
+            const heroEntry = heroLibrary.find(h => h.id === player.heroId);
+            const ns = heroEntry?.nemesisSet;
+            const slot: PlayerSlot = {
+                userId: player.userId,
+                seat: player.seat,
+                username: player.username,
+                heroId: player.heroId,
+                playerIdentity: createIdentityCard(player.heroId, ++initIdCounter),
+                idCardHasFlippedThisTurn: false,
+                abilityUseCounts: {},
+                abilityResetOn: {},
+                hand: [],
+                deckIds: [...player.deckIds],
+                playerDiscardIds: [],
+                tableauCards: [],
+                engagedMinions: [],
+                encounterPileIds: [],
+                revealedEncounterCard: null,
+                setAsideNemesisIds: ns
+                    ? [ns.minionStorageId, ns.sideSchemeStorageId, ...ns.otherStorageIds]
+                    : [],
+                nemesisMinionStorageId: ns?.minionStorageId ?? null,
+                nemesisSideSchemeStorageId: ns?.sideSchemeStorageId ?? null,
+                nemesisSetAdded: false,
+            };
+            this.shufflePile(slot.deckIds);
+            if (ns) this.addLog(`${heroEntry!.name} nemesis set aside.`, 'system');
+            const obligationId = (heroEntry as any)?.obligationId;
+            if (obligationId != null) {
+                extraObligationIds.push(obligationId);
+                this.addLog(`${heroEntry!.name}'s obligation shuffled into the encounter deck.`, 'system');
+            }
+            this.players.set(player.userId, slot);
         }
+
+        // Villain setup
         this.villainCard = createVillainIdentityCard(config.villainId, ++initIdCounter);
         this.mainScheme = createMainSchemeCard(config.mainSchemeId, ++initIdCounter);
         this.villainPhaseChain = [...config.villainPhaseChain];
-        this.villainDeckIds = [...config.villainDeckIds];
-
-        // Inject obligation into villain deck before shuffle
-        if (heroEntry && (heroEntry as any).obligationId != null) {
-            this.villainDeckIds.push((heroEntry as any).obligationId);
-            this.addLog(`${heroEntry.name}'s obligation shuffled into the encounter deck.`, 'system');
-        }
-
+        this.villainDeckIds = [...config.villainDeckIds, ...extraObligationIds];
         this.shufflePile(this.villainDeckIds);
-
         this.idIncrementer = initIdCounter;
-        this.drawToHandSize();
 
+        // Draw initial hands — use activePlayerIndex to context-switch per player
+        for (let i = 0; i < this.playerOrder.length; i++) {
+            this.activePlayerIndex = i;
+            this.drawToHandSize();
+        }
+        this.activePlayerIndex = 0;
+
+        // When-revealed effects
         const startingBlueprint = villainIdCardMap.get(config.villainId);
         if (startingBlueprint?.whenFlipped?.length) {
             this.addLog(`${startingBlueprint.name} — When Revealed:`, 'villain');
@@ -376,7 +505,7 @@ export class GameRoom {
         if (this.gameOver) return;
 
         if (this.currentPhase === GamePhase.PLAYER_TURN) {
-            // Discard down to hand size
+            // ── End-of-turn cleanup for current active player ─────────────────────
             if (this.endOfTurnDiscardCount > 0) {
                 this.endOfTurnSelectedIds = [];
                 this.endOfTurnPhase = 'discard';
@@ -385,7 +514,6 @@ export class GameRoom {
                 this.endOfTurnPhase = null;
             }
 
-            // Mulligan
             if (this.hand.length > 0) {
                 this.endOfTurnSelectedIds = [];
                 this.endOfTurnPhase = 'mulligan';
@@ -394,42 +522,99 @@ export class GameRoom {
                 this.endOfTurnPhase = null;
             }
 
-            this.readyAllCards();
-            this.drawToHandSize();
             this.clearTemporaryAllyMods();
+            this.resetAbilityLimits('turn');
+            this.heroTurnsCompletedThisRound++;
 
+            // ── If more heroes still need to go, pass to next player ──────────────
+            if (this.heroTurnsCompletedThisRound < this.playerOrder.length) {
+                this.activePlayerIndex = (this.firstPlayerIndex + this.heroTurnsCompletedThisRound) % this.playerOrder.length;
+                this.readyActivePlayerCards();
+                this.p.idCardHasFlippedThisTurn = false;
+                this.currentPhase = GamePhase.PLAYER_TURN;
+                this.broadcastStateUpdate();
+                return;
+            }
+
+            // ── All heroes done — villain phase ───────────────────────────────────
+            const n = this.playerOrder.length;
+
+            // Draw new hands for all players now (deferred so teammates can't see
+            // next-turn hands during other players' hero turns)
+            for (let i = 0; i < n; i++) {
+                this.activePlayerIndex = (this.firstPlayerIndex + i) % n;
+                this.drawToHandSize();
+            }
+            this.activePlayerIndex = this.firstPlayerIndex;
+
+            // Ready all cards before villain phase — heroes must be fresh so they
+            // can choose to defend. (Marvel Champions: ready step opens the villain phase.)
+            this.readyAllCards();
+
+            // Step 1: Main scheme threat — once
             this.currentPhase = GamePhase.VILLAIN_STEP_1_THREAT;
             this.broadcastStateUpdate();
+            await this.delay(900);
             await this.processMainSchemeStepOne();
 
+            // Step 2: Villain activates against each player (first-player order)
             this.currentPhase = GamePhase.VILLAIN_STEP_2_ACTIVATION;
-            this.broadcastStateUpdate();
-            await this.processVillainActivation();
-
-            this.currentPhase = GamePhase.VILLAIN_STEP_3_MINIONS;
-            this.broadcastStateUpdate();
-            await this.processMinionActivations();
-
-            this.currentPhase = GamePhase.VILLAIN_STEP_4_DEAL;
-            this.broadcastStateUpdate();
-            await this.dealEncounterCards();
-
-            // Step 5: reveal encounter cards one at a time
-            this.currentPhase = GamePhase.VILLAIN_STEP_5_REVEAL;
-            while (this.encounterPileIds.length > 0) {
-                this.drawEncounterCardFromPlayerPile();
+            for (let i = 0; i < n; i++) {
+                this.villainPhaseTargetIndex = (this.firstPlayerIndex + i) % n;
                 this.broadcastStateUpdate();
-                await new Promise<void>(resolve => { this._resolveEncounterCardPromise = resolve; });
+                await this.delay(900);
+                await this.processVillainActivation();
             }
+
+            // Step 3: Minion activations against each player
+            this.currentPhase = GamePhase.VILLAIN_STEP_3_MINIONS;
+            for (let i = 0; i < n; i++) {
+                this.villainPhaseTargetIndex = (this.firstPlayerIndex + i) % n;
+                this.broadcastStateUpdate();
+                await this.delay(900);
+                await this.processMinionActivations();
+            }
+
+            // Step 4: Deal encounter cards
+            // Base 1 card to each player, then hazard extras starting from first player
+            this.currentPhase = GamePhase.VILLAIN_STEP_4_DEAL;
+            const hazardCount = this.activeSideSchemes.filter(ss => ss.hazard).length;
+            for (let i = 0; i < n; i++) {
+                this.villainPhaseTargetIndex = (this.firstPlayerIndex + i) % n;
+                this.broadcastStateUpdate();
+                await this.delay(900);
+                await this.dealEncounterCards();
+            }
+            for (let i = 0; i < hazardCount; i++) {
+                this.villainPhaseTargetIndex = (this.firstPlayerIndex + i) % n;
+                this.broadcastStateUpdate();
+                await this.delay(900);
+                await this.dealExtraEncounterCard();
+            }
+
+            // Step 5: Reveal encounter cards for each player in order
+            for (let i = 0; i < n; i++) {
+                this.villainPhaseTargetIndex = (this.firstPlayerIndex + i) % n;
+                this.currentPhase = GamePhase.VILLAIN_STEP_5_REVEAL;
+                while (this.p.encounterPileIds.length > 0) {
+                    this.drawEncounterCardFromPlayerPile();
+                    this.broadcastStateUpdate();
+                    await new Promise<void>(r => { this._resolveEncounterCardPromise = r; });
+                }
+            }
+            this.villainPhaseTargetIndex = null;
 
             await this.checkTriggers('response', 'roundEnd', {});
 
+            // ── Advance first player token and start new round ────────────────────
+            this.firstPlayerIndex = (this.firstPlayerIndex + 1) % this.playerOrder.length;
+            this.heroTurnsCompletedThisRound = 0;
+            this.activePlayerIndex = this.firstPlayerIndex;
             this.roundNumber++;
             this.addLog(`--- Round ${this.roundNumber} ---`, 'phase');
             this.currentPhase = GamePhase.PLAYER_TURN;
-            this.idCardHasFlippedThisTurn = false;
             this.resetAbilityLimits('round');
-            this.resetAbilityLimits('turn');
+            this.p.idCardHasFlippedThisTurn = false;
             this.broadcastStateUpdate();
         }
     }
@@ -438,7 +623,7 @@ export class GameRoom {
 
     async processMainSchemeStepOne() {
         const base = this.mainScheme!.threatIncrementIsPerPlayer
-            ? this.mainScheme!.threatIncrement * 1
+            ? this.mainScheme!.threatIncrement * this.playerOrder.length
             : this.mainScheme!.threatIncrement;
         const sideSchemeAcceleration = this.activeSideSchemes.filter(ss => ss.acceleration).length;
         const amount = base + this.accelerationTokens + sideSchemeAcceleration;
@@ -519,6 +704,8 @@ export class GameRoom {
             await this.applyThreatToMainScheme({ amount: total, source: 'villain_scheme', isCanceled: false });
             await this.emitEvent('VILLAIN_SCHEME_CONCLUDED', payload, async () => {});
         });
+        // Boost response effects only fire after attacks; discard them after a scheme activation.
+        this.pendingBoostResponseEffects = [];
     }
 
     async applyThreatToMainScheme(threatPayload: any) {
@@ -526,7 +713,7 @@ export class GameRoom {
             if (threatPayload.isCanceled) return;
             this.mainScheme!.threatRemaining += threatPayload.amount;
             await this.emitEvent('THREAT_PLACED', threatPayload, async () => {
-                if (this.mainScheme!.threatRemaining >= this.mainScheme!.threatThreshold) {
+                if (this.mainScheme!.threatRemaining >= this.mainScheme!.threatThreshold * this.playerOrder.length) {
                     await this.advanceMainScheme();
                 }
             });
@@ -550,6 +737,7 @@ export class GameRoom {
         } else {
             this.addLog(`${current.name} completed! The players have LOST!`, 'villain');
             this.gameOver = 'lose';
+            this.deleteSnapshot();
             this.io.to(this.roomCode).emit('game:over', { outcome: 'lose', roundsPlayed: this.roundNumber });
         }
     }
@@ -574,6 +762,8 @@ export class GameRoom {
             for (let i = 0; i < extraBoostCount; i++) {
                 attackPayload.boostDamage += await this.flipBoostCard();
             }
+            attackPayload.isPiercing = this.pendingPiercingBoost;
+            this.pendingPiercingBoost = false;
 
             let reduction = 0;
             if (attackPayload.isDefended && attackPayload.targetType === 'identity')
@@ -583,7 +773,7 @@ export class GameRoom {
 
             if (attackPayload.targetType === 'identity') {
                 if (finalDamage > 0) {
-                    const damagePayload = { amount: finalDamage, isCanceled: false, targetId: this.hero.instanceId, isDefended: attackPayload.isDefended ?? false };
+                    const damagePayload = { amount: finalDamage, isCanceled: false, targetId: this.hero.instanceId, isDefended: attackPayload.isDefended ?? false, isPiercing: attackPayload.isPiercing };
                     await this.emitEvent('takeIdentityDamage', damagePayload, async () => {
                         if (damagePayload.isCanceled || damagePayload.amount <= 0) return;
                         await this.applyDamageToEntity(damagePayload);
@@ -593,7 +783,7 @@ export class GameRoom {
             } else if (attackPayload.targetType === 'ally') {
                 const ally = this.tableauCards.find(c => c.instanceId === attackPayload.targetId) as Ally | undefined;
                 const allyHpBefore = ally?.hitPointsRemaining ?? 0;
-                const damagePayload = { amount: finalDamage, isCanceled: false, targetId: attackPayload.targetId };
+                const damagePayload = { amount: finalDamage, isCanceled: false, targetId: attackPayload.targetId, isPiercing: attackPayload.isPiercing };
                 await this.emitEvent('takeAllyDamage', damagePayload, async () => {
                     if (damagePayload.isCanceled || damagePayload.amount <= 0) return;
                     await this.applyDamageToEntity(damagePayload);
@@ -654,10 +844,12 @@ export class GameRoom {
 
     async minionActivationAttack(minion: Minion) {
         const baseDamage = minion.dynamicAtk === 'hitPointsRemaining' ? minion.hitPointsRemaining : minion.atk;
+        const minionBp = villainCardMap.get(minion.storageId!);
+        const isPiercing = minionBp?.piercing === true;
         const attackPayload = {
             attacker: minion.name, attackerId: minion.instanceId, source: minion, baseDamage,
             isDefended: false, targetType: 'identity', targetId: 'hero',
-            isCanceled: false, damageWasDealt: false, defBonus: 0,
+            isCanceled: false, damageWasDealt: false, defBonus: 0, isPiercing,
         };
 
         const playerAttachments = (minion.attachments || []).filter((a: any) => a.side === 'player');
@@ -679,7 +871,7 @@ export class GameRoom {
 
             const finalDamage = Math.max(0, attackPayload.baseDamage - reduction);
             if (finalDamage > 0) {
-                const damagePayload = { amount: finalDamage, isCanceled: false, targetId: this.hero.instanceId, isDefended: attackPayload.isDefended ?? false };
+                const damagePayload = { amount: finalDamage, isCanceled: false, targetId: this.hero.instanceId, isDefended: attackPayload.isDefended ?? false, isPiercing: attackPayload.isPiercing };
                 await this.emitEvent('takeIdentityDamage', damagePayload, async () => {
                     if (damagePayload.isCanceled || damagePayload.amount <= 0) return;
                     await this.applyDamageToEntity(damagePayload);
@@ -714,34 +906,47 @@ export class GameRoom {
                 const cardId = this.drawOneVillainCard();
                 if (cardId !== null) {
                     this.encounterPileIds.push(cardId);
-                    this.addLog(`Dealt 1 encounter card to the player.`, 'villain');
-                }
-            }
-            for (const scheme of this.activeSideSchemes.filter(ss => ss.hazard)) {
-                const cardId = this.drawOneVillainCard();
-                if (cardId !== null) {
-                    this.encounterPileIds.push(cardId);
-                    this.addLog(`${scheme.name} (Hazard) dealt an additional encounter card.`, 'villain');
+                    this.addLog(`Dealt 1 encounter card to ${this.p.username}.`, 'villain');
                 }
             }
         });
     }
 
+    async dealExtraEncounterCard() {
+        const cardId = this.drawOneVillainCard();
+        if (cardId !== null) {
+            this.encounterPileIds.push(cardId);
+            const hazardNames = this.activeSideSchemes.filter(ss => ss.hazard).map(ss => ss.name);
+            this.addLog(`${hazardNames[0] ?? 'Hazard'} dealt an extra encounter card to ${this.p.username}.`, 'villain');
+        }
+    }
+
     readyAllCards() {
-        this.hero.exhausted = false;
-        this.tableauCards.forEach(card => { (card as any).exhausted = false; });
+        for (const slot of this.players.values()) {
+            if (slot.playerIdentity) slot.playerIdentity.exhausted = false;
+            for (const card of slot.tableauCards) (card as any).exhausted = false;
+        }
+    }
+
+    readyActivePlayerCards() {
+        const slot = this.players.get(this.playerOrder[this.activePlayerIndex]);
+        if (!slot) return;
+        if (slot.playerIdentity) slot.playerIdentity.exhausted = false;
+        for (const card of slot.tableauCards) (card as any).exhausted = false;
     }
 
     clearTemporaryAllyMods() {
-        this.tableauCards.forEach(card => {
+        // Only clears the contextual player's mods — called at end of their turn
+        const slot = this.p;
+        slot.tableauCards.forEach(card => {
             if (card.type === 'ally') {
                 const ally = card as any;
                 if (ally.attachments) ally.attachments = ally.attachments.filter((att: any) => !att.temporary);
             }
         });
-        if (this.playerIdentity) {
-            (this.playerIdentity as any).tempAtkMod = 0;
-            (this.playerIdentity as any).tempThwMod = 0;
+        if (slot.playerIdentity) {
+            (slot.playerIdentity as any).tempAtkMod = 0;
+            (slot.playerIdentity as any).tempThwMod = 0;
         }
     }
 
@@ -883,7 +1088,7 @@ export class GameRoom {
         if (villain?.instanceId === targetId) {
             return (villain.attachments ?? []).reduce((sum: number, a: any) => sum + (a.retaliate ?? 0), 0);
         }
-        const minion = this.engagedMinions.find(m => m.instanceId === targetId);
+        const minion = this.getAllEngagedMinions().find(m => m.instanceId === targetId);
         if (minion) {
             const bp = villainCardMap.get(minion.storageId!);
             const base = bp?.retaliate ?? 0;
@@ -963,7 +1168,24 @@ export class GameRoom {
     }
 
     async handleObligationReveal(card: any) {
-        // Always offer the option to flip to alter-ego if currently in hero form
+        // Find which player OWNS this obligation (by heroLibrary.obligationId match)
+        const ownerHeroEntry = heroLibrary.find(h => (h as any).obligationId === card.storageId);
+        const ownerSlot = ownerHeroEntry
+            ? [...this.players.values()].find(s => s.heroId === ownerHeroEntry.id)
+            : null;
+        const ownerIndex = ownerSlot
+            ? this.playerOrder.indexOf(ownerSlot.userId)
+            : (this.villainPhaseTargetIndex ?? this.activePlayerIndex);
+
+        // Temporarily redirect all prompts and effects to the obligation owner
+        const savedTargetIndex = this.villainPhaseTargetIndex;
+        this.villainPhaseTargetIndex = ownerIndex;
+
+        if (ownerSlot) {
+            this.addLog(`${card.name} — obligation for ${ownerSlot.username}.`, 'villain');
+        }
+
+        // Offer the owner a chance to flip to alter-ego first
         if (this.hero.identityStatus === 'hero' && !this.idCardHasFlippedThisTurn) {
             const wantsFlip = await this.requestYesNo(`Flip ${this.hero.name} to alter-ego form?`);
             if (wantsFlip) {
@@ -971,7 +1193,7 @@ export class GameRoom {
             }
         }
 
-        // Execute obligation effects (chooseOne with conditional options)
+        // Execute obligation effects (chooseOne: exhaust to remove OR suffer consequence)
         const obligationPayload: any = { card, isCanceled: false, removedFromGame: false };
         if (card.logic?.effects) {
             await executeEffects(card.logic.effects, this, obligationPayload);
@@ -983,6 +1205,9 @@ export class GameRoom {
         } else {
             this.addLog(`${card.name} removed from the game permanently.`, 'system');
         }
+
+        // Restore original villain-phase target
+        this.villainPhaseTargetIndex = savedTargetIndex;
     }
 
     async handleMinionEntry(card: any) {
@@ -1001,13 +1226,19 @@ export class GameRoom {
     async handleSideSchemeEntry(card: any) {
         const sideScheme = createSideScheme(card.storageId, this.getNextId());
         const blueprint = villainCardMap.get(card.storageId);
+
+        // Scale starting threat by player count (factory used * 1 as placeholder)
+        if (blueprint?.startingThreatIsPerPlayer) {
+            sideScheme.threatRemaining *= this.playerOrder.length;
+        }
+
         const payload = { sideScheme, isCanceled: false };
 
         await this.emitEvent('SIDE_SCHEME_ENTERING', payload, async () => {
             if (payload.isCanceled) return;
             if (blueprint?.whenRevealedThreat) {
                 const extra = blueprint.whenRevealedThreatIsPerPlayer
-                    ? blueprint.whenRevealedThreat * 1
+                    ? blueprint.whenRevealedThreat * this.playerOrder.length
                     : blueprint.whenRevealedThreat;
                 sideScheme.threatRemaining += extra;
             }
@@ -1023,14 +1254,31 @@ export class GameRoom {
     async handleAttachmentEntry(card: any) {
         const blueprint = villainCardMap.get(card.storageId);
 
+        if (blueprint?.attachmentTag) {
+            const allMinions = this.getAllEngagedMinions();
+            const tagged = allMinions.find(m => {
+                const mbp = villainCardMap.get(m.storageId!);
+                return mbp?.tags?.includes(blueprint.attachmentTag!);
+            });
+            const attachTarget = tagged ?? null;
+            if (attachTarget) {
+                const attachment = createVillainCard(card.storageId, this.getNextId());
+                attachTarget.attachments.push(attachment as any);
+                this.addLog(`${card.name} attached to ${attachTarget.name}.`, 'villain');
+                return;
+            }
+            // Fall through to villain if no tagged minion found
+        }
+
         if (blueprint?.attachmentTarget === 'highestHpMinion') {
-            if (this.engagedMinions.length === 0) {
+            const allMinions = this.getAllEngagedMinions();
+            if (allMinions.length === 0) {
                 this.addLog(`${card.name} — no minions in play. Surge!`, 'surge');
                 this.drawFromVillainDeckAsEncounterCard();
                 if (card.storageId != null) this.villainDiscardIds.push(card.storageId);
                 return;
             }
-            const target = this.engagedMinions.reduce((best, m) => {
+            const target = allMinions.reduce((best, m) => {
                 const bpHp = villainCardMap.get(m.storageId!)?.hitPoints ?? 0;
                 const bestHp = villainCardMap.get(best.storageId!)?.hitPoints ?? 0;
                 return bpHp > bestHp ? m : best;
@@ -1064,22 +1312,29 @@ export class GameRoom {
     }
 
     async discardFromEngagedMinions(instanceIdToDc: number) {
-        const minion = this.engagedMinions.find(m => m.instanceId === instanceIdToDc);
-        if (!minion) { this.addLog(`Could not find minion with id ${instanceIdToDc} to discard.`, 'system'); return; }
+        // Search across all player slots for the minion
+        let minion: Minion | undefined;
+        let ownerSlot: PlayerSlot | undefined;
+        for (const slot of this.players.values()) {
+            minion = slot.engagedMinions.find(m => m.instanceId === instanceIdToDc);
+            if (minion) { ownerSlot = slot; break; }
+        }
+        if (!minion || !ownerSlot) { this.addLog(`Could not find minion with id ${instanceIdToDc} to discard.`, 'system'); return; }
 
         await this.emitEvent('MINION_DEFEATED', { minion }, async () => {
-            if (minion.attachments && minion.attachments.length > 0) {
-                for (const att of minion.attachments.filter((a: any) => a.side === 'player')) {
+            if (minion!.attachments && minion!.attachments.length > 0) {
+                for (const att of minion!.attachments.filter((a: any) => a.side === 'player')) {
                     await this.emitEvent('attachedDefeated', { attachment: att, minion, sourceCard: att, isCanceled: false }, async () => {});
                 }
-                minion.attachments.forEach((card: any) => {
-                    const dest = card.type === 'upgrade' ? this.playerDiscardIds : this.villainDiscardIds;
+                minion!.attachments.forEach((card: any) => {
+                    // Attachment discards go to the owner's discard
+                    const dest = card.type === 'upgrade' ? ownerSlot!.playerDiscardIds : this.villainDiscardIds;
                     if (card.storageId) dest.push(card.storageId);
                 });
             }
-            if (minion.storageId) this.villainDiscardIds.push(minion.storageId);
-            this.engagedMinions = this.engagedMinions.filter(m => m.instanceId !== instanceIdToDc);
-            this.addLog(`${minion.name} has been removed from the board.`, 'discard');
+            if (minion!.storageId) this.villainDiscardIds.push(minion!.storageId);
+            ownerSlot!.engagedMinions = ownerSlot!.engagedMinions.filter(m => m.instanceId !== instanceIdToDc);
+            this.addLog(`${minion!.name} has been removed from the board.`, 'discard');
         });
     }
 
@@ -1100,7 +1355,7 @@ export class GameRoom {
 
     findEnemyById(id: number): VillainIdentityCardInstance | Minion {
         if (this.villainCard && this.villainCard.instanceId === id) return this.villainCard;
-        return this.engagedMinions.find(m => m.instanceId === id) as Minion;
+        return this.getAllEngagedMinions().find(m => m.instanceId === id) as Minion;
     }
 
     findSchemeById(id: number): MainSchemeInstance | SideScheme {
@@ -1109,12 +1364,15 @@ export class GameRoom {
     }
 
     findTargetById(instanceId: number): IdentityCardInstance | VillainIdentityCardInstance | Minion | Ally | undefined {
-        if (this.hero?.instanceId === instanceId) return this.hero;
         if (this.villainCard?.instanceId === instanceId) return this.villainCard;
-        const minion = this.engagedMinions.find(m => m.instanceId === instanceId);
-        if (minion) return minion;
-        const ally = this.tableauCards.find(a => a.instanceId === instanceId && a.type === 'ally');
-        if (ally) return ally as Ally;
+        // Search all player slots
+        for (const slot of this.players.values()) {
+            if (slot.playerIdentity?.instanceId === instanceId) return slot.playerIdentity;
+            const minion = slot.engagedMinions.find(m => m.instanceId === instanceId);
+            if (minion) return minion;
+            const ally = slot.tableauCards.find(a => a.instanceId === instanceId && a.type === 'ally');
+            if (ally) return ally as Ally;
+        }
         this.addLog(`Entity with instanceId ${instanceId} not found in active zones.`, 'system');
         return undefined;
     }
@@ -1131,7 +1389,7 @@ export class GameRoom {
     }
 
     attachToTarget(attachment: Upgrade, targetId: number) {
-        const targetMinion = this.engagedMinions.find(m => m.instanceId === targetId);
+        const targetMinion = this.getAllEngagedMinions().find(m => m.instanceId === targetId);
         const targetVillain = this.villainCard?.instanceId === targetId ? this.villainCard : null;
         const targetAlly = this.tableauCards.find(c => c.type === 'ally' && c.instanceId === targetId) as Ally | undefined;
 
@@ -1154,15 +1412,76 @@ export class GameRoom {
     // ── Identity actions ──────────────────────────────────────────────────────
 
     async triggerIdentityCardAbility() {
-        await this.useResourceAbility('identity');
+        const logic = this.hero.identityStatus === 'hero' ? (this.hero as any).heroLogic : (this.hero as any).aeLogic;
+        if (logic?.type === 'action') {
+            await this.activateIdentityAction(logic);
+        } else {
+            await this.useResourceAbility('identity');
+        }
         this.broadcastStateUpdate();
     }
 
+    async activateIdentityAction(logic: any) {
+        const card = this.playerIdentity!;
+        const abilityKey = 'identity';
+        if (logic.limit && (this.abilityUseCounts[abilityKey] ?? 0) >= logic.limit.uses) {
+            this.addLog(`${card.name} — ability limit reached.`, 'system');
+            return;
+        }
+        const exhausts = this.hero.identityStatus === 'hero'
+            ? (card as any).heroAbilityExhausts !== false
+            : (card as any).aeAbilityExhausts !== false;
+        if (exhausts && card.exhausted) {
+            this.addLog(`${card.name} is exhausted.`, 'system');
+            return;
+        }
+        if (logic.resourceCost?.length > 0) {
+            const requiredTypes: string[] = logic.resourceCost;
+            const anyType = requiredTypes.includes('any');
+            const satisfies = anyType
+                ? (r: string) => !!r
+                : (r: string) => requiredTypes.includes(r) || r === 'wild';
+            const hasRequired = this.hand.some((c: any) => c.resources?.length > 0);
+            if (!hasRequired) {
+                this.addLog(`${card.name} requires a resource — no cards with resources in hand.`, 'system');
+                return;
+            }
+            const selectedIds = await this.requestHandDiscard(
+                1, 'RESOURCE COST',
+                `Discard any card as a resource to pay for ${card.name}.`,
+                anyType ? undefined : requiredTypes
+            );
+            if (!selectedIds || selectedIds.length === 0) return;
+            const paidCard = this.hand.find((c: any) => c.instanceId === selectedIds[0]);
+            if (!anyType && !paidCard?.resources?.some(satisfies)) {
+                this.addLog(`That card doesn't provide the required resource.`, 'system');
+                return;
+            }
+            this.hand = this.hand.filter((c: any) => c.instanceId !== selectedIds[0]);
+            if (paidCard.storageId != null) this.playerDiscardIds.push(paidCard.storageId);
+            this.addLog(`${paidCard.name} discarded as resource for ${card.name}.`, 'discard');
+        }
+        const ctx: any = { sourceCard: card };
+        await executeEffects(logic.effects, this, ctx);
+        if (exhausts && !ctx.actionBlocked) card.exhausted = true;
+        if (logic.limit) {
+            this.abilityUseCounts[abilityKey] = (this.abilityUseCounts[abilityKey] ?? 0) + 1;
+            this.abilityResetOn[abilityKey] = logic.limit.resetOn;
+        }
+    }
+
     resetAbilityLimits(resetOn: string) {
-        for (const key in this.abilityResetOn) {
-            if (this.abilityResetOn[key] === resetOn) {
-                delete this.abilityUseCounts[key];
-                delete this.abilityResetOn[key];
+        // 'turn' resets only apply to the current active player's slot.
+        // 'round' resets apply to all players.
+        const slots = resetOn === 'turn'
+            ? [this.p]
+            : [...this.players.values()];
+        for (const slot of slots) {
+            for (const key in slot.abilityResetOn) {
+                if (slot.abilityResetOn[key] === resetOn) {
+                    delete slot.abilityUseCounts[key];
+                    delete slot.abilityResetOn[key];
+                }
             }
         }
     }
@@ -1283,7 +1602,7 @@ export class GameRoom {
             this.villainCard.attachments = this.villainCard.attachments.filter((a: any) => a.instanceId !== attachmentInstanceId);
             return;
         }
-        const minion = this.engagedMinions.find(m => m.instanceId === hostId);
+        const minion = this.getAllEngagedMinions().find(m => m.instanceId === hostId);
         if (minion) {
             const att = (minion.attachments || []).find((a: any) => a.instanceId === attachmentInstanceId);
             if (att?.storageId) this.villainDiscardIds.push(att.storageId);
@@ -1409,13 +1728,15 @@ export class GameRoom {
                 this.discardPlayerCardsFromHand(this.paymentBufferIds);
                 this.discardPlayerCardsFromHand([card.instanceId!]);
                 this.resetPayment();
+                let ctx: Record<string, any>;
                 try {
-                    await this.executeCardEffect(card as any, { paymentResources });
+                    ctx = await this.executeCardEffect(card as any, { paymentResources });
                 } catch (err: any) {
                     if (err?.message !== 'Play cancelled') throw err;
                     this.abortPlay();
                     return;
                 }
+                if (ctx.actionBlocked) { this.abortPlay(); return; }
                 this.playSnapshot = null;
             }
         } else if (card.type === 'upgrade' && (card as any).attachmentLocation !== 'tableau') {
@@ -1544,6 +1865,7 @@ export class GameRoom {
 
         const context: any = { sourceCard: card };
         await executeEffects(logic.effects, this, context);
+        if (card.abilityExhausts) card.exhausted = true;
 
         if (logic.limit) {
             this.abilityUseCounts[abilityKey] = (this.abilityUseCounts[abilityKey] ?? 0) + 1;
@@ -1564,6 +1886,10 @@ export class GameRoom {
         const form = logic.formRequired;
         if (form && form !== 'any' && form !== this.hero.identityStatus) {
             this.addLog(`${card.name} requires ${form} form.`, 'system');
+            return;
+        }
+        if ((card as any).abilityExhausts && (card as any).exhausted) {
+            this.addLog(`${card.name} is exhausted.`, 'system');
             return;
         }
 
@@ -1600,7 +1926,34 @@ export class GameRoom {
         const context: any = { sourceCard: card, actionBlocked: false };
         await executeEffects(logic.effects, this, context);
         if (context.actionBlocked) { this.addLog(`${card.name} — action was blocked.`, 'system'); return; }
+        if ((card as any).abilityExhausts) (card as any).exhausted = true;
         this.broadcastStateUpdate();
+    }
+
+    playFromQuiver(cardInstanceId: number) {
+        if (this.currentPhase !== 'PLAYER_TURN') return;
+        const quiver = this.tableauCards.find((c: any) => c.storageId === 67) as any;
+        if (!quiver?.attachedCards?.length) return;
+        const idx = quiver.attachedCards.findIndex((c: any) => c.instanceId === cardInstanceId);
+        if (idx === -1) return;
+
+        // Validate the Bow before starting payment — arrow stays in Quiver if Bow can't be exhausted
+        const bow = this.tableauCards.find((c: any) => c.storageId === 66) as any;
+        if (!bow) {
+            this.addLog("Hawkeye's Bow is not in play — cannot play arrow events.", 'system');
+            this.broadcastStateUpdate();
+            return;
+        }
+        if (bow.exhausted) {
+            this.addLog("Hawkeye's Bow is already exhausted — ready it first.", 'system');
+            this.broadcastStateUpdate();
+            return;
+        }
+
+        const [card] = quiver.attachedCards.splice(idx, 1);
+        this.hand.push(card);
+        this.addLog(`${card.name} pulled from Hawkeye's Quiver.`, 'play');
+        this.startPayment(card.instanceId);
     }
 
     // ── Timing windows ────────────────────────────────────────────────────────
@@ -1634,7 +1987,8 @@ export class GameRoom {
             if (payload.isCanceled || payload.isResolved) { windowActive = false; break; }
 
             const optionalBoard = boardTriggers.filter(c =>
-                !c.logic.forced && !c.exhausted &&
+                !c.logic.forced &&
+                (!c.abilityExhausts || !c.exhausted) &&
                 !payload.usedInstanceIds.includes(c.instanceId || 'identity') &&
                 this.canAffordInterruptResourceCost(c.logic)
             );
@@ -1666,9 +2020,23 @@ export class GameRoom {
     collectIdentityTriggers(timing: string, event: string, list: any[]) {
         const hero = this.playerIdentity;
         if (!hero) return;
-        const activeLogic = this.hero.identityStatus === 'hero' ? hero.heroLogic : hero.aeLogic;
+        const isHeroForm = this.hero.identityStatus === 'hero';
+        const activeLogic = isHeroForm ? hero.heroLogic : hero.aeLogic;
         if (activeLogic) {
-            const trigger = { ...hero, logic: activeLogic, type: 'identity', imgPath: this.hero.identityStatus === 'hero' ? hero.heroImgPath : hero.imgPath };
+            // Only treat the identity as "exhausted" for trigger eligibility if the
+            // ability itself exhausts the card. Attacking/thwarting exhausts the hero
+            // but should NOT block triggered responses (e.g. Spider-Man drawing a card
+            // when attacked). heroAbilityExhausts: false means always available.
+            const abilityExhausts = isHeroForm
+                ? (hero as any).heroAbilityExhausts !== false
+                : (hero as any).aeAbilityExhausts !== false;
+            const trigger = {
+                ...hero,
+                logic: activeLogic,
+                type: 'identity',
+                imgPath: isHeroForm ? hero.heroImgPath : hero.imgPath,
+                exhausted: abilityExhausts && hero.exhausted,
+            };
             if (this.isValidTrigger(trigger, timing, event)) {
                 if (activeLogic.limit) {
                     const key = `identity_${hero.instanceId}`;
@@ -1694,7 +2062,7 @@ export class GameRoom {
         this.villainCard?.attachments?.forEach((att: any) => {
             if (this.isValidTrigger(att, timing, event)) list.push(att);
         });
-        this.engagedMinions.forEach(minion => {
+        this.getAllEngagedMinions().forEach(minion => {
             if (this.isValidTrigger(minion, timing, event)) list.push(minion);
             (minion.attachments || []).forEach((att: any) => {
                 if (this.isValidTrigger(att, timing, event)) list.push(att);
@@ -1751,24 +2119,30 @@ export class GameRoom {
         }
     }
 
-    async executeCardEffect(card: any, extraContext: Record<string, any> = {}) {
-        if (!card.logic?.effects) return;
+    async executeCardEffect(card: any, extraContext: Record<string, any> = {}): Promise<Record<string, any>> {
+        const ctx = { sourceCard: card, playerForm: this.hero.identityStatus, actionBlocked: false, ...extraContext };
+        if (!card.logic?.effects) return ctx;
         const form = card.logic.formRequired;
         if (form && form !== 'any' && form !== this.hero.identityStatus) {
             this.addLog(`${card.name} requires ${form} form.`, 'system');
-            return;
+            return ctx;
         }
-        await executeEffects(card.logic.effects, this, { sourceCard: card, playerForm: this.hero.identityStatus, ...extraContext });
+        await executeEffects(card.logic.effects, this, ctx);
+        return ctx;
     }
 
-    async applyDamageToEntity(damageData: { targetId: number, amount: number }) {
+    async applyDamageToEntity(damageData: { targetId: number, amount: number, isPiercing?: boolean }) {
         const target = this.findTargetById(damageData.targetId);
         if (!target) return;
 
         if ('tough' in target && target.tough) {
             target.tough = false;
-            this.addLog(`${target.name} lost Tough status — damage prevented.`, 'status');
-            return;
+            if (damageData.isPiercing) {
+                this.addLog(`${target.name} lost Tough status — Piercing damage still applies!`, 'status');
+            } else {
+                this.addLog(`${target.name} lost Tough status — damage prevented.`, 'status');
+                return;
+            }
         }
 
         const eventName = target === this.villainCard ? 'VILLAIN_TAKES_DAMAGE' : 'ENTITY_DAMAGED';
@@ -1805,6 +2179,7 @@ export class GameRoom {
 
         this.addLog(`${current.name} has been defeated! PLAYER WINS!`, 'villain');
         this.gameOver = 'win';
+        this.deleteSnapshot();
         this.io.to(this.roomCode).emit('game:over', { outcome: 'win', roundsPlayed: this.roundNumber });
     }
 
@@ -2048,7 +2423,7 @@ export class GameRoom {
         if (this.villainCard?.instanceId === hostId) {
             attachment = this.villainCard.attachments?.find((a: any) => a.instanceId === attachmentInstanceId);
         } else {
-            const minion = this.engagedMinions.find(m => m.instanceId === hostId);
+            const minion = this.getAllEngagedMinions().find(m => m.instanceId === hostId);
             attachment = (minion as any)?.attachments?.find((a: any) => a.instanceId === attachmentInstanceId);
         }
         if (!attachment) return;
@@ -2063,5 +2438,101 @@ export class GameRoom {
         } else {
             this.activateCardAbility(instanceId).catch(console.error);
         }
+    }
+
+    // ── Persistence ───────────────────────────────────────────────────────────
+
+    serialize(): object {
+        return {
+            roomCode:                   this.roomCode,
+            currentPhase:               this.currentPhase,
+            endOfTurnPhase:             this.endOfTurnPhase,
+            endOfTurnSelectedIds:       this.endOfTurnSelectedIds,
+            gameOver:                   this.gameOver,
+            accelerationTokens:         this.accelerationTokens,
+            idIncrementer:              this.idIncrementer,
+            villainCard:                this.villainCard,
+            mainScheme:                 this.mainScheme,
+            villainPhaseChain:          this.villainPhaseChain,
+            villainDeckIds:             this.villainDeckIds,
+            villainDiscardIds:          this.villainDiscardIds,
+            activeSideSchemes:          this.activeSideSchemes,
+            players:                    Array.from(this.players.values()),
+            playerOrder:                this.playerOrder,
+            activePlayerIndex:          this.activePlayerIndex,
+            firstPlayerIndex:           this.firstPlayerIndex,
+            heroTurnsCompletedThisRound: this.heroTurnsCompletedThisRound,
+            villainPhaseTargetIndex:    this.villainPhaseTargetIndex,
+            activePrompt:               this.activePrompt,
+            activeCardId:               this.activeCardId,
+            paymentBufferIds:           this.paymentBufferIds,
+            generatedResources:         this.generatedResources,
+            pendingCostReduction:       this.pendingCostReduction,
+            pendingRemoval:             this.pendingRemoval,
+            boostCard:                  this.boostCard,
+            pendingBoostResponseEffects: this.pendingBoostResponseEffects,
+            pendingYesNo:               this.pendingYesNo,
+            roundNumber:                this.roundNumber,
+            logIdCounter:               this.logIdCounter,
+            gameLog:                    this.gameLog,
+        };
+    }
+
+    saveSnapshot(): void {
+        const dir = path.resolve(__dirname, '../../snapshots');
+        try {
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(
+                path.join(dir, `${this.roomCode}.json`),
+                JSON.stringify(this.serialize()),
+            );
+        } catch (err) {
+            console.error(`[snapshot] Failed to save ${this.roomCode}:`, err);
+        }
+    }
+
+    deleteSnapshot(): void {
+        const file = path.resolve(__dirname, `../../snapshots/${this.roomCode}.json`);
+        try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch { /* ignore */ }
+    }
+
+    static restoreFromSnapshot(snapshot: any, io: GameServer): GameRoom {
+        const room = new GameRoom(io, snapshot.roomCode);
+        room.currentPhase               = snapshot.currentPhase               ?? 'PLAYER_TURN';
+        room.endOfTurnPhase             = snapshot.endOfTurnPhase              ?? null;
+        room.endOfTurnSelectedIds       = snapshot.endOfTurnSelectedIds        ?? [];
+        room.gameOver                   = snapshot.gameOver                    ?? null;
+        room.accelerationTokens         = snapshot.accelerationTokens          ?? 0;
+        room.idIncrementer              = snapshot.idIncrementer               ?? 0;
+        room.villainCard                = snapshot.villainCard                 ?? null;
+        room.mainScheme                 = snapshot.mainScheme                  ?? null;
+        room.villainPhaseChain          = snapshot.villainPhaseChain           ?? [];
+        room.villainDeckIds             = snapshot.villainDeckIds              ?? [];
+        room.villainDiscardIds          = snapshot.villainDiscardIds           ?? [];
+        room.activeSideSchemes          = snapshot.activeSideSchemes           ?? [];
+        room.playerOrder                = snapshot.playerOrder                 ?? [];
+        room.activePlayerIndex          = snapshot.activePlayerIndex           ?? 0;
+        room.firstPlayerIndex           = snapshot.firstPlayerIndex            ?? 0;
+        room.heroTurnsCompletedThisRound = snapshot.heroTurnsCompletedThisRound ?? 0;
+        room.villainPhaseTargetIndex    = snapshot.villainPhaseTargetIndex     ?? null;
+        room.activePrompt               = snapshot.activePrompt                ?? null;
+        room.activeCardId               = snapshot.activeCardId                ?? null;
+        room.paymentBufferIds           = snapshot.paymentBufferIds            ?? [];
+        room.generatedResources         = snapshot.generatedResources          ?? [];
+        room.pendingCostReduction       = snapshot.pendingCostReduction        ?? 0;
+        room.pendingRemoval             = snapshot.pendingRemoval              ?? null;
+        room.boostCard                  = snapshot.boostCard                   ?? null;
+        room.pendingBoostResponseEffects = snapshot.pendingBoostResponseEffects ?? [];
+        room.pendingYesNo               = snapshot.pendingYesNo                ?? null;
+        room.roundNumber                = snapshot.roundNumber                 ?? 1;
+        room.logIdCounter               = snapshot.logIdCounter                ?? 0;
+        room.gameLog                    = snapshot.gameLog                     ?? [];
+
+        room.players = new Map();
+        for (const slot of (snapshot.players ?? [])) {
+            room.players.set(slot.userId, slot as PlayerSlot);
+        }
+
+        return room;
     }
 }

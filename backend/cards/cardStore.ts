@@ -46,6 +46,33 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
             effects: [{ op: 'dealDamage', target: 'chooseEnemyIgnoreGuard', amount: 2 }]
         },
         heroAbilityExhausts: false,
+    }],
+    [3, {
+        name: "Clint Barton/Hawkeye", side: "player",
+        imgPath: "/cards/heroes/hawkeye/ClintBarton-AE.png",
+        heroImgPath: "/cards/heroes/hawkeye/ClintBarton-Hero.png",
+        flavorText: "",
+        hitPoints: 9, healing: 3, thw: 1, atk: 2, def: 1,
+        handsizeAe: 6, handSizeHero: 5,
+        tags: ["s.h.i.e.l.d."], heroTags: ["avenger"],
+        aeLogic: {
+            type: "action",
+            forced: false,
+            formRequired: "alter-ego",
+            timing: "PLAYER_TURN",
+            limit: { uses: 1, resetOn: 'round' },
+            resourceCost: ["any"],
+            effects: [{ op: 'searchAndAddToHand', storageId: 66, cardName: "Hawkeye's Bow" }]
+        },
+        aeAbilityExhausts: false,
+        heroLogic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'readyUpgradeByStorageId', storageId: 66, cardName: "Hawkeye's Bow" }]
+        },
+        heroAbilityExhausts: true,
     }]
 ]);
 
@@ -862,6 +889,107 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             effects: [{ op: 'discardSelf' }, { op: 'readyIdentity' }]
         }
     }],
+    [66, {
+        name: "Hawkeye's Bow", side: "player", type: "upgrade", cost: 0, aspect: "hero",
+        imgPath: "/cards/heroes/hawkeye/HawkeyesBow-Upgrade.png",
+        tags: ["weapon"], resources: ["wild"], flavorText: "",
+        attachmentLocation: "tableau", atkMod: 1, rangedForArrowEvents: true,
+    }],
+    [67, {
+        name: "Hawkeye's Quiver", side: "player", type: "upgrade", cost: 1, aspect: "hero",
+        imgPath: "/cards/heroes/hawkeye/HawkeyesQuiver-Upgrade.png",
+        tags: ["item"], resources: ["mental"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'attachArrowFromTopDeck' }]
+        }
+    }],
+    [68, {
+        name: "Mockingbird", side: "player", type: "ally", cost: 3, aspect: "hero",
+        imgPath: "/cards/heroes/hawkeye/Mockingbird-Ally.png",
+        tags: ["avenger", "s.h.i.e.l.d."], resources: ["wild"],
+        flavorText: `"Is that all you got?"`,
+        thw: 2, atk: 2, thwPain: 1, atkPain: 1, health: 3, maxCopies: 1,
+        logic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "any",
+            timing: "VILLAIN_ATTACK",
+            effects: [
+                    { op: 'payAnyResource' },
+                    { op: 'returnAllyToHand' },
+                    { op: 'preventAttack' }
+                ]
+        }
+    }],
+    [69, {
+        name: "Sonic Arrow", side: "player", type: "event", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/hawkeye/SonicArrow-Event.png",
+        tags: ["arrow", "attack"], resources: ["mental"],
+        flavorText: "EEEEEEEEEEEEEEEEEE!!!",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [
+                { op: 'exhaustUpgradeByStorageId', storageId: 66, cardName: "Hawkeye's Bow" },
+                { op: 'confuseAndDamage', normalAmount: 3, alreadyConfusedAmount: 5 }
+            ]
+        }
+    }],
+    [70, {
+        name: "Cable Arrow", side: "player", type: "event", cost: 1, aspect: "hero",
+        imgPath: "/cards/heroes/hawkeye/CableArrow-Event.png",
+        tags: ["arrow", "thwart"], resources: ["physical"],
+        flavorText: `"It's a great way to get around." - Clint Barton`,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "thwart",
+            effects: [
+                { op: 'exhaustUpgradeByStorageId', storageId: 66, cardName: "Hawkeye's Bow" },
+                { op: 'removeThreatIgnoreCrisis', amount: 3 }
+            ]
+        }
+    }],
+    [71, {
+        name: "Vibranium Arrow", side: "player", type: "event", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/hawkeye/VibraniumArrow-Event.png",
+        tags: ["arrow", "attack"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [
+                { op: 'exhaustUpgradeByStorageId', storageId: 66, cardName: "Hawkeye's Bow" },
+                { op: 'dealDamagePiercing', target: 'chooseEnemy', amount: 6 }
+            ]
+        }
+    }],
+    [72, {
+        name: "Expert Marksman", side: "player", type: "upgrade", cost: 1, aspect: "hero",
+        imgPath: "/cards/heroes/hawkeye/ExpertMarksman-Upgrade.png",
+        tags: ["skill"], resources: ["wild"],
+        flavorText: `"When you fight alongside gods and monsters, it's not enough to be great; you have to be the best." - Clint Barton`,
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: {
+            type: "resource",
+            forced: false,
+            formRequired: "any",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'generateResource', resourceType: 'wild' }]
+        }
+    }],
 ]);
 
 export const villainIdCardMap: Map<number, VillainIdentityCard> = new Map<number, VillainIdentityCard>([
@@ -1063,7 +1191,7 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
 
     // ── Klaw villain cards ──
     [24, { name: "Defense Network", side: "villain", imgPath: "/cards/villains/klaw/DefenseNetwork-SideScheme.png", tags: [], flavorText: `Klaw's criminal enterprise is protected by a gang of hired thugs.`,
-        type: "side-scheme", boostIcons: 2, startingThreat: 3, startingThreatIsPerPlayer: false, crisis: true,
+        type: "side-scheme", boostIcons: 2, startingThreat: 2, startingThreatIsPerPlayer: false, crisis: true,
         whenRevealedThreat: 1, whenRevealedThreatIsPerPlayer: true }],
     [25, { name: `The "Immortal" Klaw`, side: "villain", imgPath: "/cards/villains/klaw/TheImmortalKlaw-SideScheme.png", tags: [], flavorText: `"You cannot destroy me—I am sound itself!" - Klaw`,
         type: "side-scheme", boostIcons: 2, startingThreat: 3, startingThreatIsPerPlayer: true, acceleration: true,
@@ -1110,7 +1238,7 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
         logic: {
             type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
             effects: [{ op: 'chooseOne', options: [
-                { label: "Pay 1 Energy, 1 Mental, 1 Physical", effect: { op: 'payResources', resources: ["energy", "mental", "physical"] } },
+                { label: "Pay 1 Energy, 1 Mental, 1 Physical", condition: { type: 'canAffordResources', resources: ["energy", "mental", "physical"] }, effect: { op: 'payResources', resources: ["energy", "mental", "physical"] } },
                 { label: "Exhaust each character you control", effect: { op: 'exhaustAllCharacters' } },
             ]}]
         },
@@ -1233,6 +1361,38 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
                 { label: "Discard 1 card at random from your hand. Surge.",
                   effect: { op: 'sequence', effects: [{ op: 'discardRandomFromHand' }, { op: 'surge' }] } }
             ]}] } }],
+
+    // ── Hawkeye obligation ──
+    [73, { name: "Criminal Past", side: "villain", imgPath: "/cards/heroes/hawkeye/CriminalPast-Obligation.png", tags: [], flavorText: "",
+        type: "obligation", boostIcons: 2,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'chooseOne', options: [
+                { label: "Exhaust Clint Barton → Remove Criminal Past from game",
+                  condition: { type: 'identityNotExhausted' },
+                  effect: { op: 'sequence', effects: [{ op: 'exhaustIdentity' }, { op: 'removeFromGame' }] } },
+                { label: "Discard Hawkeye's Bow from play (if in play).",
+                  effect: { op: 'discardTableauCardByStorageId', storageId: 66, cardName: "Hawkeye's Bow" } }
+            ]}] } }],
+
+    // ── Hawkeye nemesis set ──
+    [74, { name: "Crossfire", side: "villain", imgPath: "/cards/heroes/hawkeye/nemesis/Crossfire-Minion.png", tags: ["mercenary"], flavorText: ``,
+        type: "minion", boostIcons: 0, sch: 1, atk: 2, hitPoints: 4, piercing: true,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "minionEntered",
+            effects: [{ op: 'selfMinionAttack' }] },
+        boostEffect: [{ op: 'makeAttackPiercing' }] }],
+    [75, { name: "Marked For Death", side: "villain", imgPath: "/cards/heroes/hawkeye/nemesis/MarkedForDeath-SideScheme.png", tags: [], flavorText: ``,
+        type: "side-scheme", boostIcons: 3, startingThreat: 5, startingThreatIsPerPlayer: false, acceleration: true,
+        whenRevealedEffects: [{ op: 'searchAndAttachAllyToScheme', storageId: 68, cardName: "Mockingbird" }],
+        whenDefeatedEffects: [{ op: 'returnHeldCardsToHand' }] }],
+    [76, { name: "Crossfire's Rifle", side: "villain", imgPath: "/cards/heroes/hawkeye/nemesis/CrossfiresRifle-Attachment.png", tags: ["weapon"], flavorText: "",
+        type: "attachment", boostIcons: 2, atkMod: 2, attachmentTag: "weapon",
+        removal: { cost: 1, resourceType: 'wild' as const, formRequired: 'hero' as const } }],
+    [77, { name: "Sniper Shot", side: "villain", imgPath: "/cards/heroes/hawkeye/nemesis/SniperShot-Treachery.png", tags: [], flavorText: `"I like to let them run a little before taking the shot." - Crossfire`,
+        type: "treachery", boostIcons: 1,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'if', condition: { type: 'identityStatus', value: 'hero' },
+                then: [{ op: 'dealDamage', target: 'identity', amount: 3 }],
+                else: [{ op: 'addThreat', amount: 3 }] }] } }],
 ]);
 
 export function getCardImgPathById(cardId: number): string {
@@ -1251,7 +1411,7 @@ export const expertICardIds       = [21, 22, 23];
 export const bombScareCardIds     = [17, 18, 18, 19, 20, 20];
 export const klawVillainCardIds   = [24, 25, 26, 27, 28, 28, 29, 29, 30, 30, 31, 32, 32, 33, 33];
 export const mastersOfEvilCardIds = [34, 35, 36, 37, 38, 39, 39];
-export const spiderManNemesisIds  = [41, 40, 42, 42, 43]; // minionId first, then sideSchemeId, then others
+export const spiderManNemesisIds  = [41, 40, 42, 42, 43];
 export const sheHulkNemesisIds    = [45, 44, 46, 47, 47];
 
 export const heroLibrary = [
@@ -1272,6 +1432,15 @@ export const heroLibrary = [
         secondaryColor: '#7b1fa2',
         nemesisSet: { minionStorageId: 45, sideSchemeStorageId: 44, otherStorageIds: [46, 47, 47] },
         obligationId: 48,
+    },
+    {
+        id: 3,
+        name: "Hawkeye",
+        heroDeckIds: [66, 67, 68, 69, 69, 70, 70, 71, 71, 72, 72],
+        primaryColor: '#7b52a6',
+        secondaryColor: '#ab119e',
+        nemesisSet: { minionStorageId: 74, sideSchemeStorageId: 75, otherStorageIds: [76, 77, 77] },
+        obligationId: 73,
     },
 ];
 

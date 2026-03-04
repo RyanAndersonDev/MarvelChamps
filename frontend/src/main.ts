@@ -17,8 +17,16 @@ app.mount('#app')
 // ── Wire Socket.IO listeners ───────────────────────────────────────────────
 const gameStore = useGameStore()
 
+socket.on('game:resumeAvailable', (offer) => {
+    gameStore.resumeOffer = offer
+})
+
 socket.on('game:stateUpdate', (view) => {
+    gameStore.resumeOffer = null   // clear any pending offer once a real game loads
     gameStore.applyServerState(view)
+    if (router.currentRoute.value.path !== '/game') {
+        router.push('/game')
+    }
 })
 
 socket.on('game:targetingRequired', (data) => {

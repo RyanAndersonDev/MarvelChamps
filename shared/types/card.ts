@@ -8,7 +8,7 @@ export type VillainCardType = "minion" | "treachery" | "side-scheme" | "attachme
 
 export type Aspect = "neutral" | "hero" | "aggression" | "justice" | "protection" | "leadership";
 
-export type Resource = "physical" | "mental" | "energy" | "wild";
+export type Resource = "physical" | "mental" | "energy" | "wild" | "any";
 
 export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "enemy";
 
@@ -53,7 +53,8 @@ export type EffectCondition =
   | { type: 'selfHasCounters' }
   | { type: 'taggedMinionInPlay'; tag: string }
   | { type: 'minionAttacked' }
-  | { type: 'identityNotExhausted' };
+  | { type: 'identityNotExhausted' }
+  | { type: 'canAffordResources'; resources: Resource[] };
 
 export type EffectDef =
   | { op: 'dealDamage';       target: EffectTarget; amount: number }
@@ -128,7 +129,18 @@ export type EffectDef =
   | { op: 'taggedMinionAttacks'; tag: string }
   | { op: 'healTaggedMinionFully'; tag: string }
   | { op: 'removeFromGame' }
-  | { op: 'addAccelerationToken'; amount: number };
+  | { op: 'addAccelerationToken'; amount: number }
+  | { op: 'searchAndAddToHand'; storageId: number; cardName?: string }
+  | { op: 'readyUpgradeByStorageId'; storageId: number; cardName?: string }
+  | { op: 'exhaustUpgradeByStorageId'; storageId: number; cardName?: string }
+  | { op: 'confuseAndDamage'; normalAmount: number; alreadyConfusedAmount: number }
+  | { op: 'removeThreatIgnoreCrisis'; amount: number }
+  | { op: 'dealDamagePiercing'; target: EffectTarget; amount: number }
+  | { op: 'payAnyResource' }
+  | { op: 'attachArrowFromTopDeck' }
+  | { op: 'discardTableauCardByStorageId'; storageId: number; cardName?: string }
+  | { op: 'searchAndAttachAllyToScheme'; storageId: number; cardName?: string }
+  | { op: 'makeAttackPiercing' };
 
 // ======================== CARD INTERFACES ========================
 
@@ -189,6 +201,7 @@ export interface PlayerCard extends CardBase {
     defMod?: number;
     atkMod?: number;
     thwMod?: number;
+    rangedForArrowEvents?: boolean;
     dynamicThwBonus?: string;
     logics?: CardLogic[];
     allyLimitBonus?: number;
@@ -278,6 +291,8 @@ export interface VillainCard extends CardBase {
     dynamicAtk?: 'hitPointsRemaining';
     attachmentTarget?: 'highestHpMinion';
     hpMod?: number;
+    piercing?: boolean;
+    attachmentTag?: string;
 }
 
 export interface VillainCardInstance extends VillainCard {

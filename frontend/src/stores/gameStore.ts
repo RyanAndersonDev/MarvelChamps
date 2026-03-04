@@ -6,7 +6,7 @@ import type {
 } from '@shared/types/card';
 import type { LogEntry, LogType } from '../types/log';
 import type { GamePhaseType } from '@shared/types/phases';
-import type { ActivePrompt, PlayerGameView, PromptResponse } from '../../../backend/types/game';
+import type { ActivePrompt, PlayerGameView, PublicPlayerState, PromptResponse } from '../../../backend/types/game';
 
 // Module-level timer — holds the boost card visible on the frontend for a
 // minimum duration regardless of when the server clears it.
@@ -14,6 +14,14 @@ let _boostCardTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useGameStore = defineStore('game', {
   state: () => ({
+    // ── Identity ──
+    myUserId: '' as string,
+
+    // ── Multiplayer turn tracking ──
+    activePlayerId: '' as string,
+    villainPhaseTargetId: null as string | null,
+    otherPlayers: [] as PublicPlayerState[],
+
     // ── Phase ──
     currentPhase: 'PLAYER_TURN' as GamePhaseType,
 
@@ -80,6 +88,15 @@ export const useGameStore = defineStore('game', {
 
     // ── Pending yes/no prompt (e.g. obligation flip offer) ──
     pendingYesNo: null as { question: string } | null,
+
+    // ── Resume offer (shown on landing page when a saved game is found) ──
+    resumeOffer: null as {
+        roomCode: string;
+        roundNumber: number;
+        villainName: string;
+        heroName: string;
+        playerNames: string[];
+    } | null,
 
     // ── Boost card ──
     boostCard: null as { storageId: number; boostIcons: number; imgPath: string; name: string } | null,
@@ -175,11 +192,20 @@ export const useGameStore = defineStore('game', {
     },
 
     hasGuardMinion(): boolean {
-        return this.engagedMinions.some(m => m.guard);
+        if (this.engagedMinions.some(m => m.guard)) return true;
+        return this.otherPlayers.some(p => p.engagedMinions.some(m => m.guard));
     },
 
     hasCrisisScheme(): boolean {
         return this.activeSideSchemes.some(ss => ss.crisis);
+    },
+
+    isMyTurn(): boolean {
+        return this.activePlayerId === this.myUserId;
+    },
+
+    isVillainTargetingMe(): boolean {
+        return this.villainPhaseTargetId === this.myUserId;
     },
 
     tableauDefBonus(): number {
@@ -209,9 +235,25 @@ export const useGameStore = defineStore('game', {
 
   // ── Actions ────────────────────────────────────────────────────────────────
   actions: {
+    // ── Resume offer ─────────────────────────────────────────────────────────
+
+    acceptResume() {
+        socket.emit('game:resumeAccept');
+        this.resumeOffer = null;
+    },
+
+    declineResume() {
+        socket.emit('game:resumeDecline');
+        this.resumeOffer = null;
+    },
+
     // ── Apply server state snapshot ──────────────────────────────────────────
 
     applyServerState(view: PlayerGameView) {
+        this.myUserId             = view.myUserId;
+        this.activePlayerId       = view.activePlayerId;
+        this.villainPhaseTargetId = view.villainPhaseTargetId;
+        this.otherPlayers         = view.otherPlayers;
         this.currentPhase         = view.currentPhase;
         this.roundNumber          = view.roundNumber;
         this.gameOver             = view.gameOver;
@@ -294,6 +336,8 @@ export const useGameStore = defineStore('game', {
         if (action === 'player-attack') {
             if (this.villainCard && !this.hasGuardMinion) validTargetIds.push(this.villainCard.instanceId);
             this.engagedMinions.forEach(m => validTargetIds.push(m.instanceId));
+            // Include minions engaged with teammates
+            this.otherPlayers.forEach(p => p.engagedMinions.forEach(m => validTargetIds.push(m.instanceId)));
         } else {
             if (this.mainScheme) validTargetIds.push(this.mainScheme.instanceId);
             this.activeSideSchemes.forEach(s => validTargetIds.push(s.instanceId));
@@ -367,6 +411,10 @@ export const useGameStore = defineStore('game', {
 
     activateCardAbility(instanceId: number) {
         socket.emit('action:activateTableauCard', { instanceId });
+    },
+
+    playFromQuiver(cardInstanceId: number) {
+        socket.emit('action:playFromQuiver', { cardInstanceId });
     },
 
     // ── Turn flow ────────────────────────────────────────────────────────────

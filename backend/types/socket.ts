@@ -124,6 +124,9 @@ export interface ClientToServerEvents {
     /** Use a tableau card's action or resource ability. Server routes by card logic type. */
     'action:activateTableauCard': (data: { instanceId: number }) => void;
 
+    /** Play an arrow event stored in Hawkeye's Quiver. */
+    'action:playFromQuiver': (data: { cardInstanceId: number }) => void;
+
     // ── Encounter Resolution (during villain phase) ──
     /**
      * The targeted player advances encounter card resolution.
@@ -133,6 +136,12 @@ export interface ClientToServerEvents {
 
     /** Respond to a pending yes/no question (e.g. obligation flip offer). */
     'action:yesNoResponse': (data: { accepted: boolean }) => void;
+
+    // ── Resume prompt ──
+    /** Accept the resume offer — server restores the snapshot and sends a state update. */
+    'game:resumeAccept': () => void;
+    /** Decline the resume offer — server deletes the snapshot and the player starts fresh. */
+    'game:resumeDecline': () => void;
 
     // ── Profile ──
     'profile:getStats': (ack: AckCallback<{ stats: UserStats }>) => void;
@@ -200,6 +209,19 @@ export interface ServerToClientEvents {
         userId: string;
         username: string;
         connected: boolean;
+    }) => void;
+
+    /**
+     * Sent to a reconnecting player when a saved snapshot exists for them.
+     * The player can choose to resume or discard the saved game.
+     * DB migration note: swap snapshot file lookup for a GameRecord query.
+     */
+    'game:resumeAvailable': (offer: {
+        roomCode: string;
+        roundNumber: number;
+        villainName: string;
+        heroName: string;
+        playerNames: string[];
     }) => void;
 
     /** Game has ended. Includes the final outcome. */

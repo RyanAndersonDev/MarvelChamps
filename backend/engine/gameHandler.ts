@@ -19,23 +19,84 @@ export function registerGameHandlers(
         }
     }
 
-    socket.on('action:playCard',             (data) => getRoom()?.playCard(data));
-    socket.on('action:attackWithIdentity',   (data) => getRoom()?.attackWithIdentity(data.targetId).catch(console.error));
-    socket.on('action:thwartWithIdentity',   (data) => getRoom()?.thwartWithIdentity(data.targetId));
-    socket.on('action:useIdentityAbility',   ()     => getRoom()?.triggerIdentityCardAbility().catch(console.error));
-    socket.on('action:flipIdentity',         ()     => getRoom()?.flipIdentity().catch(console.error));
-    socket.on('action:healIdentity',         ()     => getRoom()?.healIdentity());
-    socket.on('action:useAllyAbility',       (data) => getRoom()?.useAllyAbility(data));
-    socket.on('action:drawCard',             ()     => { const r = getRoom(); if (r && r.currentPhase === 'PLAYER_TURN') { r.drawCardFromDeck(); r.broadcastStateUpdate(); } });
-    socket.on('action:endTurn',              ()     => getRoom()?.advanceGame().catch(console.error));
-    socket.on('action:addResourceToPayment', (data) => getRoom()?.addResourceToPayment(data.instanceId));
-    socket.on('action:finalizePlay',         ()     => getRoom()?.finalizePlay().catch(console.error));
-    socket.on('action:abortPlay',            ()     => getRoom()?.abortPlay());
-    socket.on('action:selectTarget',         (data) => getRoom()?.handleSelectTarget(data.instanceId));
-    socket.on('action:respondToPrompt',      (data) => getRoom()?.handleRespondToPrompt(userId, data.promptId, data.response));
-    socket.on('action:confirmDiscardSelection', (data) => getRoom()?.handleConfirmDiscardSelection(data.instanceIds));
-    socket.on('action:resolveEncounterCard',     ()     => getRoom()?.handleResolveEncounterCard());
-    socket.on('action:activateTableauCard',      (data) => getRoom()?.handleTableauCardActivation(data.instanceId));
-    socket.on('action:removeAttachment',         (data) => getRoom()?.handleStartAttachmentRemoval(data.attachmentInstanceId, data.hostId));
-    socket.on('action:yesNoResponse',            (data) => getRoom()?.resolveYesNo(data.accepted));
+    // True when it is this player's hero turn
+    function isActivePlayer(room: GameRoom): boolean {
+        return room.playerOrder[room.activePlayerIndex] === userId;
+    }
+
+    // True when the villain phase is currently targeting this player
+    function isVillainTarget(room: GameRoom): boolean {
+        return room.villainPhaseTargetIndex !== null
+            && room.playerOrder[room.villainPhaseTargetIndex] === userId;
+    }
+
+    // Hero-turn-only actions — only the active player may send these
+    socket.on('action:playCard', (data) => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.playCard(data);
+    });
+    socket.on('action:attackWithIdentity', (data) => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.attackWithIdentity(data.targetId).catch(console.error);
+    });
+    socket.on('action:thwartWithIdentity', (data) => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.thwartWithIdentity(data.targetId);
+    });
+    socket.on('action:useIdentityAbility', () => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.triggerIdentityCardAbility().catch(console.error);
+    });
+    socket.on('action:flipIdentity', () => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.flipIdentity().catch(console.error);
+    });
+    socket.on('action:healIdentity', () => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.healIdentity();
+    });
+    socket.on('action:useAllyAbility', (data) => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.useAllyAbility(data);
+    });
+    socket.on('action:drawCard', () => {
+        const r = getRoom();
+        if (r && isActivePlayer(r) && r.currentPhase === 'PLAYER_TURN') { r.drawCardFromDeck(); r.broadcastStateUpdate(); }
+    });
+    socket.on('action:endTurn', () => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.advanceGame().catch(console.error);
+    });
+    socket.on('action:addResourceToPayment', (data) => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.addResourceToPayment(data.instanceId);
+    });
+    socket.on('action:finalizePlay', () => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.finalizePlay().catch(console.error);
+    });
+    socket.on('action:abortPlay', () => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.abortPlay();
+    });
+    socket.on('action:activateTableauCard', (data) => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.handleTableauCardActivation(data.instanceId);
+    });
+    socket.on('action:removeAttachment', (data) => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.handleStartAttachmentRemoval(data.attachmentInstanceId, data.hostId);
+    });
+    socket.on('action:playFromQuiver', (data) => {
+        const r = getRoom(); if (r && isActivePlayer(r)) r.playFromQuiver(data.cardInstanceId);
+    });
+
+    // Actions that apply to either the active player (during hero turn) or villain phase target
+    socket.on('action:respondToPrompt', (data) => {
+        const r = getRoom();
+        if (r && (isActivePlayer(r) || isVillainTarget(r))) r.handleRespondToPrompt(userId, data.promptId, data.response);
+    });
+    socket.on('action:selectTarget', (data) => {
+        const r = getRoom();
+        if (r && (isActivePlayer(r) || isVillainTarget(r))) r.handleSelectTarget(data.instanceId);
+    });
+    socket.on('action:resolveEncounterCard', () => {
+        const r = getRoom();
+        if (r && (isActivePlayer(r) || isVillainTarget(r))) r.handleResolveEncounterCard();
+    });
+    socket.on('action:confirmDiscardSelection', (data) => {
+        const r = getRoom();
+        if (r && (isActivePlayer(r) || isVillainTarget(r))) r.handleConfirmDiscardSelection(data.instanceIds);
+    });
+    socket.on('action:yesNoResponse', (data) => {
+        const r = getRoom();
+        if (r && (isActivePlayer(r) || isVillainTarget(r))) r.resolveYesNo(data.accepted);
+    });
 }

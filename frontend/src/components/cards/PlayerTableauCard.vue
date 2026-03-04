@@ -1,10 +1,10 @@
 <script setup lang="ts">
-  import { computed } from "vue";
+  import { computed, ref } from "vue";
   import { useGameStore } from "../../stores/gameStore";
   import BaseCard from './BaseCard.vue';
   import StatusPips from './StatusPips.vue';
   import type { Ally, Upgrade, Support } from '@shared/types/card';
-    
+
   const store = useGameStore();
   const props = defineProps<{ card: Ally | Upgrade | Support }>();
 
@@ -43,6 +43,15 @@
   function doAction(): void {
     store.activateTableauCard(props.card.instanceId!);
   }
+
+  const isQuiver = computed(() => (props.card as any).storageId === 67);
+  const quiverCards = computed((): any[] => isQuiver.value ? ((props.card as any).attachedCards ?? []) : []);
+  const quiverOpen = ref(false);
+
+  function playArrow(instanceId: number) {
+    quiverOpen.value = false;
+    store.playFromQuiver(instanceId);
+  }
 </script>
 
 <template>
@@ -71,6 +80,7 @@
       :class="{ 'is-exhausted': card.exhausted }"
     />
 
+    <!-- Ally attachments (hover tooltip) -->
     <div v-if="realAttachments.length" class="attachment-badge">
         ⚙ {{ realAttachments.length }}
         <div class="attachment-tooltip">
@@ -81,6 +91,28 @@
         </div>
     </div>
 
+    <!-- Quiver arrow badge (click to toggle panel) -->
+    <div
+      v-if="isQuiver && quiverCards.length > 0"
+      class="quiver-badge"
+      @click.stop="quiverOpen = !quiverOpen"
+    >
+      ⇧ {{ quiverCards.length }}
+      <!-- Panel opens above the card so it doesn't push down into the hand area -->
+      <Transition name="quiver-pop">
+        <div v-if="quiverOpen" class="quiver-panel" @click.stop>
+          <div v-for="qcard in quiverCards" :key="qcard.instanceId" class="quiver-entry">
+            <img :src="qcard.imgPath" :alt="qcard.name" class="quiver-img" />
+            <button
+              class="quiver-play-btn"
+              :disabled="store.currentPhase !== 'PLAYER_TURN'"
+              @click.stop="playArrow(qcard.instanceId)"
+            >Play</button>
+          </div>
+        </div>
+      </Transition>
+    </div>
+
     <StatusPips
       v-if="card.type === 'ally'"
       :stunned="allyStats?.stunned"
@@ -89,22 +121,22 @@
     />
 
     <div class="button-row">
-      <button 
-        v-if="card.type === 'ally' && store.currentPhase === 'PLAYER_TURN'" 
+      <button
+        v-if="card.type === 'ally' && store.currentPhase === 'PLAYER_TURN'"
         class="ally-thw-button"
         :disabled="card.exhausted"
         @click="store.thwartWithAlly(card.instanceId!)"
       >THW</button>
-      
-      <button 
+
+      <button
         v-if="card.type === 'ally' && store.currentPhase === 'PLAYER_TURN'"
         class="ally-atk-button"
         :disabled="card.exhausted"
         @click="store.attackWithAlly(card.instanceId!)"
       >ATK</button>
-      
+
       <button
-        v-if="card.logic && !card.logic.forced && card.logic.type !== 'response' && (store.currentPhase === 'PLAYER_TURN' || store.activeCardId !== null)"
+        v-if="card.logic && !card.logic.forced && card.logic.type !== 'response' && card.logic.type !== 'interrupt' && (store.currentPhase === 'PLAYER_TURN' || store.activeCardId !== null)"
         :disabled="(card.abilityExhausts && card.exhausted) || (card.logic?.type === 'resource' && store.activeCardId === null)"
         @click="doAction">Action</button>
     </div>
@@ -135,7 +167,7 @@
   .stat-badges {
     position: absolute;
     top: 5px;
-    right: 5px; 
+    right: 5px;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -144,21 +176,21 @@
   }
 
   .stat-badge {
-    display: flex !important; 
+    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    
+
     width: 22px !important;
     height: 22px !important;
     min-width: 22px !important;
     min-height: 22px !important;
     border-radius: 50% !important;
-    
+
     color: white !important;
     font-weight: bold !important;
     font-size: 0.75rem !important;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
-    
+
     border: 2px solid white !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
   }
@@ -195,6 +227,7 @@
   .stat-badge.orange { background-color: #FF9800 !important; }
   .stat-badge.purple { background-color: #9C27B0 !important; }
 
+  /* ── Ally attachments ── */
   .attachment-badge {
     position: absolute;
     bottom: 36px;
@@ -249,12 +282,78 @@
     flex-shrink: 0;
   }
 
+  /* ── Quiver badge + panel ── */
+  .quiver-badge {
+    position: absolute;
+    bottom: 36px;
+    right: 4px;
+    background: #2980b9;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 900;
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1.5px solid #fff;
+    z-index: 99;
+    cursor: pointer;
+    user-select: none;
+    pointer-events: all;
+  }
+
+  .quiver-panel {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    background: rgba(10, 10, 20, 0.97);
+    border: 1px solid #2980b9;
+    border-radius: 8px;
+    padding: 12px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.9);
+    white-space: nowrap;
+  }
+
+  .quiver-entry {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .quiver-img {
+    width: 200px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+  }
+
+  .quiver-play-btn {
+    width: 100%;
+    padding: 5px 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    background: #27ae60;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .quiver-play-btn:hover:not(:disabled) { background: #2ecc71; }
+  .quiver-play-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .quiver-pop-enter-active, .quiver-pop-leave-active { transition: opacity 0.15s, transform 0.15s; }
+  .quiver-pop-enter-from, .quiver-pop-leave-to { opacity: 0; transform: translateY(6px); }
+
+  /* ── Buttons ── */
   .button-row {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); 
+    grid-template-columns: repeat(2, 1fr);
     gap: 4px;
     width: 100%;
-    justify-content: center; 
+    justify-content: center;
   }
 
   button {
@@ -270,7 +369,7 @@
   }
 
   button:last-child:nth-child(odd) {
-    grid-column: 1 / span 2; 
+    grid-column: 1 / span 2;
     justify-self: center;
     width: auto;
     min-width: 50%;

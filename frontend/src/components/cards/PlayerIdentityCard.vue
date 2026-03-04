@@ -26,6 +26,12 @@
 
   const hasManualAbility = computed(() => currentLogic.value?.type === 'action' || currentLogic.value?.type === 'resource');
 
+  const abilityExhausts = computed(() =>
+    player.value.identityStatus === 'hero'
+      ? store.playerIdentity.heroAbilityExhausts !== false
+      : store.playerIdentity.aeAbilityExhausts !== false
+  );
+
   const isTargetable = computed(() =>
     store.targeting.isActive && store.targeting.validTargetIds.includes(store.hero.instanceId)
   );
@@ -35,9 +41,7 @@
   }
 
   const handleAbility = () => {
-    if (!player.value.exhausted) {
-      store.triggerIdentityCardAbility();
-    }
+    store.triggerIdentityCardAbility();
   };
 
   const handleAttack = () => {
@@ -96,7 +100,7 @@
         <button :disabled="store.currentPhase !== 'PLAYER_TURN' || store.idCardHasFlippedThisTurn" @click="store.flipIdentity" class="btn-sm btn-flip">FLIP</button>
         <button
           v-if="hasManualAbility"
-          :disabled="store.currentPhase !== 'PLAYER_TURN' || player.exhausted || (currentLogic.type === 'resource' && !store.activeCardId) || (currentLogic.limit != null && (store.abilityUseCounts['identity'] ?? 0) >= currentLogic.limit.uses)"
+          :disabled="store.currentPhase !== 'PLAYER_TURN' || (abilityExhausts && player.exhausted) || (currentLogic.type === 'resource' && !store.activeCardId) || (currentLogic.limit != null && (store.abilityUseCounts['identity'] ?? 0) >= currentLogic.limit.uses)"
           @click="handleAbility"
           class="btn-sm btn-ability"
         >

@@ -1,7 +1,5 @@
 import { defineStore } from 'pinia';
 import { socket } from '../socket';
-import { useGameStore } from './gameStore';
-import router from '../router';
 
 export interface HeroCatalogEntry {
     id: number;
@@ -123,8 +121,6 @@ export const useSetupStore = defineStore('setup', {
         async launchGame() {
             const hero = this.catalog.heroes.find(h => h.id === this.selectedHeroId)!;
 
-            const gameStore = useGameStore();
-
             // 1. Create lobby room
             const createResult = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
                 socket.emit('lobby:create', resolve as any);
@@ -148,26 +144,13 @@ export const useSetupStore = defineStore('setup', {
             // 4. Mark ready
             socket.emit('lobby:setReady', { ready: true });
 
-            // 5. Register stateUpdate listener BEFORE starting — server may emit it
-            //    before the lobby:start ack arrives (race condition otherwise)
-            const statePromise = new Promise<void>((resolve) => {
-                socket.once('game:stateUpdate', (view) => {
-                    gameStore.applyServerState(view);
-                    resolve();
-                });
-            });
-
-            // 6. Start the game
+            // 5. Start the game (main.ts permanent listener handles state + navigation)
             const startResult = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
                 socket.emit('lobby:start', resolve as any);
             });
             if (!startResult.ok) {
-                socket.off('game:stateUpdate');
                 throw new Error((startResult as any).error ?? 'lobby:start failed');
             }
-
-            await statePromise;
-            router.push('/game');
         },
     },
 });

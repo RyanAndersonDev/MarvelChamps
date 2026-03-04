@@ -25,7 +25,7 @@ function buildGameConfigFromLobby(room: LobbyRoom): GameConfig {
         const hero = heroLibrary.find(h => h.id === p.heroId);
         if (!hero) throw new Error(`HERO_NOT_FOUND: ${p.heroId}`);
         const deckIds = p.deckIds.length > 0 ? p.deckIds : [...hero.heroDeckIds];
-        return { userId: p.user.id, seat: p.seat, heroId: p.heroId!, aspect: p.aspect ?? 'hero', deckIds };
+        return { userId: p.user.id, seat: p.seat, heroId: p.heroId!, aspect: p.aspect ?? 'hero', deckIds, username: p.user.username };
     });
 
     return {
@@ -141,8 +141,20 @@ export function registerLobbyHandlers(io: GameServer, socket: GameSocket, rooms:
             const gameRoom = new GameRoom(io, lobbyRoom.code);
             rooms.set(lobbyRoom.code, gameRoom);
 
-            // Register all sockets already in this Socket.IO room
-            gameRoom.sockets.set(userId, socket);
+            // Register sockets for ALL players already in the Socket.IO room
+            const socketsInRoom = io.sockets.adapter.rooms.get(lobbyRoom.code);
+            if (socketsInRoom) {
+                for (const socketId of socketsInRoom) {
+                    const playerSocket = io.sockets.sockets.get(socketId) as GameSocket | undefined;
+                    if (playerSocket && !gameRoom.sockets.has(playerSocket.data.user.userId)) {
+                        gameRoom.sockets.set(playerSocket.data.user.userId, playerSocket);
+                    }
+                }
+            }
+            // Ensure the host is registered (in case they weren't in the room set)
+            if (!gameRoom.sockets.has(userId)) {
+                gameRoom.sockets.set(userId, socket);
+            }
 
             gameRoom.initializeGame(config).catch(console.error);
 

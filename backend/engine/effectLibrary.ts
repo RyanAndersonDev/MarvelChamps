@@ -65,6 +65,21 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             if (target && 'type' in target && target.type === 'minion' && target.hitPointsRemaining <= 0) {
                 await state.discardFromEngagedMinions(target.instanceId);
             }
+            // Retaliate fires for attack events, unless the event has the "arrow" tag and
+            // a rangedForArrowEvents upgrade (Hawkeye's Bow) is in the tableau.
+            const src = context.sourceCard;
+            if (src?.type === 'event' && src?.tags?.includes('attack')) {
+                const isArrow = src.tags?.includes('arrow');
+                const hasRangedUpgrade = state.tableauCards.some((c: any) => c.rangedForArrowEvents);
+                const isRanged = isArrow && hasRangedUpgrade;
+                if (!isRanged) {
+                    const retaliateAmt = state.getRetaliateAmount(targetId);
+                    if (retaliateAmt > 0) {
+                        state.addLog(`Retaliate ${retaliateAmt}! ${state.hero.name} takes ${retaliateAmt} damage.`, 'damage');
+                        await state.applyDamageToEntity({ targetId: state.hero.instanceId, amount: retaliateAmt });
+                    }
+                }
+            }
             break;
         }
 
@@ -86,6 +101,238 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             for (let i = 0; i < effect.amount; i++) {
                 await state.drawCardFromDeck();
             }
+            break;
+        }
+
+        case 'searchAndAddToHand': {
+            // Search deck then discard for a card by storageId; add to hand, shuffle deck
+            const sid: number = effect.storageId;
+            const label: string = effect.cardName ?? 'card';
+            const deckIdx = state.deckIds.indexOf(sid);
+            if (deckIdx >= 0) {
+                state.deckIds.splice(deckIdx, 1);
+                state.hand.push(createHandCard(sid, state.getNextId()));
+                state.shufflePile(state.deckIds);
+                state.addLog(`Found ${label} in deck — added to hand. Deck shuffled.`, 'play');
+                break;
+            }
+            const discardIdx = state.playerDiscardIds.indexOf(sid);
+            if (discardIdx >= 0) {
+                state.playerDiscardIds.splice(discardIdx, 1);
+                state.hand.push(createHandCard(sid, state.getNextId()));
+                state.shufflePile(state.deckIds);
+                state.addLog(`Found ${label} in discard — added to hand. Deck shuffled.`, 'play');
+                break;
+            }
+            state.addLog(`${label} not found in deck or discard.`, 'system');
+            break;
+        }
+
+        case 'readyUpgradeByStorageId': {
+            const label: string = effect.cardName ?? 'upgrade';
+            const upgrade = state.tableauCards.find(c => (c as any).storageId === effect.storageId);
+            if (!upgrade) {
+                state.addLog(`${label} is not in play — action blocked.`, 'system');
+                context.actionBlocked = true;
+            } else if (!(upgrade as any).exhausted) {
+                state.addLog(`${label} is already ready.`, 'system');
+            } else {
+                (upgrade as any).exhausted = false;
+                state.addLog(`${label} readied.`, 'play');
+            }
+            break;
+        }
+
+        case 'exhaustUpgradeByStorageId': {
+            const label: string = effect.cardName ?? 'upgrade';
+            const upgrade = state.tableauCards.find(c => (c as any).storageId === effect.storageId);
+            if (!upgrade) {
+                state.addLog(`${label} is not in play — action blocked.`, 'system');
+                context.actionBlocked = true;
+            } else if ((upgrade as any).exhausted) {
+                state.addLog(`${label} is already exhausted — action blocked.`, 'system');
+                context.actionBlocked = true;
+            } else {
+                (upgrade as any).exhausted = true;
+                state.addLog(`${label} exhausted.`, 'play');
+            }
+            break;
+        }
+
+        case 'confuseAndDamage': {
+            const targetId = await resolveTargetId('chooseEnemy' as any, state, context);
+            if (!targetId) break;
+            const target = state.findTargetById(targetId);
+            if (!target) break;
+            const wasConfused = !!(target as any).confused;
+            (target as any).confused = true;
+            state.addLog(`${target.name} is confused.`, 'status');
+            const dmgAmount = wasConfused ? effect.alreadyConfusedAmount : effect.normalAmount;
+            const dmgPayload = { amount: dmgAmount, targetId, isCanceled: false, source: context.sourceCard ?? 'effect' };
+            await state.emitEvent('ENTITY_TAKES_DAMAGE', dmgPayload, async () => {
+                if (!dmgPayload.isCanceled && dmgPayload.amount > 0) await state.applyDamageToEntity(dmgPayload);
+            });
+            if ((target as any).type === 'minion' && target.hitPointsRemaining <= 0)
+                await state.discardFromEngagedMinions(target.instanceId);
+            // Retaliate — skipped if arrow event + bow in play (ranged)
+            const src69 = context.sourceCard;
+            if (src69?.type === 'event' && src69?.tags?.includes('attack')) {
+                const isRanged = src69.tags?.includes('arrow') && state.tableauCards.some((c: any) => c.rangedForArrowEvents);
+                if (!isRanged) {
+                    const ret = state.getRetaliateAmount(targetId);
+                    if (ret > 0) {
+                        state.addLog(`Retaliate ${ret}! ${state.hero.name} takes ${ret} damage.`, 'damage');
+                        await state.applyDamageToEntity({ targetId: state.hero.instanceId, amount: ret });
+                    }
+                }
+            }
+            break;
+        }
+
+        case 'dealDamagePiercing': {
+            const targetId = await resolveTargetId(effect.target, state, context);
+            if (!targetId) break;
+            const target = state.findTargetById(targetId);
+            if (!target) break;
+            // Piercing: remove tough but still deal full damage
+            if ((target as any).tough) {
+                (target as any).tough = false;
+                state.addLog(`${target.name} lost Tough (piercing).`, 'status');
+            }
+            const piercingPayload = { amount: effect.amount, targetId, isCanceled: false, source: context.sourceCard ?? 'effect' };
+            await state.emitEvent('ENTITY_TAKES_DAMAGE', piercingPayload, async () => {
+                if (!piercingPayload.isCanceled && piercingPayload.amount > 0) await state.applyDamageToEntity(piercingPayload);
+            });
+            if ((target as any).type === 'minion' && target.hitPointsRemaining <= 0)
+                await state.discardFromEngagedMinions(target.instanceId);
+            // Retaliate — skipped if ranged arrow
+            const src71 = context.sourceCard;
+            if (src71?.type === 'event' && src71?.tags?.includes('attack')) {
+                const isRanged = src71.tags?.includes('arrow') && state.tableauCards.some((c: any) => c.rangedForArrowEvents);
+                if (!isRanged) {
+                    const ret = state.getRetaliateAmount(targetId);
+                    if (ret > 0) {
+                        state.addLog(`Retaliate ${ret}! ${state.hero.name} takes ${ret} damage.`, 'damage');
+                        await state.applyDamageToEntity({ targetId: state.hero.instanceId, amount: ret });
+                    }
+                }
+            }
+            break;
+        }
+
+        case 'removeThreatIgnoreCrisis': {
+            const targetId = await state.requestTarget(context.sourceCard, 'scheme');
+            if (!targetId) break;
+            if (targetId === state.mainScheme!.instanceId) {
+                state.mainScheme!.threatRemaining = Math.max(0, state.mainScheme!.threatRemaining - effect.amount);
+                state.addLog(`Removed ${effect.amount} threat from ${state.mainScheme!.name} (ignoring crisis).`, 'threat');
+            } else {
+                const ss = state.activeSideSchemes.find(s => s.instanceId === targetId);
+                if (ss) {
+                    ss.threatRemaining = Math.max(0, ss.threatRemaining - effect.amount);
+                    state.addLog(`Removed ${effect.amount} threat from ${ss.name}.`, 'threat');
+                    if (ss.threatRemaining === 0) await state.discardSideScheme(ss.instanceId);
+                }
+            }
+            break;
+        }
+
+        case 'attachArrowFromTopDeck': {
+            const top5 = state.deckIds.slice(0, 5);
+            const arrowIds = top5.filter(id => {
+                const bp = cardMap.get(id);
+                return bp?.type === 'event' && (bp as any).tags?.includes('arrow');
+            });
+            if (arrowIds.length === 0) {
+                state.addLog('No arrow events in the top 5 cards. Deck shuffled.', 'system');
+                state.shufflePile(state.deckIds);
+                break;
+            }
+            let chosenId: number;
+            if (arrowIds.length === 1) {
+                chosenId = arrowIds[0]!;
+            } else {
+                const opts = arrowIds.map(id => ({ id, name: cardMap.get(id)?.name ?? `Card ${id}`, imgPath: cardMap.get(id)?.imgPath ?? '' }));
+                const pick = await state.requestChoice("Attach which arrow event to Hawkeye's Quiver?", opts);
+                chosenId = pick?.id ?? arrowIds[0]!;
+            }
+            state.deckIds.splice(state.deckIds.indexOf(chosenId), 1);
+            const quiver = state.tableauCards.find((c: any) => c.storageId === 67);
+            if (quiver) {
+                if (!(quiver as any).attachedCards) (quiver as any).attachedCards = [];
+                (quiver as any).attachedCards.push(createHandCard(chosenId, state.getNextId()));
+                state.addLog(`${cardMap.get(chosenId)?.name ?? 'Arrow event'} attached to Hawkeye's Quiver.`, 'play');
+            }
+            state.shufflePile(state.deckIds);
+            break;
+        }
+
+        case 'payAnyResource': {
+            const cardName = context.sourceCard?.name ?? 'ability';
+            if (!state.hand.some((c: any) => c.resources?.length > 0)) {
+                state.addLog(`No resources in hand — cannot pay for ${cardName}.`, 'system');
+                context.actionBlocked = true;
+                break;
+            }
+            const paid = await state.requestHandDiscard(1, 'RESOURCE COST', `Discard any resource card to pay for ${cardName}.`, undefined);
+            if (!paid || paid.length === 0) { context.actionBlocked = true; break; }
+            const paidCard = state.hand.find((c: any) => c.instanceId === paid[0]);
+            state.hand = state.hand.filter((c: any) => c.instanceId !== paid[0]);
+            if (paidCard?.storageId != null) state.playerDiscardIds.push(paidCard.storageId);
+            state.addLog(`${paidCard?.name} discarded as resource.`, 'discard');
+            break;
+        }
+
+        case 'discardTableauCardByStorageId': {
+            const idx = state.tableauCards.findIndex((c: any) => c.storageId === effect.storageId);
+            if (idx === -1) {
+                const name = effect.cardName ?? `storageId ${effect.storageId}`;
+                state.addLog(`${name} is not in play — cannot discard it.`, 'system');
+                break;
+            }
+            const [removed] = state.tableauCards.splice(idx, 1);
+            state.playerDiscardIds.push(effect.storageId);
+            state.addLog(`${(removed as any).name} discarded from play.`, 'discard');
+            break;
+        }
+
+        case 'searchAndAttachAllyToScheme': {
+            const targetScheme = context.sourceCard as any;
+            if (!targetScheme) { state.addLog(`searchAndAttachAllyToScheme: no source scheme in context.`, 'system'); break; }
+            if (!targetScheme.heldCards) targetScheme.heldCards = [];
+            const allyBp = cardMap.get(effect.storageId);
+            const allyName = effect.cardName ?? allyBp?.name ?? `Card ${effect.storageId}`;
+
+            // Search hand first, then discard, then deck
+            const inHand = state.hand.findIndex((c: any) => c.storageId === effect.storageId);
+            if (inHand !== -1) {
+                state.hand.splice(inHand, 1);
+                targetScheme.heldCards.push(effect.storageId);
+                state.addLog(`${allyName} removed from hand and placed under ${targetScheme.name}.`, 'villain');
+                break;
+            }
+            const inDiscard = state.playerDiscardIds.indexOf(effect.storageId);
+            if (inDiscard !== -1) {
+                state.playerDiscardIds.splice(inDiscard, 1);
+                targetScheme.heldCards.push(effect.storageId);
+                state.addLog(`${allyName} removed from discard and placed under ${targetScheme.name}.`, 'villain');
+                break;
+            }
+            const inDeck = state.deckIds.indexOf(effect.storageId);
+            if (inDeck !== -1) {
+                state.deckIds.splice(inDeck, 1);
+                state.shufflePile(state.deckIds);
+                targetScheme.heldCards.push(effect.storageId);
+                state.addLog(`${allyName} removed from deck and placed under ${targetScheme.name}. Deck shuffled.`, 'villain');
+                break;
+            }
+            state.addLog(`${allyName} not found in hand, discard, or deck.`, 'system');
+            break;
+        }
+
+        case 'makeAttackPiercing': {
+            state.pendingPiercingBoost = true;
+            state.addLog(`Attack gains Piercing!`, 'villain');
             break;
         }
 
@@ -789,31 +1036,36 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
 
         case 'payResources': {
             const required = effect.resources;
-            const handResources = state.hand.flatMap((c: any) => c.resources ?? []);
-            if (!satisfiesResourceRequirements(required, handResources)) {
-                state.addLog(`Not enough resources in hand to pay — effect skipped.`, 'system');
-                break;
+            let paid = false;
+            while (!paid) {
+                const handResources = state.hand.flatMap((c: any) => c.resources ?? []);
+                if (!satisfiesResourceRequirements(required, handResources)) {
+                    state.addLog(`Not enough resources in hand to pay — effect skipped.`, 'system');
+                    break;
+                }
+                const selectedIds = await state.requestHandDiscard(
+                    required.length,
+                    'PAY RESOURCES',
+                    `Discard cards providing: ${required.join(' + ')}.`
+                );
+                if (!selectedIds || selectedIds.length === 0) {
+                    state.addLog(`Resource payment canceled.`, 'system');
+                    context.actionBlocked = true;
+                    break;
+                }
+                const selected = selectedIds.map((id: number) => state.hand.find((c: any) => c.instanceId === id)).filter(Boolean);
+                const paidResources = selected.flatMap((c: any) => c.resources ?? []);
+                if (!satisfiesResourceRequirements(required, paidResources)) {
+                    state.addLog(`Invalid resource selection — try again.`, 'system');
+                    continue;
+                }
+                for (const card of selected) {
+                    state.hand = state.hand.filter((c: any) => c.instanceId !== (card as any).instanceId);
+                    if ((card as any).storageId != null) state.playerDiscardIds.push((card as any).storageId);
+                }
+                state.addLog(`Paid ${required.join('+')} — cards discarded.`, 'discard');
+                paid = true;
             }
-            const selectedIds = await state.requestHandDiscard(
-                required.length,
-                'PAY RESOURCES',
-                `Discard cards providing: ${required.join(' + ')}.`
-            );
-            if (!selectedIds || selectedIds.length === 0) {
-                state.addLog(`Resource payment skipped.`, 'system');
-                break;
-            }
-            const selected = selectedIds.map((id: number) => state.hand.find((c: any) => c.instanceId === id)).filter(Boolean);
-            const paid = selected.flatMap((c: any) => c.resources ?? []);
-            if (!satisfiesResourceRequirements(required, paid)) {
-                state.addLog(`Invalid resource selection — payment skipped.`, 'system');
-                break;
-            }
-            for (const card of selected) {
-                state.hand = state.hand.filter((c: any) => c.instanceId !== (card as any).instanceId);
-                if ((card as any).storageId != null) state.playerDiscardIds.push((card as any).storageId);
-            }
-            state.addLog(`Paid ${required.join('+')} — cards discarded.`, 'discard');
             break;
         }
 
@@ -1164,5 +1416,9 @@ function evaluateCondition(condition: EffectCondition, state: GameRoom, context:
             return context.minionAttacked === true;
         case 'identityNotExhausted':
             return state.hero?.exhausted !== true;
+        case 'canAffordResources': {
+            const handResources = state.hand.flatMap((c: any) => c.resources ?? []);
+            return satisfiesResourceRequirements(condition.resources as string[], handResources);
+        }
     }
 }
