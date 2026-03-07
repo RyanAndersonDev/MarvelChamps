@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { socket } from '../socket';
 import type {
     Ally, Event, Upgrade, Support, IdentityCardInstance, VillainIdentityCardInstance,
-    MainSchemeInstance, Treachery, Attachment, Minion, SideScheme, Resource,
+    MainSchemeInstance, Treachery, Attachment, Minion, SideScheme, Resource, Obligation,
 } from '@shared/types/card';
 import type { LogEntry, LogType } from '../types/log';
 import type { GamePhaseType } from '@shared/types/phases';
@@ -11,6 +11,9 @@ import type { ActivePrompt, PlayerGameView, PublicPlayerState, PromptResponse } 
 // Module-level timer — holds the boost card visible on the frontend for a
 // minimum duration regardless of when the server clears it.
 let _boostCardTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Module-level counter for floating number IDs (no need to be reactive itself).
+let _floatIdCounter = 0;
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -41,6 +44,7 @@ export const useGameStore = defineStore('game', {
     villainDiscardIds: [] as number[],
     activeSideSchemes: [] as SideScheme[],
     engagedMinions: [] as Minion[],
+    environmentCard: null as { storageId: number; name: string; imgPath: string; counters: number; flipped: boolean } | null,
 
     // ── Encounter zone ──
     encounterPileIds: [] as number[],
@@ -55,13 +59,14 @@ export const useGameStore = defineStore('game', {
     deckIds: [] as number[],
     playerDiscardIds: [] as number[],
     tableauCards: [] as (Ally | Upgrade | Support)[],
+    obligations: [] as Obligation[],
 
     // ── Static assets ──
     playerCardBackImg: "/cards/misc/player-card-back.png",
     villainCardBackImg: "/cards/misc/villain-card-back.png",
 
-    // ── Card registry (storageId → imgPath, populated from /api/cards) ──
-    playerCardRegistry: {} as Record<number, string>,
+    // ── Card registry (storageId → { imgPath, name }, populated from /api/cards) ──
+    playerCardRegistry: {} as Record<number, { imgPath: string; name: string }>,
     villainCardRegistry: {} as Record<number, { imgPath: string; name: string }>,
 
     // ── Active prompt (interrupt / defense / choice window) ──
@@ -100,6 +105,21 @@ export const useGameStore = defineStore('game', {
 
     // ── Boost card ──
     boostCard: null as { storageId: number; boostIcons: number; imgPath: string; name: string } | null,
+
+    // ── Animation flash flags (auto-reset after short delay) ──
+    damageFlash:       false,   // hero took damage
+    healFlash:         false,   // hero healed
+    villainAttackFlash: false,  // villain performed an attack
+    threatFlash:       false,   // threat was added to main scheme
+    cardDrawFlash:     false,   // a card was drawn from deck
+
+    // ── Villain phase highlight state ──
+    // Keys: 'villain' | 'hero' | 'main-scheme' | 'encounter-zone' | String(instanceId)
+    // Values: 'activating' | 'targeted'
+    highlights: {} as Record<string, string>,
+
+    // ── Floating number events (damage/threat deltas shown on cards) ──
+    floatingEvents: [] as Array<{ id: number; target: 'villain' | 'scheme' | 'hero'; text: string; color: string }>,
 
     // ── Log ──
     roundNumber: 1,
@@ -249,7 +269,21 @@ export const useGameStore = defineStore('game', {
 
     // ── Apply server state snapshot ──────────────────────────────────────────
 
+    _addFloat(target: 'villain' | 'scheme' | 'hero', text: string, color: string) {
+        const id = ++_floatIdCounter;
+        this.floatingEvents.push({ id, target, text, color });
+        setTimeout(() => {
+            const idx = this.floatingEvents.findIndex(e => e.id === id);
+            if (idx !== -1) this.floatingEvents.splice(idx, 1);
+        }, 1600);
+    },
+
     applyServerState(view: PlayerGameView) {
+        // Snapshot values BEFORE applying new state so we can detect deltas
+        const prevVillainHp  = this.villainCard?.hitPointsRemaining ?? null;
+        const prevThreat     = this.mainScheme?.threatRemaining     ?? null;
+        const prevHeroHp     = this.playerIdentity?.hitPointsRemaining ?? null;
+
         this.myUserId             = view.myUserId;
         this.activePlayerId       = view.activePlayerId;
         this.villainPhaseTargetId = view.villainPhaseTargetId;
@@ -265,6 +299,7 @@ export const useGameStore = defineStore('game', {
         this.villainDeckIds       = view.board.villainDeckIds ?? [];
         this.villainDiscardIds    = view.board.villainDiscardIds;
         this.accelerationTokens   = view.board.accelerationTokens;
+        this.environmentCard      = view.board.environmentCard ?? null;
 
         // Only update boostCard from the server when it is being set (non-null).
         // Clearing is handled by a local timer so the card stays visible for the
@@ -285,6 +320,7 @@ export const useGameStore = defineStore('game', {
         this.deckIds                 = view.myState.deckIds;
         this.playerDiscardIds        = view.myState.playerDiscardIds;
         this.tableauCards            = view.myState.tableau;
+        this.obligations             = view.myState.obligations ?? [];
         this.engagedMinions          = view.myState.engagedMinions;
         this.encounterPileIds        = view.myState.encounterPileIds;
         this.revealedEncounterCard   = view.myState.revealedEncounterCard;
@@ -311,11 +347,53 @@ export const useGameStore = defineStore('game', {
         // Prompt
         this.activePrompt         = view.activePrompt;
 
-        // Log
-        this.gameLog              = view.gameLog;
+        // Floating number deltas (compare post-apply values to pre-apply snapshots)
+        const newVillainHp = this.villainCard?.hitPointsRemaining ?? null;
+        const newThreat    = this.mainScheme?.threatRemaining     ?? null;
+        const newHeroHp    = this.playerIdentity?.hitPointsRemaining ?? null;
+
+        if (prevVillainHp !== null && newVillainHp !== null && newVillainHp < prevVillainHp)
+            this._addFloat('villain', `-${prevVillainHp - newVillainHp}`, '#ff4444');
+        if (prevThreat !== null && newThreat !== null && newThreat !== prevThreat) {
+            const delta = newThreat - prevThreat;
+            this._addFloat('scheme', delta > 0 ? `+${delta}` : `${delta}`, delta > 0 ? '#f1c40f' : '#2ecc71');
+        }
+        if (prevHeroHp !== null && newHeroHp !== null && newHeroHp < prevHeroHp)
+            this._addFloat('hero', `-${prevHeroHp - newHeroHp}`, '#ff4444');
+
+        // Log — detect new entries to trigger flash animations
+        const prevLogLength = this.gameLog.length;
+        this.gameLog = view.gameLog;
+        const newEntries = view.gameLog.slice(prevLogLength);
+        for (const entry of newEntries) {
+            if (entry.type === 'damage') {
+                this.damageFlash = true;
+                setTimeout(() => { this.damageFlash = false; }, 700);
+            }
+            if (entry.type === 'heal') {
+                this.healFlash = true;
+                setTimeout(() => { this.healFlash = false; }, 700);
+            }
+            if (entry.type === 'threat') {
+                this.threatFlash = true;
+                setTimeout(() => { this.threatFlash = false; }, 600);
+            }
+            if (entry.type === 'villain' && /attack|strike|damage/i.test(entry.message)) {
+                this.villainAttackFlash = true;
+                setTimeout(() => { this.villainAttackFlash = false; }, 600);
+            }
+            if (entry.type === 'draw') {
+                this.cardDrawFlash = true;
+                setTimeout(() => { this.cardDrawFlash = false; }, 500);
+            }
+        }
     },
 
     // ── Identity actions ─────────────────────────────────────────────────────
+
+    removeObligation(obligationInstanceId: number, handCardInstanceId: number) {
+        socket.emit('action:removeObligation', { obligationInstanceId, handCardInstanceId });
+    },
 
     flipIdentity() {
         socket.emit('action:flipIdentity');
@@ -492,8 +570,8 @@ export const useGameStore = defineStore('game', {
                 fetch('http://localhost:3000/api/cards').then(r => r.json()),
                 fetch('http://localhost:3000/api/villain-cards').then(r => r.json()),
             ]);
-            const reg: Record<number, string> = {};
-            for (const card of playerCards) reg[card.storageId] = card.imgPath;
+            const reg: Record<number, { imgPath: string; name: string }> = {};
+            for (const card of playerCards) reg[card.storageId] = { imgPath: card.imgPath, name: card.name };
             this.playerCardRegistry = reg;
             const vReg: Record<number, { imgPath: string; name: string }> = {};
             for (const card of villainCards) vReg[card.storageId] = { imgPath: card.imgPath, name: card.name };

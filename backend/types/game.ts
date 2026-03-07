@@ -50,6 +50,8 @@ export interface GameConfig {
     /** [phase1VillainId, phase2VillainId, ...] */
     villainPhaseChain: number[];
     expertMode: boolean;
+    /** Standard I (classic) or Standard II (Pursued by the Past). */
+    standardSet: 'I' | 'II';
 }
 
 export interface PlayerConfig {
@@ -80,6 +82,8 @@ export interface SharedBoardState {
     accelerationTokens: number;
     /** The currently-animating boost card, null otherwise. */
     boostCard: BoostCardDisplay | null;
+    /** Standard II environment card (Pursued by the Past), null when Standard I is used. */
+    environmentCard: EnvironmentCardDisplay | null;
 }
 
 export interface BoostCardDisplay {
@@ -87,6 +91,14 @@ export interface BoostCardDisplay {
     boostIcons: number;
     imgPath: string;
     name: string;
+}
+
+export interface EnvironmentCardDisplay {
+    storageId: number;   // 78 = Side A, 79 = Side B
+    name: string;
+    imgPath: string;
+    counters: number;
+    flipped: boolean;    // false = Side A, true = Side B
 }
 
 // ─── Per-Player State ─────────────────────────────────────────────────────────
@@ -127,6 +139,9 @@ export interface PlayerGameState {
     // Ability tracking
     abilityUseCounts: Record<string, number>;
     abilityResetOn: Record<string, string>;
+
+    // Standard II obligations (Drawing Nearer) in this player's tableau
+    obligations: Obligation[];
 }
 
 // ─── Interrupt / Prompt System ────────────────────────────────────────────────
@@ -279,6 +294,7 @@ export interface PublicPlayerState {
     engagedMinions: Minion[];
     encounterPileCount: number;
     revealedEncounterCard: (Treachery | Attachment | Minion | SideScheme) | null;
+    obligations: Obligation[];
 }
 
 /**
@@ -352,6 +368,7 @@ export interface LobbyRoom {
     selectedVillainId: number | null;
     selectedEncounterSetId: number | null;
     expertMode: boolean;
+    standardSet: 'I' | 'II';
     /** True once all seats are filled and all players are ready. */
     canStart: boolean;
 }

@@ -43,6 +43,7 @@ export const useSetupStore = defineStore('setup', {
         selectedVillainId:      null as number | null,
         selectedEncounterSetId: null as number | null,
         expertMode:             false,
+        selectedStandardSet:    'I' as 'I' | 'II',
 
         catalog: {
             heroes:    [] as HeroCatalogEntry[],
@@ -106,6 +107,10 @@ export const useSetupStore = defineStore('setup', {
             this.expertMode = expert;
         },
 
+        setStandardSet(set: 'I' | 'II') {
+            this.selectedStandardSet = set;
+        },
+
         selectEncounterSet(id: number) {
             this.selectedEncounterSetId = id;
         },
@@ -132,6 +137,7 @@ export const useSetupStore = defineStore('setup', {
                 villainId:      this.selectedVillainId!,
                 encounterSetId: this.selectedEncounterSetId!,
                 expertMode:     this.expertMode,
+                standardSet:    this.selectedStandardSet,
             });
 
             // 3. Select hero + deck

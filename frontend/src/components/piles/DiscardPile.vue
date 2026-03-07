@@ -14,7 +14,7 @@
 
     const resolve = (id: number) => {
         if (props.imageType === 'player') {
-            return store.playerCardRegistry[id] ?? '';
+            return store.playerCardRegistry[id]?.imgPath ?? '';
         }
         return store.villainCardRegistry[id]?.imgPath ?? '';
     };

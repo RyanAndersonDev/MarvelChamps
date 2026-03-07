@@ -4,7 +4,7 @@ import type { AuthPayload } from '../types/user';
 import type { LobbyRoom, GameConfig } from '../types/game';
 import { lobbyManager } from './LobbyManager';
 import { GameRoom } from '../engine/GameRoom';
-import { heroLibrary, villainLibrary, encounterLibrary, standardICardIds, expertICardIds } from '../cards/cardStore';
+import { heroLibrary, villainLibrary, encounterLibrary, standardICardIds, standardIICardIds, expertICardIds } from '../cards/cardStore';
 
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, { user: AuthPayload }>;
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, { user: AuthPayload }>;
@@ -19,7 +19,9 @@ function buildGameConfigFromLobby(room: LobbyRoom): GameConfig {
     const encounter = encounterLibrary.find(e => e.id === room.selectedEncounterSetId);
     const modularIds = encounter?.cardIds ?? [];
     const expertIds = room.expertMode ? expertICardIds : [];
-    const villainDeckIds = [...villain.villainDeckIds, ...standardICardIds, ...modularIds, ...expertIds];
+    const standardCards = room.standardSet === 'II' ? standardIICardIds : standardICardIds;
+    // Drawing Nearer (84) is added 1x per player in GameRoom.initializeGame after player slots are built
+    const villainDeckIds = [...villain.villainDeckIds, ...standardCards, ...modularIds, ...expertIds];
 
     const players: GameConfig['players'] = room.players.map(p => {
         const hero = heroLibrary.find(h => h.id === p.heroId);
@@ -36,6 +38,7 @@ function buildGameConfigFromLobby(room: LobbyRoom): GameConfig {
         villainDeckIds,
         villainPhaseChain: phaseChain,
         expertMode: room.expertMode,
+        standardSet: room.standardSet,
     };
 }
 
@@ -114,7 +117,7 @@ export function registerLobbyHandlers(io: GameServer, socket: GameSocket, rooms:
 
     socket.on('lobby:configure', (data) => {
         try {
-            const room = lobbyManager.configure(userId, data.villainId, data.encounterSetId, data.expertMode);
+            const room = lobbyManager.configure(userId, data.villainId, data.encounterSetId, data.expertMode, data.standardSet);
             io.to(room.code).emit('lobby:update', room);
         } catch (err: unknown) {
             socket.emit('error', { code: 'LOBBY_ERROR', message: (err as Error).message });

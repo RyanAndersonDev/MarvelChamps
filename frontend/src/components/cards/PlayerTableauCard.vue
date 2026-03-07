@@ -71,46 +71,75 @@
         <div v-if="(allyStats as any)?.counters > 0" class="stat-badge purple">{{ (allyStats as any).counters }}</div>
     </div>
 
-    <BaseCard
-      :img-path="card.imgPath"
-      :orientation="'vertical'"
-      :zoom-direction="'out'"
-      :size="'small'"
-      :no-zoom="store.targeting.isActive"
-      :class="{ 'is-exhausted': card.exhausted }"
-    />
+    <!-- Card image + overlaid buttons/badges all in one fixed-size wrapper -->
+    <div class="card-img-wrap">
+      <BaseCard
+        :img-path="card.imgPath"
+        :orientation="'vertical'"
+        :zoom-direction="'out'"
+        :size="'small'"
+        :no-zoom="store.targeting.isActive"
+        :class="{ 'is-exhausted': card.exhausted }"
+      />
 
-    <!-- Ally attachments (hover tooltip) -->
-    <div v-if="realAttachments.length" class="attachment-badge">
-        ⚙ {{ realAttachments.length }}
-        <div class="attachment-tooltip">
-            <div v-for="att in realAttachments" :key="(att as any).instanceId ?? (att as any).storageId" class="tooltip-entry">
-                <img :src="(att as any).imgPath" class="tooltip-img" />
-                <span>{{ (att as any).name }}</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quiver arrow badge (click to toggle panel) -->
-    <div
-      v-if="isQuiver && quiverCards.length > 0"
-      class="quiver-badge"
-      @click.stop="quiverOpen = !quiverOpen"
-    >
-      ⇧ {{ quiverCards.length }}
-      <!-- Panel opens above the card so it doesn't push down into the hand area -->
-      <Transition name="quiver-pop">
-        <div v-if="quiverOpen" class="quiver-panel" @click.stop>
-          <div v-for="qcard in quiverCards" :key="qcard.instanceId" class="quiver-entry">
-            <img :src="qcard.imgPath" :alt="qcard.name" class="quiver-img" />
-            <button
-              class="quiver-play-btn"
-              :disabled="store.currentPhase !== 'PLAYER_TURN'"
-              @click.stop="playArrow(qcard.instanceId)"
-            >Play</button>
+      <!-- Ally attachments (hover tooltip) -->
+      <div v-if="realAttachments.length" class="attachment-badge">
+          ⚙ {{ realAttachments.length }}
+          <div class="attachment-tooltip">
+              <div v-for="att in realAttachments" :key="(att as any).instanceId ?? (att as any).storageId" class="tooltip-entry">
+                  <img :src="(att as any).imgPath" class="tooltip-img" />
+                  <span>{{ (att as any).name }}</span>
+              </div>
           </div>
-        </div>
-      </Transition>
+      </div>
+
+      <!-- Quiver arrow badge (click to toggle panel) -->
+      <div
+        v-if="isQuiver && quiverCards.length > 0"
+        class="quiver-badge"
+        @click.stop="quiverOpen = !quiverOpen"
+      >
+        ⇧ {{ quiverCards.length }}
+        <Transition name="quiver-pop">
+          <div v-if="quiverOpen" class="quiver-panel" @click.stop>
+            <div v-for="qcard in quiverCards" :key="qcard.instanceId" class="quiver-entry">
+              <img :src="qcard.imgPath" :alt="qcard.name" class="quiver-img" />
+              <button
+                class="quiver-play-btn"
+                :disabled="store.currentPhase !== 'PLAYER_TURN'"
+                @click.stop="playArrow(qcard.instanceId)"
+              >Play</button>
+            </div>
+          </div>
+        </Transition>
+      </div>
+
+      <!-- Action buttons overlaid at the bottom of the card -->
+      <div class="button-row">
+        <button
+          v-if="card.type === 'ally' && store.currentPhase === 'PLAYER_TURN'"
+          class="btn-thw"
+          :disabled="card.exhausted"
+          @click.stop="store.thwartWithAlly(card.instanceId!)"
+          title="Thwart"
+        >THW</button>
+
+        <button
+          v-if="card.type === 'ally' && store.currentPhase === 'PLAYER_TURN'"
+          class="btn-atk"
+          :disabled="card.exhausted"
+          @click.stop="store.attackWithAlly(card.instanceId!)"
+          title="Attack"
+        >ATK</button>
+
+        <button
+          v-if="card.logic && !card.logic.forced && card.logic.type !== 'response' && card.logic.type !== 'interrupt' && (store.currentPhase === 'PLAYER_TURN' || store.activeCardId !== null)"
+          class="btn-act"
+          :disabled="(card.abilityExhausts && card.exhausted) || (card.logic?.type === 'resource' && store.activeCardId === null)"
+          @click.stop="doAction"
+          title="Action"
+        >ACT</button>
+      </div>
     </div>
 
     <StatusPips
@@ -119,27 +148,6 @@
       :confused="allyStats?.confused"
       :tough="allyStats?.tough"
     />
-
-    <div class="button-row">
-      <button
-        v-if="card.type === 'ally' && store.currentPhase === 'PLAYER_TURN'"
-        class="ally-thw-button"
-        :disabled="card.exhausted"
-        @click="store.thwartWithAlly(card.instanceId!)"
-      >THW</button>
-
-      <button
-        v-if="card.type === 'ally' && store.currentPhase === 'PLAYER_TURN'"
-        class="ally-atk-button"
-        :disabled="card.exhausted"
-        @click="store.attackWithAlly(card.instanceId!)"
-      >ATK</button>
-
-      <button
-        v-if="card.logic && !card.logic.forced && card.logic.type !== 'response' && card.logic.type !== 'interrupt' && (store.currentPhase === 'PLAYER_TURN' || store.activeCardId !== null)"
-        :disabled="(card.abilityExhausts && card.exhausted) || (card.logic?.type === 'resource' && store.activeCardId === null)"
-        @click="doAction">Action</button>
-    </div>
   </div>
 </template>
 
@@ -227,10 +235,17 @@
   .stat-badge.orange { background-color: #FF9800 !important; }
   .stat-badge.purple { background-color: #9C27B0 !important; }
 
+  /* ── Card image + overlaid controls ── */
+  .card-img-wrap {
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+
   /* ── Ally attachments ── */
   .attachment-badge {
     position: absolute;
-    bottom: 36px;
+    bottom: 26px;
     left: 4px;
     background: #e67e22;
     color: white;
@@ -285,7 +300,7 @@
   /* ── Quiver badge + panel ── */
   .quiver-badge {
     position: absolute;
-    bottom: 36px;
+    bottom: 26px;
     right: 4px;
     background: #2980b9;
     color: white;
@@ -347,41 +362,57 @@
   .quiver-pop-enter-active, .quiver-pop-leave-active { transition: opacity 0.15s, transform 0.15s; }
   .quiver-pop-enter-from, .quiver-pop-leave-to { opacity: 0; transform: translateY(6px); }
 
-  /* ── Buttons ── */
+  /* ── Buttons — overlaid at card bottom, never add height ── */
   .button-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 4px;
-    width: 100%;
-    justify-content: center;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 2px;
+    padding: 2px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 0 0 6px 6px;
+    pointer-events: auto;
   }
 
-  button {
-    width: 100%;
-    padding: 4px 0;
-    font-size: 0.65rem;
+  .button-row:empty {
+    display: none;
+  }
+
+  .button-row button {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 20px;
+    padding: 0;
+    font-size: 0.75rem;
+    line-height: 1;
     font-weight: bold;
     cursor: pointer;
-    background: var(--hero-primary, #333);
     color: white;
-    border: 1px solid #000;
-    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 3px;
+    background: rgba(60, 60, 60, 0.85);
+    transition: background 0.1s;
   }
 
-  button:last-child:nth-child(odd) {
-    grid-column: 1 / span 2;
-    justify-self: center;
-    width: auto;
-    min-width: 50%;
-    padding-left: 10px;
-    padding-right: 10px;
+  .button-row button:hover:not(:disabled) {
+    background: rgba(100, 100, 100, 0.95);
   }
 
-  button:disabled {
-    opacity: 0.4;
+  .button-row button:disabled {
+    opacity: 0.35;
     cursor: not-allowed;
   }
 
-  .ally-thw-button { background-color: #2196F3 !important; }
-  .ally-atk-button { background-color: #f44336 !important; }
+  .btn-thw { background-color: rgba(33, 150, 243, 0.85) !important; }
+  .btn-thw:hover:not(:disabled) { background-color: rgba(66, 165, 245, 0.95) !important; }
+
+  .btn-atk { background-color: rgba(244, 67, 54, 0.85) !important; }
+  .btn-atk:hover:not(:disabled) { background-color: rgba(239, 83, 80, 0.95) !important; }
+
+  .btn-act { background-color: var(--hero-secondary, rgba(156, 39, 176, 0.85)) !important; opacity: 0.85; }
+  .btn-act:hover:not(:disabled) { opacity: 1; }
 </style>

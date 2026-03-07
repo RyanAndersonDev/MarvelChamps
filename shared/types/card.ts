@@ -4,7 +4,7 @@ export type IdentityStatus = "hero" | "alter-ego" | "dead";
 
 export type PlayerCardType = "ally" | "event" | "support" | "upgrade" | "resource";
 
-export type VillainCardType = "minion" | "treachery" | "side-scheme" | "attachment" | "obligation";
+export type VillainCardType = "minion" | "treachery" | "side-scheme" | "attachment" | "obligation" | "environment";
 
 export type Aspect = "neutral" | "hero" | "aggression" | "justice" | "protection" | "leadership";
 
@@ -14,7 +14,7 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
-export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "ALLY_ATTACKS" | "FLIP_TO_HERO" | "HERO_DEFENDS" | "ALLY_THWARTS" | "MINION_DEFEATED" | "MINION_ENTERED_PLAY" | "MINION_ATTACK";
+export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "ALLY_ATTACKS" | "FLIP_TO_HERO" | "FLIP_TO_AE" | "HERO_DEFENDS" | "ALLY_THWARTS" | "MINION_DEFEATED" | "MINION_ENTERED_PLAY" | "MINION_ATTACK" | "HERO_TOUGH_DISCARDED";
 
 // ======================== EFFECT DSL ========================
 
@@ -29,6 +29,7 @@ export type EffectTarget =
   | 'chooseMinion'          // player selects an engaged minion only
   | 'chooseScheme'          // player selects a scheme
   | 'payloadTarget'         // the entity referenced by context.targetId (e.g. attack target)
+  | 'lastTarget'            // the last target resolved in this effect chain (context.lastResolvedTargetId)
   | 'chooseFriendly';      // player selects the hero or any ally
 
 export type EffectCondition =
@@ -54,7 +55,9 @@ export type EffectCondition =
   | { type: 'taggedMinionInPlay'; tag: string }
   | { type: 'minionAttacked' }
   | { type: 'identityNotExhausted' }
-  | { type: 'canAffordResources'; resources: Resource[] };
+  | { type: 'canAffordResources'; resources: Resource[] }
+  | { type: 'heroHasTough' }
+  | { type: 'attachedToAttacker' };
 
 export type EffectDef =
   | { op: 'dealDamage';       target: EffectTarget; amount: number }
@@ -140,7 +143,24 @@ export type EffectDef =
   | { op: 'attachArrowFromTopDeck' }
   | { op: 'discardTableauCardByStorageId'; storageId: number; cardName?: string }
   | { op: 'searchAndAttachAllyToScheme'; storageId: number; cardName?: string }
-  | { op: 'makeAttackPiercing' };
+  | { op: 'makeAttackPiercing' }
+  | { op: 'dealDamageToVillainAndEngaged'; amount: number }
+  | { op: 'stunAndDamage'; normalAmount: number; alreadyStunnedAmount: number }
+  | { op: 'addPursuitCounters'; amount: number }
+  | { op: 'villainSchemesIfPursuitCounters' }
+  | { op: 'gainSurgeIfPursuitCounters' }
+  | { op: 'villainAttacksIfPursuitCounters' }
+  | { op: 'activateNemesisMinionsOrAddCounters' }
+  | { op: 'discardUpgradeOrSupportIfPursuitCounters' }
+  | { op: 'shuffleTaggedCardFromDiscardIntoDeck'; tag: string }
+  | { op: 'discardTopDeckUntilTag'; tag: string }
+  | { op: 'discardToughFromHero' }
+  | { op: 'addBonusDamageToCurrentAttack'; amount: number }
+  | { op: 'makeCurrentAttackOverkill' }
+  | { op: 'makeCurrentAttackPiercing' }
+  | { op: 'discardAllFriendlyTough'; surgePerMissing?: boolean }
+  | { op: 'discardAllFriendlyToughAndAddThreat'; threatPerCard: number }
+  | { op: 'revealBoostCardAsEncounterCard' };
 
 // ======================== CARD INTERFACES ========================
 
@@ -167,6 +187,8 @@ export interface IdentityCard extends CardBase {
     aeAbilityExhausts: boolean;
     heroAbilityExhausts: boolean;
     storageId?: number;
+    maxToughCounters?: number;
+    setupEffects?: EffectDef[];
 }
 
 export interface IdentityCardInstance extends IdentityCard {
@@ -177,6 +199,7 @@ export interface IdentityCardInstance extends IdentityCard {
     stunned: boolean;
     confused: boolean;
     tough: boolean;
+    toughCounters: number;
 }
 
 export interface PlayerCard extends CardBase {
@@ -205,6 +228,9 @@ export interface PlayerCard extends CardBase {
     dynamicThwBonus?: string;
     logics?: CardLogic[];
     allyLimitBonus?: number;
+    returnPaymentOnSuccess?: boolean;
+    ignoresGuard?: boolean;
+    ignoresCrisis?: boolean;
 }
 
 export interface PlayerCardInstance extends PlayerCard {
@@ -289,7 +315,10 @@ export interface VillainCard extends CardBase {
     whenDefeatedEffects?: EffectDef[];
     boostResponseEffect?: EffectDef[];
     dynamicAtk?: 'hitPointsRemaining';
-    attachmentTarget?: 'highestHpMinion';
+    attachmentTarget?: 'highestHpMinion' | 'highestAtkEnemy';
+    stalwart?: boolean;
+    amplify?: boolean;
+    logics?: CardLogic[];
     hpMod?: number;
     piercing?: boolean;
     attachmentTag?: string;
@@ -337,6 +366,7 @@ export interface SideScheme extends VillainCardInstance {
     crisis: boolean;
     hazard: boolean;
     acceleration: boolean;
+    amplify: boolean;
     heldCards?: number[];
 }
 

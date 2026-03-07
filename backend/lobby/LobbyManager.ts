@@ -52,6 +52,7 @@ export class LobbyManager {
             selectedVillainId: null,
             selectedEncounterSetId: null,
             expertMode: false,
+            standardSet: 'I',
             canStart: false,
         };
         this.rooms.set(code, room);
@@ -149,12 +150,14 @@ export class LobbyManager {
         villainId: number,
         encounterSetId: number,
         expertMode: boolean,
+        standardSet: 'I' | 'II' = 'I',
     ): LobbyRoom {
         const room = this.getPlayerRoom(userId);
         if (room.hostUserId !== userId) throw new Error('NOT_HOST');
         room.selectedVillainId = villainId;
         room.selectedEncounterSetId = encounterSetId;
         room.expertMode = expertMode;
+        room.standardSet = standardSet;
         // Reset all ready states when config changes (villain/mode affects deck building)
         room.players.forEach(p => { p.isReady = false; });
         recomputeCanStart(room);

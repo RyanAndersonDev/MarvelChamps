@@ -1,5 +1,7 @@
 <script setup lang="ts">
-    defineProps<{
+    import { ref } from 'vue';
+
+    const props = defineProps<{
         imgPath: string;
         alt?: string;
         orientation: "vertical" | "horizontal";
@@ -7,13 +9,34 @@
         size?: "normal" | "small";
         noZoom?: boolean;
     }>();
+
+    const cardEl = ref<HTMLElement | null>(null);
+    const mouseInTopZone = ref(false);
+
+    function onMouseMove(e: MouseEvent) {
+        if (!cardEl.value) return;
+        const rect = cardEl.value.getBoundingClientRect();
+        mouseInTopZone.value = (e.clientY - rect.top) / rect.height < 0.75;
+    }
+
+    function onMouseLeave() {
+        mouseInTopZone.value = false;
+    }
 </script>
 
 <template>
-  <div class="base-card" :class="orientation ?? 'vertical', size ?? 'normal'">
-    <img :src="imgPath"
-    :alt="alt ?? 'Card'"
-    :class="[zoomDirection, { 'no-zoom': noZoom }]"/>
+  <div
+    class="base-card"
+    :class="[props.orientation ?? 'vertical', props.size ?? 'normal']"
+    ref="cardEl"
+    @mousemove="onMouseMove"
+    @mouseleave="onMouseLeave"
+  >
+    <img
+      :src="props.imgPath"
+      :alt="props.alt ?? 'Card'"
+      :class="[props.zoomDirection, { 'no-zoom': props.noZoom || !mouseInTopZone }]"
+    />
   </div>
 </template>
 

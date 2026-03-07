@@ -40,3 +40,13 @@ socket.on('game:targetingRequired', (data) => {
 socket.on('game:promptClose', () => {
     gameStore.activePrompt = null
 })
+
+socket.on('game:highlight', (data) => {
+    if (data.entityId === '*') {
+        gameStore.highlights = {}
+    } else if (data.type === 'clear') {
+        delete gameStore.highlights[data.entityId]
+    } else {
+        gameStore.highlights[data.entityId] = data.type
+    }
+})

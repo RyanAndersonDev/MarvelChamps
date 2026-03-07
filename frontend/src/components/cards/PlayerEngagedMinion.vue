@@ -14,10 +14,13 @@
             && store.targeting.validTargetIds.includes(props.card.instanceId);
     });
 
-    const effectiveAtk = computed(() =>
-        props.card.atk + (props.card.attachments ?? [])
-            .reduce((sum, att) => sum + ((att as any).atkMod ?? 0), 0)
-    );
+    const effectiveAtk = computed(() => {
+        const baseAtk = (props.card as any).dynamicAtk === 'hitPointsRemaining'
+            ? (props.card.hitPointsRemaining ?? props.card.atk)
+            : props.card.atk;
+        return baseAtk + (props.card.attachments ?? [])
+            .reduce((sum, att) => sum + ((att as any).atkMod ?? 0), 0);
+    });
 
     const effectiveSch = computed(() =>
         props.card.sch + (props.card.attachments ?? [])
@@ -34,9 +37,11 @@
 <template>
     <div 
         class="minion-unit"
-        :class="{ 
+        :class="{
             'is-targetable': isTargetable,
-            'hover-disabled': store.targeting.isActive && !isTargetable 
+            'hover-disabled': store.targeting.isActive && !isTargetable,
+            'hl-activating': store.highlights[String(card.instanceId)] === 'activating',
+            'hl-targeted': store.highlights[String(card.instanceId)] === 'targeted',
         }"
         @mouseenter="isHovered = true"
         @mouseleave="isHovered = false"

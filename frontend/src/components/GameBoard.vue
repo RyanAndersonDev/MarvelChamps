@@ -145,6 +145,7 @@ const teammateTargetAllies = computed(() =>
 );
 
 // ── Teammate board panel ───────────────────────────────────────────────────
+const envExpanded = ref(false);
 const otherBoardsOpen = ref(false);
 const viewingTeammateId = ref<string | null>(null);
 const viewingTeammate = computed(() =>
@@ -212,6 +213,41 @@ function tmHpClass(p: PublicPlayerState): string {
           <TeammateBoard
             :player="player"
             :is-villain-target="player.userId === store.villainPhaseTargetId"
+          />
+        </div>
+      </div>
+    </Transition>
+  </div>
+
+  <!-- Standard II: Pursued by the Past — fixed top-center tab -->
+  <div v-if="store.environmentCard" class="env-tab">
+    <button class="env-tab-btn" @click="envExpanded = !envExpanded">
+      <span class="env-tab-name">{{ store.environmentCard.name }}</span>
+      <span
+        class="env-tab-counter"
+        :class="{ 'env-counter-warn': store.environmentCard.counters >= store.otherPlayers.length + 4 }"
+      >{{ store.environmentCard.counters }}&thinsp;/&thinsp;{{ store.otherPlayers.length + 4 }}</span>
+      <span class="env-tab-arrow">{{ envExpanded ? '▲' : '▼' }}</span>
+    </button>
+    <Transition name="env-drop">
+      <div v-if="envExpanded" class="env-panel" @click.stop>
+        <img
+          :src="store.environmentCard.imgPath || '/cards/misc/villain-card-back.png'"
+          :alt="store.environmentCard.name"
+          class="env-card-img"
+        />
+        <div class="env-panel-info">
+          <span class="env-side-badge">{{ store.environmentCard.flipped ? 'Side B' : 'Side A' }}</span>
+          <span class="env-count-text">
+            {{ store.environmentCard.counters }}&nbsp;pursuit counter{{ store.environmentCard.counters !== 1 ? 's' : '' }}
+          </span>
+        </div>
+        <div class="env-pip-row">
+          <span
+            v-for="i in store.otherPlayers.length + 4"
+            :key="i"
+            class="env-pip"
+            :class="{ filled: i <= store.environmentCard.counters }"
           />
         </div>
       </div>
@@ -415,8 +451,6 @@ function tmHpClass(p: PublicPlayerState): string {
               :deckIds="store.deckIds"
               :card-back-img-path="store.playerCardBackImg"
               image-type="player"
-              :show-draw-button="store.currentPhase === 'PLAYER_TURN'"
-              @draw="store.drawCardFromDeck"
             />
           </div>
 
@@ -576,7 +610,7 @@ function tmHpClass(p: PublicPlayerState): string {
     align-items: center;
     justify-content: center;
     gap: 20px;
-    overflow-y: auto;
+    overflow: visible;
     padding: 20px;
   }
 
@@ -1099,4 +1133,123 @@ function tmHpClass(p: PublicPlayerState): string {
     0%, 100% { border-color: rgba(255, 80, 80, 0.3); }
     50%       { border-color: rgba(255, 80, 80, 0.7); }
   }
+
+  /* ── Standard II: Environment tab (fixed top-center) ── */
+  .env-tab {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .env-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(8, 16, 42, 0.92);
+    border: 1px solid rgba(100, 150, 255, 0.45);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    padding: 5px 16px 6px;
+    cursor: pointer;
+    color: #bcd4ff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+    box-shadow: 0 4px 18px rgba(0, 0, 20, 0.6);
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .env-tab-btn:hover { background: rgba(18, 36, 90, 0.95); }
+
+  .env-tab-name { font-weight: 800; letter-spacing: 0.05em; }
+
+  .env-tab-counter {
+    background: rgba(100, 150, 255, 0.18);
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    transition: background 0.2s, color 0.2s;
+  }
+  .env-counter-warn {
+    background: rgba(255, 70, 70, 0.35);
+    color: #ffaaaa;
+  }
+
+  .env-tab-arrow { font-size: 0.5rem; opacity: 0.55; }
+
+  .env-panel {
+    background: rgba(8, 14, 34, 0.98);
+    border: 1px solid rgba(100, 150, 255, 0.4);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    padding: 12px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 220px;
+    box-shadow: 0 14px 44px rgba(0, 0, 0, 0.75);
+  }
+
+  .env-card-img {
+    width: 100%;
+    border-radius: 8px;
+    display: block;
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+  }
+
+  .env-panel-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .env-side-badge {
+    font-size: 0.62rem;
+    font-weight: 800;
+    background: rgba(100, 150, 255, 0.25);
+    border-radius: 4px;
+    padding: 2px 8px;
+    color: #a8c8ff;
+    letter-spacing: 0.05em;
+  }
+
+  .env-count-text {
+    font-size: 0.62rem;
+    color: #c0d4ff;
+  }
+
+  .env-pip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+  }
+
+  .env-pip {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(100, 150, 255, 0.45);
+    background: transparent;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .env-pip.filled {
+    background: rgba(100, 150, 255, 0.9);
+    box-shadow: 0 0 7px rgba(100, 150, 255, 0.75);
+  }
+
+  .env-drop-enter-active { transition: opacity 0.18s ease-out, transform 0.18s ease-out; }
+  .env-drop-leave-active { transition: opacity 0.12s ease-in, transform 0.12s ease-in; }
+  .env-drop-enter-from, .env-drop-leave-to { opacity: 0; transform: translateY(-8px); }
 </style>

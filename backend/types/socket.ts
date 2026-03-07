@@ -36,6 +36,7 @@ export interface ClientToServerEvents {
         villainId: number;
         encounterSetId: number;
         expertMode: boolean;
+        standardSet: 'I' | 'II';
     }) => void;
     /** Host only: start the game once all players are ready. */
     'lobby:start': (ack: AckCallback) => void;
@@ -137,6 +138,9 @@ export interface ClientToServerEvents {
     /** Respond to a pending yes/no question (e.g. obligation flip offer). */
     'action:yesNoResponse': (data: { accepted: boolean }) => void;
 
+    /** Drawing Nearer: discard a hero-aspect hand card to remove the obligation from tableau. */
+    'action:removeObligation': (data: { obligationInstanceId: number; handCardInstanceId: number }) => void;
+
     // ── Resume prompt ──
     /** Accept the resume offer — server restores the snapshot and sends a state update. */
     'game:resumeAccept': () => void;
@@ -188,6 +192,14 @@ export interface ServerToClientEvents {
     // ── Villain Phase Callouts ──
     /** The villain phase has started. Clients can animate the transition. */
     'game:villainPhaseStart': (data: { roundNumber: number }) => void;
+
+    /**
+     * Highlight a card or zone during the villain phase.
+     * entityId: 'villain' | 'hero' | 'main-scheme' | 'encounter-zone' | String(instanceId)
+     * type: 'activating' (gold) | 'targeted' (red) | 'clear' (remove highlight)
+     * entityId '*' clears all highlights at once.
+     */
+    'game:highlight': (data: { entityId: string; type: 'activating' | 'targeted' | 'clear' }) => void;
 
     /**
      * The villain phase is now targeting a specific player.

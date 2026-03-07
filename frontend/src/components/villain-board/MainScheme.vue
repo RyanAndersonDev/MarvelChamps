@@ -3,6 +3,7 @@
     import { useGameStore } from '../../stores/gameStore';
     import type { MainSchemeInstance } from '@shared/types/card';
     import BaseCard from '../cards/BaseCard.vue';
+    import FloatingNumber from '../FloatingNumber.vue';
 
     const props = defineProps<{ schemeInstance: MainSchemeInstance }>();
     const store = useGameStore();
@@ -24,7 +25,12 @@
 <template>
   <div
     class="scheme-container"
-    :class="{ 'targetable': isTargetable }"
+    :class="{
+      'targetable': isTargetable,
+      'threat-flash': store.threatFlash && !isTargetable,
+      'phase-glow-yellow': store.currentPhase === 'VILLAIN_STEP_1_THREAT',
+      'hl-targeted': store.highlights['main-scheme'] === 'targeted',
+    }"
     @click="handleSchemeClick"
     @mouseleave="justTargeted = false"
   >
@@ -36,7 +42,7 @@
         :no-zoom="store.targeting.isActive || justTargeted"
         class="scheme-card"
       />
-      
+      <FloatingNumber target="scheme" />
       <div v-if="isTargetable" class="target-overlay">
         <div class="reticle"></div>
       </div>
@@ -137,5 +143,23 @@
     @keyframes spin {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
+    }
+
+    /* ── Villain phase glow ── */
+    @keyframes phase-pulse-yellow {
+        0%, 100% { filter: drop-shadow(0 0 8px rgba(220, 180, 0, 0.6)); }
+        50%       { filter: drop-shadow(0 0 28px rgba(255, 220, 0, 1)); }
+    }
+    .phase-glow-yellow { animation: phase-pulse-yellow 1s ease-in-out infinite; }
+
+    /* ── Threat added flash ── */
+    @keyframes threat-surge {
+        0%   { filter: none; }
+        20%  { filter: drop-shadow(0 0 22px rgba(231, 76, 60, 1)) brightness(1.15); }
+        55%  { filter: drop-shadow(0 0 12px rgba(231, 76, 60, 0.7)); }
+        100% { filter: none; }
+    }
+    .scheme-container.threat-flash {
+        animation: threat-surge 0.6s ease-out;
     }
 </style>

@@ -51,6 +51,7 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
         case 'dealDamage': {
             const targetId = await resolveTargetId(effect.target, state, context);
             if (!targetId) return;
+            context.lastResolvedTargetId = targetId;
             const damagePayload = {
                 amount: effect.amount,
                 targetId,
@@ -160,7 +161,7 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
         }
 
         case 'confuseAndDamage': {
-            const targetId = await resolveTargetId('chooseEnemy' as any, state, context);
+            const targetId = await resolveTargetId('chooseEnemyIgnoreGuard' as any, state, context);
             if (!targetId) break;
             const target = state.findTargetById(targetId);
             if (!target) break;
@@ -303,7 +304,16 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             const allyBp = cardMap.get(effect.storageId);
             const allyName = effect.cardName ?? allyBp?.name ?? `Card ${effect.storageId}`;
 
-            // Search hand first, then discard, then deck
+            // Search tableau first (ally in play), then hand, then discard, then deck
+            const inTableau = state.tableauCards.findIndex((c: any) => c.storageId === effect.storageId && c.type === 'ally');
+            if (inTableau !== -1) {
+                state.tableauCards.splice(inTableau, 1);
+                targetScheme.heldCards.push(effect.storageId);
+                state.addLog(`${allyName} removed from play and placed under ${targetScheme.name}.`, 'villain');
+                break;
+            }
+
+            // Search hand, then discard, then deck
             const inHand = state.hand.findIndex((c: any) => c.storageId === effect.storageId);
             if (inHand !== -1) {
                 state.hand.splice(inHand, 1);
@@ -336,6 +346,47 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             break;
         }
 
+        case 'dealDamageToVillainAndEngaged': {
+            // Deal damage to villain
+            const villainId = state.villainCard?.instanceId;
+            if (villainId) {
+                const vp = { amount: effect.amount, targetId: villainId, isCanceled: false, source: context.sourceCard ?? 'effect' };
+                await state.emitEvent('ENTITY_TAKES_DAMAGE', vp, async () => {
+                    if (!vp.isCanceled && vp.amount > 0) await state.applyDamageToEntity(vp);
+                });
+            }
+            // Deal damage to each minion engaged with the CURRENT player only
+            const engagedSnapshot = [...state.engagedMinions];
+            for (const minion of engagedSnapshot) {
+                if (!state.engagedMinions.some(m => m.instanceId === minion.instanceId)) continue;
+                const mp = { amount: effect.amount, targetId: minion.instanceId, isCanceled: false, source: context.sourceCard ?? 'effect' };
+                await state.emitEvent('ENTITY_TAKES_DAMAGE', mp, async () => {
+                    if (!mp.isCanceled && mp.amount > 0) await state.applyDamageToEntity(mp);
+                });
+                if (minion.hitPointsRemaining <= 0)
+                    await state.discardFromEngagedMinions(minion.instanceId);
+            }
+            break;
+        }
+
+        case 'stunAndDamage': {
+            const targetId = await resolveTargetId('chooseEnemyIgnoreGuard', state, context);
+            if (!targetId) break;
+            const target = state.findTargetById(targetId) as any;
+            if (!target) break;
+            const alreadyStunned = !!target.stunned;
+            target.stunned = true;
+            state.addLog(`${target.name} is ${alreadyStunned ? 'already' : 'now'} stunned.`, 'status');
+            const dmgAmount = alreadyStunned ? effect.alreadyStunnedAmount : effect.normalAmount;
+            const stunDmgPayload = { amount: dmgAmount, targetId, isCanceled: false, source: context.sourceCard ?? 'effect' };
+            await state.emitEvent('ENTITY_TAKES_DAMAGE', stunDmgPayload, async () => {
+                if (!stunDmgPayload.isCanceled && stunDmgPayload.amount > 0) await state.applyDamageToEntity(stunDmgPayload);
+            });
+            if ((target as any).type === 'minion' && target.hitPointsRemaining <= 0)
+                await state.discardFromEngagedMinions(target.instanceId);
+            break;
+        }
+
         case 'stun': {
             let target = resolveTargetEntity(effect.target, state, context);
             if (!target) {
@@ -343,8 +394,12 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
                 if (targetId) target = state.findTargetById(targetId);
             }
             if (target) {
-                target.stunned = true;
-                state.addLog(`${target.name} is stunned.`, 'status');
+                if ((target as any).stalwart) {
+                    state.addLog(`${target.name} is Stalwart — immune to stun.`, 'status');
+                } else {
+                    target.stunned = true;
+                    state.addLog(`${target.name} is stunned.`, 'status');
+                }
             }
             break;
         }
@@ -352,8 +407,12 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
         case 'confuse': {
             const target = resolveTargetEntity(effect.target, state, context);
             if (target) {
-                target.confused = true;
-                state.addLog(`${target.name} is confused.`, 'status');
+                if ((target as any).stalwart) {
+                    state.addLog(`${target.name} is Stalwart — immune to confuse.`, 'status');
+                } else {
+                    target.confused = true;
+                    state.addLog(`${target.name} is confused.`, 'status');
+                }
             }
             break;
         }
@@ -390,8 +449,15 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
         case 'giveTough': {
             const target = resolveTargetEntity(effect.target, state, context);
             if (target) {
-                target.tough = true;
-                state.addLog(`${target.name} gained Tough.`, 'status');
+                const maxTough = (target as any).maxToughCounters ?? 1;
+                const currentTough = (target as any).toughCounters ?? (target.tough ? 1 : 0);
+                if (currentTough < maxTough) {
+                    (target as any).toughCounters = currentTough + 1;
+                    target.tough = true;
+                    state.addLog(`${target.name} gained Tough (${(target as any).toughCounters}/${maxTough}).`, 'status');
+                } else {
+                    state.addLog(`${target.name} already at max Tough.`, 'status');
+                }
             }
             break;
         }
@@ -488,15 +554,27 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
         }
 
         case 'allEnemiesAttack': {
-            await state.villainActivationAttack({
-                attacker: state.villainCard?.name ?? 'Villain',
-                baseDamage: (state.villainCard?.atk ?? 0) + (state.villainCard?.attachments ?? []).reduce((s: number, a: any) => s + (a.atkMod ?? 0), 0),
-                boostDamage: 0, isDefended: false, targetType: 'identity', targetId: 'hero',
-                isCanceled: false, damageWasDealt: false,
-                overkill: (state.villainCard?.attachments ?? []).some((a: any) => a.overkill),
-            });
-            for (const minion of [...state.engagedMinions]) {
-                await state.minionActivationAttack(minion);
+            const inHeroFormAll = state.hero.identityStatus === 'hero';
+            if (inHeroFormAll) {
+                await state.villainActivationAttack({
+                    attacker: state.villainCard?.name ?? 'Villain',
+                    baseDamage: (state.villainCard?.atk ?? 0) + (state.villainCard?.attachments ?? []).reduce((s: number, a: any) => s + (a.atkMod ?? 0), 0),
+                    boostDamage: 0, isDefended: false, targetType: 'identity', targetId: 'hero',
+                    isCanceled: false, damageWasDealt: false,
+                    overkill: (state.villainCard?.attachments ?? []).some((a: any) => a.overkill),
+                });
+                for (const minion of [...state.engagedMinions]) {
+                    await state.minionActivationAttack(minion);
+                }
+            } else {
+                await state.villainActivationScheme({
+                    attacker: state.villainCard?.name ?? 'Villain',
+                    baseThreat: state.villainCard?.sch ?? 0,
+                    boostThreat: 0, isCanceled: false,
+                });
+                for (const minion of [...state.engagedMinions]) {
+                    await state.minionActivationScheme(minion);
+                }
             }
             break;
         }
@@ -548,6 +626,18 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             const attacker = context.attacker;
             if (attacker?.attachments) {
                 attacker.attachments = attacker.attachments.filter((a: any) => a.instanceId !== card.instanceId);
+            }
+            const source = context.source;
+            if (source?.attachments) {
+                source.attachments = source.attachments.filter((a: any) => a.instanceId !== card.instanceId);
+            }
+            // Search all engaged minions across all player slots
+            for (const slot of state.players.values()) {
+                for (const minion of slot.engagedMinions) {
+                    if (minion.attachments) {
+                        minion.attachments = minion.attachments.filter((a: any) => a.instanceId !== card.instanceId);
+                    }
+                }
             }
             if (state.villainCard?.attachments) {
                 state.villainCard.attachments = state.villainCard.attachments.filter(
@@ -746,9 +836,8 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             const wasHero = state.hero.identityStatus === 'hero';
             state.hero.identityStatus = wasHero ? 'alter-ego' : 'hero';
             state.addLog(`Flipped to ${state.hero.identityStatus}.`, 'system');
-            if (!wasHero) {
-                await state.checkTriggers('response', 'FLIP_TO_HERO', {});
-            }
+            if (!wasHero) await state.checkTriggers('response', 'FLIP_TO_HERO', {});
+            if (wasHero)  await state.checkTriggers('response', 'FLIP_TO_AE',   {});
             break;
         }
 
@@ -805,6 +894,89 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
                 scheme.threatRemaining += effect.amount;
                 state.addLog(`Added ${effect.amount} threat to ${scheme.name}. Total: ${scheme.threatRemaining}`, 'threat');
             }
+            break;
+        }
+
+        // ── Standard II effect ops ────────────────────────────────────────────
+
+        case 'addPursuitCounters': {
+            await state.addPursuitCounters(effect.amount);
+            break;
+        }
+
+        case 'villainSchemesIfPursuitCounters': {
+            if (!state.activeEnvironmentCard || state.activeEnvironmentCard.counters <= 0) break;
+            state.addLog(`Pursued by the Past has counters — villain schemes!`, 'villain');
+            const sch = (state.villainCard?.sch ?? 0);
+            await state.villainActivationScheme({ attacker: state.villainCard?.name ?? 'Villain', baseThreat: sch, isCanceled: false });
+            break;
+        }
+
+        case 'gainSurgeIfPursuitCounters': {
+            if (!state.activeEnvironmentCard || state.activeEnvironmentCard.counters <= 0) break;
+            state.addLog(`Pursued by the Past has counters — Sinister Strike surges!`, 'villain');
+            context.surge = (context.surge ?? 0) + 1;
+            break;
+        }
+
+        case 'villainAttacksIfPursuitCounters': {
+            if (!state.activeEnvironmentCard || state.activeEnvironmentCard.counters <= 0) break;
+            state.addLog(`Pursued by the Past has counters — villain attacks!`, 'villain');
+            if (!state.villainCard) break;
+            const atkBonus = (state.villainCard.attachments || [])
+                .reduce((sum: number, att: any) => sum + (att.atkMod || 0), 0);
+            const attackPayload = {
+                attacker: state.villainCard.name,
+                baseDamage: (state.villainCard.atk || 0) + atkBonus,
+                boostDamage: 0,
+                isDefended: false,
+                targetType: 'identity',
+                targetId: 'hero',
+                isCanceled: false,
+                overkill: false,
+                skipBoost: true,
+            };
+            await state.villainActivationAttack(attackPayload);
+            break;
+        }
+
+        case 'activateNemesisMinionsOrAddCounters': {
+            const nemId = state.p.nemesisMinionStorageId;
+            const nemesisMinions = state.p.engagedMinions.filter(m =>
+                nemId !== null && m.storageId === nemId
+            );
+            if (nemesisMinions.length === 0) {
+                state.addLog(`Evil Alliance — no nemesis minion in play. Adding 3 pursuit counters.`, 'villain');
+                await state.addPursuitCounters(3);
+            } else {
+                for (const minion of nemesisMinions) {
+                    state.addLog(`Evil Alliance — ${minion.name} activates!`, 'villain');
+                    if (state.hero.identityStatus === 'alter-ego') {
+                        await state.minionActivationScheme(minion);
+                    } else {
+                        await state.minionActivationAttack(minion);
+                    }
+                }
+            }
+            break;
+        }
+
+        case 'discardUpgradeOrSupportIfPursuitCounters': {
+            if (!state.activeEnvironmentCard || state.activeEnvironmentCard.counters <= 0) break;
+            const eligible = state.tableauCards.filter(c => c.type === 'upgrade' || c.type === 'support');
+            if (eligible.length === 0) {
+                state.addLog(`Nowhere Is Safe — no upgrade or support in play to discard.`, 'villain');
+                break;
+            }
+            const chosen = await state.requestChoice(
+                'NOWHERE IS SAFE — Discard an upgrade or support',
+                eligible.map(c => ({ id: c.instanceId, name: c.name, imgPath: (c as any).imgPath ?? '' }))
+            );
+            const target = eligible.find(c => c.instanceId === chosen?.id);
+            if (!target) break;
+            state.tableauCards = state.tableauCards.filter(c => c.instanceId !== target.instanceId);
+            if (target.storageId != null) state.playerDiscardIds.unshift(target.storageId);
+            state.addLog(`Nowhere Is Safe — ${target.name} discarded.`, 'villain');
             break;
         }
 
@@ -966,27 +1138,70 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
 
         case 'putAllyFromDiscardIntoPlay': {
             const seen = new Set<number>();
-            const allyOptions: { id: number; name: string }[] = [];
+            const allyOptions: { id: number; name: string; imgPath?: string }[] = [];
             for (const sid of state.playerDiscardIds) {
                 if (seen.has(sid)) continue;
                 const bp = cardMap.get(sid);
                 if (bp?.type === 'ally') {
                     seen.add(sid);
-                    allyOptions.push({ id: sid, name: bp.name });
+                    allyOptions.push({ id: sid, name: bp.name, imgPath: (bp as any).imgPath });
                 }
             }
             if (allyOptions.length === 0) {
                 state.addLog('No allies in discard to put into play.', 'system');
+                context.actionBlocked = true;
                 break;
             }
-            const chosen = await state.requestChoice('Choose an ally to put into play', allyOptions);
-            if (!chosen || chosen.id === 'none') break;
+            const chosen = await state.requestChoice('Choose an ally to put into play (pay printed cost)', allyOptions);
+            if (!chosen || chosen.id === 'none') {
+                context.actionBlocked = true;
+                break;
+            }
             const storageId = chosen.id as number;
-            const idx = state.playerDiscardIds.lastIndexOf(storageId);
-            if (idx !== -1) state.playerDiscardIds.splice(idx, 1);
+            const bp = cardMap.get(storageId)!;
+            const allyCost = (bp as any).cost ?? 0;
+
+            // Check ally limit
+            const allyLimit = 3 + state.tableauCards.reduce((sum: number, c: any) => sum + (c.allyLimitBonus ?? 0), 0);
+            if (state.tableauCards.filter((c: any) => c.type === 'ally').length >= allyLimit) {
+                state.addLog(`Cannot put ${bp.name} into play — ally limit reached.`, 'system');
+                context.actionBlocked = true;
+                break;
+            }
+
+            // Collect payment if the ally has a cost
+            if (allyCost > 0) {
+                const selectedIds = await state.requestHandDiscard(
+                    allyCost,
+                    'PAY ALLY COST',
+                    `Discard ${allyCost} card${allyCost !== 1 ? 's' : ''} as resources to pay for ${bp.name} (cost ${allyCost}).`
+                );
+                if (!selectedIds || selectedIds.length < allyCost) {
+                    state.addLog(`Play of ${bp.name} cancelled.`, 'system');
+                    context.actionBlocked = true;
+                    break;
+                }
+                for (const instId of selectedIds) {
+                    const handIdx = state.hand.findIndex((c: any) => c.instanceId === instId);
+                    if (handIdx !== -1) {
+                        const pCard = state.hand[handIdx] as any;
+                        state.hand.splice(handIdx, 1);
+                        if (pCard.storageId != null) state.playerDiscardIds.push(pCard.storageId);
+                    }
+                }
+            }
+
+            // Remove one copy of the ally from discard and put it into play
+            const discardIdx = state.playerDiscardIds.lastIndexOf(storageId);
+            if (discardIdx !== -1) state.playerDiscardIds.splice(discardIdx, 1);
             const tableauAlly = createTableauCard(storageId, state.getNextId());
             state.tableauCards.push(tableauAlly);
-            state.addLog(`${chosen.name} put into play from discard.`, 'play');
+            state.addLog(`${bp.name} put into play from discard (cost paid: ${allyCost}).`, 'play');
+
+            // Fire "when enters play" effects (e.g. Nick Fury, Maria Hill)
+            if ((tableauAlly as any).logic?.timing === 'afterPlay') {
+                await state.executeCardEffect(tableauAlly as any);
+            }
             break;
         }
 
@@ -1082,9 +1297,14 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
                 const bp = villainCardMap.get(m.storageId!);
                 return bp?.tags?.includes(effect.tag);
             });
+            const inHeroForm = state.hero.identityStatus === 'hero';
             for (const minion of [...minionsToAttack]) {
                 if (state.engagedMinions.some(m => m.instanceId === minion.instanceId)) {
-                    await state.minionActivationAttack(minion);
+                    if (inHeroForm) {
+                        await state.minionActivationAttack(minion);
+                    } else {
+                        await state.minionActivationScheme(minion);
+                    }
                 }
             }
             break;
@@ -1209,6 +1429,10 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
         case 'selfMinionAttack': {
             const minion = context.sourceCard;
             if (!minion) { state.addLog(`selfMinionAttack: no source minion in context.`, 'system'); break; }
+            if (state.hero.identityStatus === 'alter-ego') {
+                state.addLog(`${minion.name} quickstrikes — but ${state.hero.name} is in alter-ego form, no attack.`, 'status');
+                break;
+            }
             state.addLog(`${minion.name} quickstrikes!`, 'villain');
             await state.minionActivationAttack(minion);
             break;
@@ -1265,7 +1489,7 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             const bp = villainCardMap.get(storageId);
             state.addLog(`${bp?.name ?? `Card #${storageId}`} enters play as a minion!`, 'villain');
             const minionCard = createVillainCard(storageId, state.getNextId());
-            await state.handleMinionEntry(minionCard);
+            await state.handleMinionEntry(minionCard, { fromBoost: true });
             break;
         }
 
@@ -1312,6 +1536,127 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             break;
         }
 
+        case 'shuffleTaggedCardFromDiscardIntoDeck': {
+            const tag = effect.tag;
+            const idx = state.playerDiscardIds.findIndex(sid => cardMap.get(sid)?.tags?.includes(tag));
+            if (idx >= 0) {
+                const sid = state.playerDiscardIds[idx]!;
+                state.playerDiscardIds.splice(idx, 1);
+                const insertAt = Math.floor(Math.random() * (state.deckIds.length + 1));
+                state.deckIds.splice(insertAt, 0, sid);
+                state.addLog(`${cardMap.get(sid)?.name ?? 'Card'} shuffled from discard into deck.`, 'system');
+            } else {
+                state.addLog(`No card tagged '${tag}' found in discard.`, 'system');
+            }
+            break;
+        }
+
+        case 'discardTopDeckUntilTag': {
+            const tag = effect.tag;
+            let found: ReturnType<typeof createHandCard> | null = null;
+            while (state.deckIds.length > 0) {
+                const topId = state.deckIds.shift()!;
+                const bp = cardMap.get(topId);
+                if (bp?.tags?.includes(tag)) {
+                    found = createHandCard(topId, state.getNextId());
+                    break;
+                }
+                state.playerDiscardIds.unshift(topId);
+            }
+            if (found) {
+                state.hand.push(found);
+                state.addLog(`${found.name} revealed — added to hand.`, 'play');
+            } else {
+                state.addLog(`No card tagged '${tag}' found in deck.`, 'system');
+            }
+            break;
+        }
+
+        case 'discardToughFromHero': {
+            const hero = state.hero;
+            if (!hero?.tough) {
+                state.addLog(`${hero?.name ?? 'Hero'} has no Tough to discard.`, 'system');
+                context.actionBlocked = true;
+                break;
+            }
+            const current = (hero as any).toughCounters ?? 1;
+            (hero as any).toughCounters = Math.max(0, current - 1);
+            if ((hero as any).toughCounters === 0) hero.tough = false;
+            state.addLog(`${hero.name} discarded a Tough status card.`, 'status');
+            await state.checkTriggers('response', 'HERO_TOUGH_DISCARDED', {});
+            break;
+        }
+
+        case 'addBonusDamageToCurrentAttack': {
+            context.bonusDamage = (context.bonusDamage ?? 0) + effect.amount;
+            state.addLog(`+${effect.amount} bonus damage added to this attack.`, 'play');
+            break;
+        }
+
+        case 'makeCurrentAttackOverkill': {
+            context.overkill = true;
+            state.pendingOverkillBoost = true; // also consumed after flipBoostCard for boost effects
+            state.addLog(`This attack gains Overkill.`, 'play');
+            break;
+        }
+
+        case 'makeCurrentAttackPiercing': {
+            context.isPiercing = true;
+            state.pendingPiercingBoost = true; // consumed after flipBoostCard for boost effects
+            state.addLog(`This attack gains Piercing!`, 'play');
+            break;
+        }
+
+        case 'discardAllFriendlyTough': {
+            const hero = state.hero;
+            const maxTough = (hero as any).maxToughCounters ?? 1;
+            const current = (hero as any).toughCounters ?? (hero.tough ? 1 : 0);
+            const removed = current;
+            if (removed > 0) {
+                (hero as any).toughCounters = 0;
+                hero.tough = false;
+                state.addLog(`${hero.name} — ${removed} Tough card${removed !== 1 ? 's' : ''} discarded.`, 'status');
+            } else {
+                state.addLog(`${hero.name} has no Tough to discard.`, 'status');
+            }
+            if (effect.surgePerMissing) {
+                const missing = maxTough - removed;
+                for (let i = 0; i < missing; i++) {
+                    context.surge = (context.surge ?? 0) + 1;
+                    state.addLog(`Surge! (${missing - i} Tough missing)`, 'surge');
+                    state.drawFromVillainDeckAsEncounterCard();
+                }
+            }
+            break;
+        }
+
+        case 'discardAllFriendlyToughAndAddThreat': {
+            let totalRemoved = 0;
+            for (const slot of state.players.values()) {
+                const hero = slot.playerIdentity;
+                if (!hero) continue;
+                const current = (hero as any).toughCounters ?? (hero.tough ? 1 : 0);
+                if (current > 0) {
+                    (hero as any).toughCounters = 0;
+                    hero.tough = false;
+                    state.addLog(`${hero.name} — ${current} Tough card${current !== 1 ? 's' : ''} discarded.`, 'status');
+                    totalRemoved += current;
+                }
+            }
+            if (totalRemoved > 0) {
+                const threatAmount = totalRemoved * effect.threatPerCard;
+                state.addLog(`+${threatAmount} threat (${totalRemoved} Tough discarded × ${effect.threatPerCard}).`, 'villain');
+                await state.applyThreatToMainScheme({ amount: threatAmount, source: 'rampaging_juggernaut', isCanceled: false });
+            }
+            break;
+        }
+
+        case 'revealBoostCardAsEncounterCard': {
+            context.revealBoostCardAsEncounterCard = true;
+            state.addLog(`Boost card will be revealed as an encounter card!`, 'villain');
+            break;
+        }
+
         default: {
             const _exhaustive: never = effect;
             state.addLog(`Unknown effect op: ${(_exhaustive as any).op}`, 'system');
@@ -1328,6 +1673,11 @@ function resolveTargetEntity(target: EffectTarget, state: GameRoom, context: any
         case 'self':          return context.sourceCard ?? null;
         case 'attachedEnemy':
         case 'attacker':      return context.attacker ?? null;
+        case 'lastTarget': {
+            const tid = context.lastResolvedTargetId;
+            if (!tid) return null;
+            return state.findTargetById(tid) ?? null;
+        }
         case 'chooseFriendly': return null; // requires async; handled via resolveTargetId fallback
         default:              return null;
     }
@@ -1349,6 +1699,12 @@ async function resolveTargetId(target: EffectTarget, state: GameRoom, context: a
             const tid = context.targetId;
             if (tid === 'hero') return state.hero?.instanceId ?? null;
             return tid ?? null;
+        }
+        case 'lastTarget': {
+            const tid = context.lastResolvedTargetId;
+            if (!tid) return null;
+            if (tid === 'hero') return state.hero?.instanceId ?? null;
+            return tid;
         }
     }
 }
@@ -1419,6 +1775,16 @@ function evaluateCondition(condition: EffectCondition, state: GameRoom, context:
         case 'canAffordResources': {
             const handResources = state.hand.flatMap((c: any) => c.resources ?? []);
             return satisfiesResourceRequirements(condition.resources as string[], handResources);
+        }
+        case 'heroHasTough':
+            return state.hero?.tough === true;
+        case 'attachedToAttacker': {
+            // True if sourceCard (the attachment) is attached to the current attacker (context.source)
+            const attacker = context.source;
+            const card = context.sourceCard;
+            if (!attacker || !card) return false;
+            const attachments = (attacker as any).attachments ?? [];
+            return attachments.some((a: any) => a.instanceId === card.instanceId);
         }
     }
 }

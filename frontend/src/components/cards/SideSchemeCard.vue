@@ -7,6 +7,16 @@ import BaseCard from './BaseCard.vue';
 const props = defineProps<{ card: SideScheme }>();
 const store = useGameStore();
 
+const heldCardDetails = computed(() =>
+    (props.card.heldCards ?? []).map(id => {
+        const player = store.playerCardRegistry[id];
+        if (player) return { imgPath: player.imgPath, name: player.name };
+        const villain = store.villainCardRegistry[id];
+        if (villain) return { imgPath: villain.imgPath, name: villain.name };
+        return { imgPath: '', name: `Card #${id}` };
+    })
+);
+
 const isTargetable = computed(() => {
     return store.targeting.isActive
         && store.targeting.validTargetIds.includes(props.card.instanceId);
@@ -20,9 +30,13 @@ function handleCardClick() {
 </script>
 
 <template>
-  <div 
-    class="side-scheme-container" 
-    :class="{ 'is-targetable': isTargetable }"
+  <div
+    class="side-scheme-container"
+    :class="{
+      'is-targetable': isTargetable,
+      'hl-activating': store.highlights[String(card.instanceId)] === 'activating',
+      'hl-targeted': store.highlights[String(card.instanceId)] === 'targeted',
+    }"
     @click="handleCardClick"
   >
     <div class="side-scheme-card-wrapper">
@@ -37,6 +51,17 @@ function handleCardClick() {
 
       <div class="threat-badge">
         {{ card.threatRemaining }}
+      </div>
+
+      <!-- Held cards badge (e.g. Mockingbird under Marked For Death) -->
+      <div v-if="heldCardDetails.length" class="held-badge">
+        ⚙ {{ heldCardDetails.length }}
+        <div class="held-tooltip">
+          <div v-for="(hc, i) in heldCardDetails" :key="i" class="tooltip-entry">
+            <img v-if="hc.imgPath" :src="hc.imgPath" class="tooltip-img" />
+            <span>{{ hc.name }}</span>
+          </div>
+        </div>
       </div>
 
       <div v-if="isTargetable" class="target-glow">
@@ -112,5 +137,55 @@ function handleCardClick() {
         0% { transform: scale(0.8); opacity: 0; }
         50% { opacity: 0.6; }
         100% { transform: scale(1.2); opacity: 0; }
+    }
+
+    .held-badge {
+        position: absolute;
+        top: -6px;
+        left: -6px;
+        background: #e67e22;
+        color: white;
+        font-size: 0.6rem;
+        font-weight: 900;
+        padding: 2px 5px;
+        border-radius: 4px;
+        border: 1.5px solid #fff;
+        z-index: 10;
+        cursor: default;
+        pointer-events: all;
+    }
+
+    .held-tooltip {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        background: rgba(10, 10, 20, 0.97);
+        border: 1px solid #e67e22;
+        border-radius: 8px;
+        padding: 12px;
+        z-index: 9999;
+        flex-direction: row;
+        gap: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.9);
+        white-space: nowrap;
+    }
+
+    .held-badge:hover .held-tooltip { display: flex; }
+
+    .tooltip-entry {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        color: #eee;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .tooltip-img {
+        width: 180px;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.7);
     }
 </style>

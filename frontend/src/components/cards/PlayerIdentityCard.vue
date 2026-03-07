@@ -3,6 +3,7 @@
   import { useGameStore } from '../../stores/gameStore';
   import BaseCard from './BaseCard.vue';
   import StatusPips from './StatusPips.vue';
+  import FloatingNumber from '../FloatingNumber.vue';
 
   const store = useGameStore();
   const player = computed(() => store.hero);
@@ -57,7 +58,12 @@
   <div class="identity-compact">
     <div
       class="aura-wrapper"
-      :class="[player.exhausted ? 'aura-exhausted' : 'aura-ready', { 'is-targetable': isTargetable }]"
+      :class="[player.exhausted ? 'aura-exhausted' : 'aura-ready', {
+        'is-targetable': isTargetable,
+        'damage-flash': store.damageFlash,
+        'heal-flash': store.healFlash,
+        'hl-targeted': store.highlights['hero'] === 'targeted',
+      }]"
       @click="handleCardClick"
     >
       <div v-if="isTargetable" class="target-badge">TARGET</div>
@@ -69,6 +75,7 @@
         :class="{ 'is-dimmed': player.exhausted }"
         :no-zoom="store.targeting.isActive"
       />
+      <FloatingNumber target="hero" />
 
       <div class="stat-badges">
         <template v-if="player.identityStatus === 'hero'">
@@ -259,4 +266,33 @@
   .btn-atk { background: #c0392b; }
 
   button:hover:not(:disabled) { filter: brightness(1.2); }
+
+  /* ── Attack / heal flash animations ── */
+  @keyframes damage-pulse {
+    0%   { box-shadow: 0 0 12px rgba(255, 0, 0, 0.7); }
+    15%  { box-shadow: 0 0 48px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255,0,0,0.3); }
+    50%  { box-shadow: 0 0 28px rgba(255, 60, 60, 0.8); }
+    100% { box-shadow: 0 0 12px rgba(255, 0, 0, 0.5); }
+  }
+  @keyframes identity-shake {
+    0%, 100% { transform: translateX(0); }
+    15%  { transform: translateX(-6px) rotate(-1deg); }
+    30%  { transform: translateX(6px) rotate(1deg); }
+    45%  { transform: translateX(-4px); }
+    60%  { transform: translateX(4px); }
+    75%  { transform: translateX(-2px); }
+  }
+  .aura-wrapper.damage-flash {
+    animation: damage-pulse 0.7s ease-out, identity-shake 0.5s ease-out;
+  }
+
+  @keyframes heal-glow {
+    0%   { box-shadow: 0 0 12px rgba(0, 255, 100, 0.7); }
+    30%  { box-shadow: 0 0 40px rgba(0, 255, 100, 1); }
+    70%  { box-shadow: 0 0 22px rgba(0, 255, 100, 0.8); }
+    100% { box-shadow: 0 0 12px rgba(0, 255, 100, 0.7); }
+  }
+  .aura-wrapper.heal-flash {
+    animation: heal-glow 0.7s ease-out;
+  }
 </style>

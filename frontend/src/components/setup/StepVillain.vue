@@ -54,6 +54,29 @@ const selectedVillain = () => setup.catalog.villains.find(v => v.id === setup.se
                 </template>
             </div>
         </div>
+
+        <div class="difficulty-section">
+            <div class="difficulty-label">Standard Set</div>
+            <div class="difficulty-toggle">
+                <button
+                    class="diff-btn"
+                    :class="{ active: setup.selectedStandardSet === 'I' }"
+                    @click="setup.setStandardSet('I')"
+                >
+                    Standard I
+                </button>
+                <button
+                    class="diff-btn"
+                    :class="{ active: setup.selectedStandardSet === 'II' }"
+                    @click="setup.setStandardSet('II')"
+                >
+                    Standard II
+                </button>
+            </div>
+            <div v-if="setup.selectedStandardSet === 'II'" class="expert-note" style="color: rgba(160, 210, 255, 0.85);">
+                Pursued by the Past · Drawing Nearer obligation per player
+            </div>
+        </div>
     </div>
 </template>
 

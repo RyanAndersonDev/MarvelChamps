@@ -3,6 +3,7 @@
     import { useGameStore } from '../../stores/gameStore';
     import BaseCard from './BaseCard.vue';
     import StatusPips from './StatusPips.vue';
+    import FloatingNumber from '../FloatingNumber.vue';
     import type { VillainIdentityCardInstance } from '@shared/types/card';
 
     const props = defineProps<{ cardInstance: VillainIdentityCardInstance }>();
@@ -37,7 +38,11 @@
         class="id-card-wrapper"
         :class="{
             'is-targetable': isTargetable,
-            'not-targetable': store.targeting.isActive && !isTargetable
+            'not-targetable': store.targeting.isActive && !isTargetable,
+            'attack-flash': store.villainAttackFlash,
+            'phase-glow-red': store.currentPhase === 'VILLAIN_STEP_2_ACTIVATION',
+            'hl-activating': store.highlights['villain'] === 'activating',
+            'hl-targeted': store.highlights['villain'] === 'targeted',
         }"
         @click="handleClick"
         @mouseleave="justTargeted = false"
@@ -55,6 +60,7 @@
             :no-zoom="store.targeting.isActive || justTargeted"
             class="id-card"
         />
+        <FloatingNumber target="villain" />
         <div v-if="isTargetable" class="target-badge">SELECT TARGET</div>
         <StatusPips
             :stunned="props.cardInstance.stunned"
@@ -142,5 +148,26 @@
         margin-top: 10px;
         color: white;
         text-shadow: 2px 2px 4px black;
+    }
+
+    /* ── Villain phase glow ── */
+    @keyframes phase-pulse-red {
+        0%, 100% { filter: drop-shadow(0 0 8px rgba(220, 50, 50, 0.6)); }
+        50%       { filter: drop-shadow(0 0 28px rgba(255, 60, 60, 1)); }
+    }
+    .phase-glow-red { animation: phase-pulse-red 1s ease-in-out infinite; }
+
+    /* ── Villain attack animation ── */
+    @keyframes villain-lunge {
+        0%   { transform: translateX(0) scale(1); filter: none; }
+        10%  { transform: translateX(10px) scale(1.04); filter: drop-shadow(0 0 18px rgba(255, 60, 0, 1)); }
+        20%  { transform: translateX(-8px) rotate(-1.5deg); }
+        35%  { transform: translateX(6px) rotate(1deg); }
+        50%  { transform: translateX(-4px); }
+        65%  { transform: translateX(3px); filter: drop-shadow(0 0 8px rgba(255, 60, 0, 0.5)); }
+        100% { transform: translateX(0) scale(1); filter: none; }
+    }
+    .id-card-wrapper.attack-flash {
+        animation: villain-lunge 0.6s cubic-bezier(0.215, 0.61, 0.355, 1);
     }
 </style>

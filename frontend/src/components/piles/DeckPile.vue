@@ -8,23 +8,21 @@
         cardBackImgPath: string,
         imageType?: 'player' | 'villain',
         hidePeek?: boolean,
-        showDrawButton?: boolean,
     }>();
 
-    const emit = defineEmits<{ (e: "draw"): void }>();
     const store = useGameStore();
 
     const peeking = ref(false);
 
     const resolve = (id: number) => {
         if (props.imageType === 'player') {
-            return store.playerCardRegistry[id] ?? '';
+            return store.playerCardRegistry[id]?.imgPath ?? '';
         }
         return store.villainCardRegistry[id]?.imgPath ?? '';
     };
 
     const getName = (id: number): string => {
-        if (props.imageType === 'player') return '';
+        if (props.imageType === 'player') return store.playerCardRegistry[id]?.name ?? '';
         return store.villainCardRegistry[id]?.name ?? '';
     };
 
@@ -40,7 +38,7 @@
 </script>
 
 <template>
-    <div class="pile-container">
+    <div class="pile-container" :class="{ 'draw-flash': props.imageType === 'player' && store.cardDrawFlash }">
         <div class="pile-card-container">
             <img :src="props.cardBackImgPath" alt="Deck" class="pile-card" />
             <div class="pile-counter">{{ deckCount }}</div>
@@ -48,7 +46,6 @@
 
         <div class="button-row">
             <button v-if="!props.hidePeek" @click="peeking = true" :disabled="deckCount === 0">Peek</button>
-            <button v-if="props.showDrawButton !== false" @click="emit('draw')">Draw</button>
         </div>
 
         <PeekModal
@@ -61,4 +58,14 @@
 </template>
 
 <style scoped>
+    @keyframes deck-deal {
+        0%   { filter: drop-shadow(0 0 0px rgba(100, 180, 255, 0)); }
+        25%  { filter: drop-shadow(0 0 14px rgba(100, 180, 255, 1)) brightness(1.15); }
+        60%  { filter: drop-shadow(0 0 8px rgba(100, 180, 255, 0.5)); }
+        100% { filter: drop-shadow(0 0 0px rgba(100, 180, 255, 0)); }
+    }
+
+    .draw-flash {
+        animation: deck-deal 0.5s ease-out;
+    }
 </style>

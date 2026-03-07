@@ -25,7 +25,6 @@
         <DeckPile
             :deck-ids="deckIds"
             :card-back-img-path="emptyPileImgPath"
-            :show-draw-button="false"
         />
 
         <MainScheme

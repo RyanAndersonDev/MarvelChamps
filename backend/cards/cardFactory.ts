@@ -120,6 +120,8 @@ function printTableauCard(blueprint: PlayerCardInstance, instanceId: number): Al
                 confused: false,
                 tough: false,
                 dynamicThwBonus: (blueprint as any).dynamicThwBonus,
+                ignoresGuard: (blueprint as any).ignoresGuard,
+                ignoresCrisis: (blueprint as any).ignoresCrisis,
             } as Ally;
 
         case 'upgrade':
@@ -163,7 +165,8 @@ function printIdentityCard (blueprint: IdentityCard, instanceId: number): Identi
         identityStatus: "alter-ego",
         confused: false,
         stunned: false,
-        tough: false
+        tough: false,
+        toughCounters: 0,
     }
 }
 
@@ -352,5 +355,6 @@ function printSideScheme(blueprint: VillainCard, instanceId: number) : SideSchem
         crisis: blueprint.crisis || false,
         hazard: blueprint.hazard || false,
         acceleration: blueprint.acceleration || false,
+        amplify: blueprint.amplify || false,
     } as SideScheme;
 }

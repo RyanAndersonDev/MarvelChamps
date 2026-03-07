@@ -99,4 +99,21 @@ export function registerGameHandlers(
         const r = getRoom();
         if (r && (isActivePlayer(r) || isVillainTarget(r))) r.resolveYesNo(data.accepted);
     });
+    // Drawing Nearer: alter-ego discards an identity-specific card (aspect=hero) to remove the obligation
+    socket.on('action:removeObligation', (data: { obligationInstanceId: number; handCardInstanceId: number }) => {
+        const r = getRoom();
+        if (!r || !isActivePlayer(r)) return;
+        const slot = r.p;
+        if (slot.playerIdentity?.identityStatus !== 'alter-ego') return;
+        const obligation = slot.obligationCards.find(o => o.instanceId === data.obligationInstanceId);
+        if (!obligation) return;
+        const handCard = slot.hand.find(c => c.instanceId === data.handCardInstanceId);
+        if (!handCard || (handCard as any).aspect !== 'hero') return;
+        slot.hand = slot.hand.filter(c => c.instanceId !== data.handCardInstanceId);
+        slot.playerDiscardIds.unshift((handCard as any).storageId);
+        slot.obligationCards = slot.obligationCards.filter(o => o.instanceId !== data.obligationInstanceId);
+        if (obligation.storageId != null) slot.playerDiscardIds.unshift(obligation.storageId);
+        r.addLog(`Drawing Nearer — ${handCard.name} discarded. Drawing Nearer discarded.`, 'villain');
+        r.broadcastStateUpdate();
+    });
 }

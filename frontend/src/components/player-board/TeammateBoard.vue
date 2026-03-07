@@ -30,7 +30,7 @@ const hpClass = computed(() => {
 
 const tableauImgFor = (storageId: number | undefined) => {
     if (storageId == null) return '';
-    return store.playerCardRegistry[storageId] ?? '';
+    return store.playerCardRegistry[storageId]?.imgPath ?? '';
 };
 </script>
 
