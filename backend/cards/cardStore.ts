@@ -47,6 +47,33 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
         },
         heroAbilityExhausts: false,
     }],
+    [4, {
+        name: "Piotr Rasputin/Colossus", side: "player",
+        imgPath: "/cards/heroes/colossus/PiotrRasputin-AE.png",
+        heroImgPath: "/cards/heroes/colossus/Colossus-Hero.png",
+        flavorText: "",
+        hitPoints: 14, healing: 4, thw: 1, atk: 2, def: 2,
+        handsizeAe: 6, handSizeHero: 4,
+        tags: ["mutant", "x-men"], heroTags: ["x-men"],
+        maxToughCounters: 2,
+        setupEffects: [{ op: 'searchAndAddToHand', storageId: 89, cardName: "Organic Steel" }],
+        aeLogic: {
+            type: "response",
+            forced: true,
+            formRequired: "alter-ego",
+            timing: "FLIP_TO_AE",
+            effects: [{ op: 'shuffleTaggedCardFromDiscardIntoDeck', tag: 'colossus' }]
+        },
+        aeAbilityExhausts: false,
+        heroLogic: {
+            type: "response",
+            forced: true,
+            formRequired: "hero",
+            timing: "FLIP_TO_HERO",
+            effects: [{ op: 'giveTough', target: 'identity' }]
+        },
+        heroAbilityExhausts: false,
+    }],
     [3, {
         name: "Clint Barton/Hawkeye", side: "player",
         imgPath: "/cards/heroes/hawkeye/ClintBarton-AE.png",
@@ -176,7 +203,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             forced: true,
             formRequired: "any",
             timing: "afterPlay",
-            effects: [{ op: 'stun', target: 'chooseEnemy' }]
+            effects: [{ op: 'stun', target: 'chooseEnemyIgnoreGuard' }]
         }
     }],
     [10, { name: "Nick Fury", side: "player", type: "ally", cost: 4, aspect: "neutral",
@@ -771,7 +798,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
         logic: {
             type: "action",
             forced: false,
-            formRequired: "any",
+            formRequired: "hero",
             timing: "PLAYER_TURN",
             actionType: "thwart",
             effects: [{
@@ -929,7 +956,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     [69, {
         name: "Sonic Arrow", side: "player", type: "event", cost: 2, aspect: "hero",
         imgPath: "/cards/heroes/hawkeye/SonicArrow-Event.png",
-        tags: ["arrow", "attack"], resources: ["mental"],
+        tags: ["arrow", "attack"], resources: ["mental"], returnPaymentOnSuccess: true,
         flavorText: "EEEEEEEEEEEEEEEEEE!!!",
         logic: {
             type: "action",
@@ -946,7 +973,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     [70, {
         name: "Cable Arrow", side: "player", type: "event", cost: 1, aspect: "hero",
         imgPath: "/cards/heroes/hawkeye/CableArrow-Event.png",
-        tags: ["arrow", "thwart"], resources: ["physical"],
+        tags: ["arrow", "thwart"], resources: ["physical"], returnPaymentOnSuccess: true,
         flavorText: `"It's a great way to get around." - Clint Barton`,
         logic: {
             type: "action",
@@ -963,7 +990,8 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
     [71, {
         name: "Explosive Arrow", side: "player", type: "event", cost: 1, aspect: "hero",
         imgPath: "/cards/heroes/hawkeye/ExplosiveArrow-Event.png",
-        tags: ["arrow"], resources: ["physical"], flavorText: `"Anyone ever tell you how your eyes sparkle when you're angry?" - Clint Barton`,
+        tags: ["arrow", "attack"], resources: ["physical"], returnPaymentOnSuccess: true,
+        flavorText: `"Anyone ever tell you how your eyes sparkle when you're angry?" - Clint Barton`,
         logic: {
             type: "action",
             forced: false,
@@ -972,15 +1000,15 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             actionType: "attack",
             effects: [
                 { op: 'exhaustUpgradeByStorageId', storageId: 66, cardName: "Hawkeye's Bow" },
-                // TODO: must be "Deal 3 damage to the villain and each minion engaged with that player"
-                { op: 'dealDamagePiercing', target: 'chooseEnemy', amount: 6 }
+                { op: 'dealDamageToVillainAndEngaged', amount: 3 }
             ]
         }
     }],
     [72, {
         name: "Electric Arrow", side: "player", type: "event", cost: 2, aspect: "hero",
         imgPath: "/cards/heroes/hawkeye/ElectricArrow-Event.png",
-        tags: ["arrow", "attack"], resources: ["energy"], flavorText: `"H:ail Hawkeye!" - Clint Barton`,
+        tags: ["arrow", "attack"], resources: ["energy"], returnPaymentOnSuccess: true,
+        flavorText: `"H:ail Hawkeye!" - Clint Barton`,
         logic: {
             type: "action",
             forced: false,
@@ -989,15 +1017,14 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             actionType: "attack",
             effects: [
                 { op: 'exhaustUpgradeByStorageId', storageId: 66, cardName: "Hawkeye's Bow" },
-                // TODO: must be "Stun an enemy and deal 3 damage to it (5 damage instead if it is already stunned)"
-                { op: 'dealDamagePiercing', target: 'chooseEnemy', amount: 6 }
+                { op: 'stunAndDamage', normalAmount: 3, alreadyStunnedAmount: 5 }
             ]
         }
     }],
     [73, {
         name: "Vibranium Arrow", side: "player", type: "event", cost: 2, aspect: "hero",
         imgPath: "/cards/heroes/hawkeye/VibraniumArrow-Event.png",
-        tags: ["arrow", "attack"], resources: ["energy"], flavorText: "",
+        tags: ["arrow", "attack"], resources: ["energy"], returnPaymentOnSuccess: true, flavorText: "",
         logic: {
             type: "action",
             forced: false,
@@ -1023,8 +1050,159 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             timing: "PLAYER_TURN",
             effects: [{ op: 'generateResource', resourceType: 'wild' }]
         }
-    }]
+    }],
+
+    // ── Colossus hero cards ──────────────────────────────────────────────────
+    [85, {
+        name: "Shadowcat", side: "player", type: "ally", cost: 3, aspect: "hero",
+        imgPath: "/cards/heroes/colossus/Shadowcat-Ally.png",
+        tags: ["x-men", "colossus"], resources: ["energy"], flavorText: "",
+        thw: 1, atk: 1, thwPain: 0, atkPain: 0, health: 3, maxCopies: 1,
+        ignoresGuard: true, ignoresCrisis: true,
+    }],
+    [86, {
+        name: "Piotr's Studio", side: "player", type: "support", cost: 3, aspect: "hero",
+        imgPath: "/cards/heroes/colossus/PiotrsStudio-Support.png",
+        tags: ["location", "colossus"], resources: ["physical"], flavorText: "",
+        abilityExhausts: true,
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "alter-ego",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'discardTopDeckUntilTag', tag: 'colossus' }]
+        }
+    }],
+    [87, {
+        name: "Iron Will", side: "player", type: "upgrade", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/colossus/IronWill-Upgrade.png",
+        tags: ["condition", "colossus"], resources: ["mental"], flavorText: "",
+        attachmentLocation: "tableau", thwMod: 1,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "HERO_TOUGH_DISCARDED",
+            effects: [{ op: 'drawCards', amount: 1 }]
+        }
+    }],
+    [88, {
+        name: "Titanium Muscles", side: "player", type: "upgrade", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/colossus/TitaniumMuscles-Upgrade.png",
+        tags: ["superpower", "colossus"], resources: ["physical"], flavorText: "",
+        attachmentLocation: "tableau", atkMod: 1, abilityExhausts: true,
+        logic: {
+            type: "resource",
+            forced: false,
+            formRequired: "any",
+            timing: "paymentWindow",
+            effects: [
+                { op: 'generateResource', resourceType: 'physical' },
+                { op: 'if', condition: { type: 'heroHasTough' },
+                  then: [{ op: 'generateResource', resourceType: 'physical' }] }
+            ]
+        }
+    }],
+    [89, {
+        name: "Organic Steel", side: "player", type: "upgrade", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/colossus/OrganicSteel-Upgrade.png",
+        tags: ["superpower", "colossus"], resources: ["wild"], flavorText: "",
+        attachmentLocation: "tableau", counters: 2,
+        logic: {
+            type: "response",
+            forced: true,
+            formRequired: "any",
+            timing: "HERO_TOUGH_DISCARDED",
+            effects: [
+                { op: 'exhaust' },
+                { op: 'decrementCounter', discardIfEmpty: true },
+                { op: 'giveTough', target: 'identity' }
+            ]
+        }
+    }],
+    [90, {
+        name: "Made of Rage", side: "player", type: "event", cost: 0, aspect: "hero",
+        imgPath: "/cards/heroes/colossus/MadeOfRage-Event.png",
+        tags: ["attack", "colossus"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "hero",
+            timing: "BASIC_ATTACK",
+            effects: [
+                { op: 'discardToughFromHero' },
+                { op: 'addBonusDamageToCurrentAttack', amount: 6 },
+                { op: 'makeCurrentAttackOverkill' }
+            ]
+        }
+    }],
+    [91, {
+        name: "Steel Fist", side: "player", type: "event", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/colossus/SteelFist-Event.png",
+        tags: ["attack", "colossus"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [
+                { op: 'dealDamage', target: 'chooseEnemy', amount: 5 },
+                { op: 'if', condition: { type: 'heroHasTough' },
+                  then: [{ op: 'chooseOne', options: [
+                      { label: 'Discard Tough → Stun + Confuse enemy',
+                        effect: { op: 'sequence', effects: [
+                            { op: 'discardToughFromHero' },
+                            { op: 'stun', target: 'lastTarget' },
+                            { op: 'confuse', target: 'lastTarget' }
+                        ] } },
+                      { label: 'No bonus effect',
+                        effect: { op: 'sequence', effects: [] } }
+                  ]}] }
+            ]
+        }
+    }],
+    [92, {
+        name: "Bulletproof Protector", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/heroes/colossus/BulletproofProtector-Event.png",
+        tags: ["defense", "colossus"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "interrupt",
+            forced: false,
+            formRequired: "any",
+            timing: "VILLAIN_ATTACK",
+            effects: [
+                { op: 'if', condition: { type: 'heroHasTough' },
+                  then: [{ op: 'chooseOne', options: [
+                      { label: 'Discard Tough → Give Colossus 2 Tough',
+                        effect: { op: 'sequence', effects: [
+                            { op: 'discardToughFromHero' },
+                            { op: 'giveTough', target: 'identity' },
+                            { op: 'giveTough', target: 'identity' }
+                        ] } },
+                      { label: 'Discard Tough → Ready Colossus',
+                        effect: { op: 'sequence', effects: [
+                            { op: 'discardToughFromHero' },
+                            { op: 'readyIdentity' }
+                        ] } }
+                  ]}] }
+            ]
+        }
+    }],
+    [93, {
+        name: "Armor Up", side: "player", type: "event", cost: 0, aspect: "hero",
+        imgPath: "/cards/heroes/colossus/ArmorUp-Event.png",
+        tags: ["colossus"], resources: ["wild"], flavorText: "",
+        logic: {
+            type: "action",
+            forced: false,
+            formRequired: "alter-ego",
+            timing: "PLAYER_TURN",
+            effects: [{ op: 'flipForm' }]
+        }
+    }],
 ]);
+
 
 export const villainIdCardMap: Map<number, VillainIdentityCard> = new Map<number, VillainIdentityCard>([
     [1, { name: "Rhino", side: "villain", imgPath: "/cards/villains/rhino/Rhino-Phase1.png", tags: ["brute", "criminal"], phase: 1, hitPointsPerPlayer: 14, sch: 1, atk: 2,
@@ -1427,6 +1605,139 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
             effects: [{ op: 'if', condition: { type: 'identityStatus', value: 'hero' },
                 then: [{ op: 'dealDamage', target: 'identity', amount: 3 }],
                 else: [{ op: 'addThreat', amount: 3 }] }] } }],
+
+    // ── Standard II encounter set ──────────────────────────────────────────────
+    // 78/79: Pursued by the Past — environment; always in play, never in villain deck
+    [78, { name: "Pursued by the Past", side: "villain", imgPath: "/cards/villains/standard/PursuedByThePast-EnvironmentSide1.png",
+        tags: ["environment"], type: "environment", boostIcons: 0, flavorText: "" }],
+    [79, { name: "Pursued by the Past", side: "villain", imgPath: "/cards/villains/standard/PursuedByThePast-EnvironmentSide2.png",
+        tags: ["environment"], type: "environment", boostIcons: 0, flavorText: "" }],
+    // 80: Dark Designs — 1 pursuit counter; then villain schemes if any counters; boost: 1 pursuit counter
+    [80, { name: "Dark Designs", side: "villain", imgPath: "/cards/villains/standard/DarkDesigns-Treachery.png",
+        tags: [], flavorText: "", type: "treachery", boostIcons: 0,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'addPursuitCounters', amount: 1 }, { op: 'villainSchemesIfPursuitCounters' }] },
+        boostEffect: [{ op: 'addPursuitCounters', amount: 1 }] }],
+    // 81: Sinister Strike — 1 pursuit counter; alter-ego: surge if counters; hero: villain attacks if counters
+    [81, { name: "Sinister Strike", side: "villain", imgPath: "/cards/villains/standard/SinisterStrike-Treachery.png",
+        tags: [], flavorText: "", type: "treachery", boostIcons: 1,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [
+                { op: 'addPursuitCounters', amount: 1 },
+                { op: 'if',
+                  condition: { type: 'identityStatus', value: 'alter-ego' },
+                  then: [{ op: 'gainSurgeIfPursuitCounters' }],
+                  else: [{ op: 'villainAttacksIfPursuitCounters' }] },
+            ] } }],
+    // 82: Evil Alliance — each nemesis minion activates; if none activated: 3 pursuit counters; boost: 1 counter
+    [82, { name: "Evil Alliance", side: "villain", imgPath: "/cards/villains/standard/EvilAlliance-Treachery.png",
+        tags: [], flavorText: "", type: "treachery", boostIcons: 0,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'activateNemesisMinionsOrAddCounters' }] },
+        boostEffect: [{ op: 'addPursuitCounters', amount: 1 }] }],
+    // 83: Nowhere Is Safe — 1 pursuit counter; then discard upgrade/support if any counters; boost: 1 counter
+    [83, { name: "Nowhere Is Safe", side: "villain", imgPath: "/cards/villains/standard/NowhereIsSafe-Treachery.png",
+        tags: [], flavorText: "", type: "treachery", boostIcons: 0,
+        logic: { type: "response", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'addPursuitCounters', amount: 1 }, { op: 'discardUpgradeOrSupportIfPursuitCounters' }] },
+        boostEffect: [{ op: 'addPursuitCounters', amount: 1 }] }],
+    // 84: Drawing Nearer — obligation placed in player tableau at game start; not in villain deck
+    [84, { name: "Drawing Nearer", side: "villain", imgPath: "/cards/villains/standard/DrawingNearer-Obligation.png",
+        tags: [], flavorText: "", type: "obligation", boostIcons: 2 }],
+
+    // ── Colossus nemesis set ──────────────────────────────────────────────────
+    [94, {
+        name: "Homesick", side: "villain", type: "obligation", boostIcons: 2,
+        imgPath: "/cards/heroes/colossus/nemesis/Homesick-Obligation.png",
+        tags: [], flavorText: "",
+        logic: {
+            type: "action", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [
+                { op: 'chooseOne', options: [
+                    {
+                        label: "Exhaust Colossus \u2192 Remove Homesick from game",
+                        effect: { op: 'sequence', effects: [
+                            { op: 'exhaustIdentity' },
+                            { op: 'removeFromGame' }
+                        ] }
+                    },
+                    {
+                        label: "Discard all Tough from Colossus; Surge for each missing Tough",
+                        effect: { op: 'discardAllFriendlyTough', surgePerMissing: true }
+                    }
+                ] }
+            ]
+        }
+    }],
+    [95, {
+        name: "Juggernaut", side: "villain", type: "minion", boostIcons: 1,
+        imgPath: "/cards/heroes/colossus/nemesis/Juggernaut-Minion.png",
+        tags: ["brute", "nemesis"], flavorText: "",
+        hitPoints: 8, sch: 1, atk: 4,
+        stalwart: true,
+        toughOnEntry: true,
+        boostEffect: [
+            { op: 'makeAttackPiercing' },
+            { op: 'makeCurrentAttackOverkill' }
+        ],
+    }],
+    [96, {
+        name: "Rampaging Juggernaut", side: "villain", type: "side-scheme", boostIcons: 1,
+        imgPath: "/cards/heroes/colossus/nemesis/RampagingJuggernaut-SideScheme.png",
+        tags: ["nemesis"], flavorText: "",
+        startingThreat: 0, startingThreatIsPerPlayer: false,
+        crisis: false, hazard: false, acceleration: false,
+        amplify: true,
+        whenRevealedEffects: [
+            { op: 'discardAllFriendlyToughAndAddThreat', threatPerCard: 2 }
+        ],
+    }],
+    [97, {
+        name: "Unstoppable", side: "villain", type: "attachment", boostIcons: 1,
+        imgPath: "/cards/heroes/colossus/nemesis/Unstoppable-Attachment.png",
+        tags: ["nemesis"], flavorText: "",
+        attachmentTarget: "highestAtkEnemy",
+        logics: [
+            {
+                type: "interrupt", forced: true, formRequired: "any", timing: "MINION_ATTACK",
+                effects: [
+                    { op: 'if', condition: { type: 'attachedToAttacker' }, then: [
+                        { op: 'makeCurrentAttackPiercing' },
+                        { op: 'makeCurrentAttackOverkill' }
+                    ] }
+                ]
+            },
+            {
+                type: "response", forced: true, formRequired: "any", timing: "MINION_ATTACK",
+                effects: [
+                    { op: 'if', condition: { type: 'attachedToAttacker' }, then: [
+                        { op: 'discardSelf' }
+                    ] }
+                ]
+            },
+            {
+                type: "interrupt", forced: true, formRequired: "any", timing: "VILLAIN_ATTACK",
+                effects: [
+                    { op: 'makeCurrentAttackPiercing' },
+                    { op: 'makeCurrentAttackOverkill' }
+                ]
+            },
+            {
+                type: "response", forced: true, formRequired: "any", timing: "VILLAIN_ATTACK_CONCLUDED",
+                effects: [{ op: 'discardSelf' }]
+            }
+        ]
+    }],
+    [98, {
+        name: "Slammed", side: "villain", type: "treachery", boostIcons: 1,
+        imgPath: "/cards/heroes/colossus/nemesis/Slammed-Treachery.png",
+        tags: ["nemesis"], flavorText: "",
+        logic: {
+            type: "action", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'stunAndDamage', normalAmount: 0, alreadyStunnedAmount: 2 }]
+        },
+        boostEffect: [{ op: 'revealBoostCardAsEncounterCard' }],
+    }],
 ]);
 
 export function getCardImgPathById(cardId: number): string {
@@ -1440,13 +1751,19 @@ export function getVillainCardImgPathById(cardId: number): string {
 // ── Setup libraries ──
 
 export const rhinoVillainCardIds  = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-export const standardICardIds     = [12, 13, 14, 15, 16];
-export const expertICardIds       = [21, 22, 23];
+export const standardICardIds        = [12, 12, 13, 13, 14, 15, 16];
+// Standard II treacheries (shuffled into villain deck); environment (78) placed in play at start; obligation (84) shuffled 1x per player
+export const standardIICardIds       = [80, 80, 81, 81, 82, 83, 83];  // shuffled into villain deck
+export const standardIIEnvironmentId = 78;   // Pursued by the Past Side A — placed in play at game start
+export const standardIIObligationId  = 84;   // Drawing Nearer — 1 copy per player shuffled in; placed in tableau when revealed
+export const expertICardIds          = [21, 22, 23];
 export const bombScareCardIds     = [17, 18, 18, 19, 20, 20];
 export const klawVillainCardIds   = [24, 25, 26, 27, 28, 28, 29, 29, 30, 30, 31, 32, 32, 33, 33];
 export const mastersOfEvilCardIds = [34, 35, 36, 37, 38, 39, 39];
 export const spiderManNemesisIds  = [41, 40, 42, 42, 43];
 export const sheHulkNemesisIds    = [45, 44, 46, 47, 47];
+export const colossusHeroDeckIds  = [85, 86, 87, 87, 88, 88, 89, 89, 90, 90, 91, 91, 92, 92, 93];
+export const colossusNemesisIds   = [95, 96, 97, 97, 98, 98];
 
 export const heroLibrary = [
     {
@@ -1475,6 +1792,15 @@ export const heroLibrary = [
         secondaryColor: '#ab119e',
         nemesisSet: { minionStorageId: 74, sideSchemeStorageId: 75, otherStorageIds: [76, 77, 77] },
         obligationId: 73,
+    },
+    {
+        id: 4,
+        name: "Colossus",
+        heroDeckIds: colossusHeroDeckIds,
+        primaryColor: '#b71c1c',
+        secondaryColor: '#37474f',
+        nemesisSet: { minionStorageId: 95, sideSchemeStorageId: 96, otherStorageIds: [97, 97, 98, 98] },
+        obligationId: 94,
     },
 ];
 
