@@ -1163,7 +1163,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
         }
     }],
     [92, {
-        name: "Bulletproof Protector", side: "player", type: "event", cost: 1, aspect: "protection",
+        name: "Bulletproof Protector", side: "player", type: "event", cost: 1, aspect: "hero",
         imgPath: "/cards/heroes/colossus/BulletproofProtector-Event.png",
         tags: ["defense", "colossus"], resources: ["physical"], flavorText: "",
         logic: {
