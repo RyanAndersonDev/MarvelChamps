@@ -512,7 +512,7 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             type: "response",
             forced: false,
             formRequired: "hero",
-            timing: "BASIC_ATTACK",
+            timing: ["BASIC_ATTACK", "HERO_ATTACK_EVENT_RESOLVED"],
             effects: [{
                 op: 'if', condition: { type: 'targetWasDefeated' },
                 then: [{ op: 'removeThreat', target: 'chooseScheme', amount: 2 }]

@@ -64,6 +64,7 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             });
             const target = state.findTargetById(targetId);
             if (target && 'type' in target && target.type === 'minion' && target.hitPointsRemaining <= 0) {
+                context.targetDefeated = true;
                 await state.discardFromEngagedMinions(target.instanceId);
             }
             // Retaliate fires for attack events, unless the event has the "arrow" tag and
