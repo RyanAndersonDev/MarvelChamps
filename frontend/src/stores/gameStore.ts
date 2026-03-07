@@ -138,9 +138,16 @@ export const useGameStore = defineStore('game', {
 
     currentHandSizeLimit(state): number {
         if (!state.playerIdentity) return 6;
-        return state.playerIdentity.identityStatus === 'alter-ego'
-            ? state.playerIdentity.handsizeAe
-            : state.playerIdentity.handSizeHero;
+        if (state.playerIdentity.identityStatus === 'alter-ego') return state.playerIdentity.handsizeAe;
+        const base = state.playerIdentity.handSizeHero;
+        const cap = (state.playerIdentity as any).techHandSizeCap as number | undefined;
+        if (cap != null) {
+            const techCount = state.tableauCards.filter(
+                (c: any) => c.type === 'upgrade' && c.tags?.includes('tech')
+            ).length;
+            return Math.min(cap, base + techCount);
+        }
+        return base;
     },
 
     effectiveThw(state): number {
@@ -168,9 +175,21 @@ export const useGameStore = defineStore('game', {
 
     endOfTurnDiscardCount(state): number {
         if (!state.playerIdentity) return 0;
-        const limit = state.playerIdentity.identityStatus === 'alter-ego'
-            ? state.playerIdentity.handsizeAe
-            : state.playerIdentity.handSizeHero;
+        let limit: number;
+        if (state.playerIdentity.identityStatus === 'alter-ego') {
+            limit = state.playerIdentity.handsizeAe;
+        } else {
+            const base = state.playerIdentity.handSizeHero;
+            const cap = (state.playerIdentity as any).techHandSizeCap as number | undefined;
+            if (cap != null) {
+                const techCount = state.tableauCards.filter(
+                    (c: any) => c.type === 'upgrade' && c.tags?.includes('tech')
+                ).length;
+                limit = Math.min(cap, base + techCount);
+            } else {
+                limit = base;
+            }
+        }
         return Math.max(0, state.hand.length - limit);
     },
 

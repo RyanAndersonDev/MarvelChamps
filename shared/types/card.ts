@@ -57,7 +57,9 @@ export type EffectCondition =
   | { type: 'identityNotExhausted' }
   | { type: 'canAffordResources'; resources: Resource[] }
   | { type: 'heroHasTough' }
-  | { type: 'attachedToAttacker' };
+  | { type: 'attachedToAttacker' }
+  | { type: 'heroHasAerial' }
+  | { type: 'attackIsUndefended' };
 
 export type EffectDef =
   | { op: 'dealDamage';       target: EffectTarget; amount: number }
@@ -160,7 +162,18 @@ export type EffectDef =
   | { op: 'makeCurrentAttackPiercing' }
   | { op: 'discardAllFriendlyTough'; surgePerMissing?: boolean }
   | { op: 'discardAllFriendlyToughAndAddThreat'; threatPerCard: number }
-  | { op: 'revealBoostCardAsEncounterCard' };
+  | { op: 'revealBoostCardAsEncounterCard' }
+  | { op: 'gainAerialTrait' }
+  | { op: 'increaseHeroHp'; amount: number }
+  | { op: 'dealDamagePerUpgrade'; amount: number }
+  | { op: 'exhaustAllTechUpgrades' }
+  | { op: 'returnTopTechUpgradeFromDiscardToHand' }
+  | { op: 'discardTopDeckCountEnergyDamage'; discardCount: number; damagePerEnergy: number }
+  | { op: 'eachPlayerDiscardTopDeckCountEnergyDamage'; discardCount: number }
+  | { op: 'futuristScry'; amount: number }
+  | { op: 'removeThreatFromAllSchemes'; amount: number }
+  | { op: 'dealDamageToEachEnemy'; amount: number }
+  | { op: 'generateResourceFromTopDiscard' };
 
 // ======================== CARD INTERFACES ========================
 
@@ -189,6 +202,7 @@ export interface IdentityCard extends CardBase {
     storageId?: number;
     maxToughCounters?: number;
     setupEffects?: EffectDef[];
+    techHandSizeCap?: number;
 }
 
 export interface IdentityCardInstance extends IdentityCard {
@@ -200,6 +214,7 @@ export interface IdentityCardInstance extends IdentityCard {
     confused: boolean;
     tough: boolean;
     toughCounters: number;
+    aerial?: boolean;
 }
 
 export interface PlayerCard extends CardBase {
@@ -231,6 +246,7 @@ export interface PlayerCard extends CardBase {
     returnPaymentOnSuccess?: boolean;
     ignoresGuard?: boolean;
     ignoresCrisis?: boolean;
+    whenPlayedEffects?: EffectDef[];
 }
 
 export interface PlayerCardInstance extends PlayerCard {

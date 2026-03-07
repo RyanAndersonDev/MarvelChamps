@@ -74,6 +74,33 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
         },
         heroAbilityExhausts: false,
     }],
+    [5, {
+        name: "Tony Stark/Iron Man", side: "player",
+        imgPath: "/cards/heroes/iron-man/TonyStark-Alter-Ego.png",
+        heroImgPath: "/cards/heroes/iron-man/IronMan-Hero.png",
+        flavorText: "",
+        hitPoints: 9, healing: 3, thw: 2, atk: 1, def: 1,
+        handsizeAe: 6, handSizeHero: 1,
+        techHandSizeCap: 7,
+        tags: ["genius"], heroTags: ["avenger"],
+        aeLogic: {
+            type: "action",
+            forced: false,
+            formRequired: "alter-ego",
+            timing: "PLAYER_TURN",
+            limit: { uses: 1, resetOn: 'round' },
+            effects: [{ op: 'futuristScry', amount: 3 }]
+        },
+        aeAbilityExhausts: true,
+        heroLogic: {
+            type: "action",
+            forced: false,
+            formRequired: "hero",
+            timing: "PLAYER_TURN",
+            effects: []
+        },
+        heroAbilityExhausts: false,
+    }],
     [3, {
         name: "Clint Barton/Hawkeye", side: "player",
         imgPath: "/cards/heroes/hawkeye/ClintBarton-AE.png",
@@ -1201,6 +1228,114 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             effects: [{ op: 'flipForm' }]
         }
     }],
+    // ── Iron Man ──────────────────────────────────────────────────────────────
+    [100, { name: "War Machine", side: "player", type: "ally", cost: 4, aspect: "hero",
+        imgPath: "/cards/heroes/iron-man/WarMachine-Ally.png",
+        tags: ["shield", "soldier"], resources: ["wild"], flavorText: "",
+        thw: 1, atk: 2, thwPain: 1, atkPain: 1, health: 4, abilityExhausts: true,
+        logic: {
+            type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN",
+            effects: [
+                { op: 'dealDamage', target: 'self', amount: 2 },
+                { op: 'dealDamageToEachEnemy', amount: 1 }
+            ]
+        }
+    }],
+    [101, { name: "Repulsor Blast", side: "player", type: "event", cost: 1, aspect: "hero",
+        imgPath: "/cards/heroes/iron-man/RepulsorBlast-Event.png",
+        tags: ["attack", "superpower"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [
+                { op: 'dealDamage', target: 'chooseEnemy', amount: 1 },
+                { op: 'discardTopDeckCountEnergyDamage', discardCount: 5, damagePerEnergy: 2 }
+            ]
+        }
+    }],
+    [102, { name: "Supersonic Punch", side: "player", type: "event", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/iron-man/SupersonicPunch-Event.png",
+        tags: ["attack"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [
+                { op: 'if', condition: { type: 'heroHasAerial' },
+                  then: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 8 }],
+                  else: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 4 }] }
+            ]
+        }
+    }],
+    [103, { name: "Pepper Potts", side: "player", type: "support", cost: 3, aspect: "hero",
+        imgPath: "/cards/heroes/iron-man/PepperPotts-Support.png",
+        tags: ["persona"], resources: ["physical"], flavorText: "", abilityExhausts: true,
+        logic: {
+            type: "resource", forced: false, formRequired: "any", timing: "PLAYER_TURN",
+            effects: [{ op: 'generateResourceFromTopDiscard' }]
+        }
+    }],
+    [104, { name: "Stark Tower", side: "player", type: "support", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/iron-man/StarkTower-Support.png",
+        tags: ["location"], resources: ["mental"], flavorText: "", abilityExhausts: true,
+        logic: {
+            type: "action", forced: false, formRequired: "alter-ego", timing: "PLAYER_TURN",
+            effects: [{ op: 'returnTopTechUpgradeFromDiscardToHand' }]
+        }
+    }],
+    [105, { name: "Arc Reactor", side: "player", type: "upgrade", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/iron-man/ArcReactor-Upgrade.png",
+        tags: ["item", "tech"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN",
+            effects: [{ op: 'readyIdentity' }]
+        }
+    }],
+    [106, { name: "Mark V Armor", side: "player", type: "upgrade", cost: 3, aspect: "hero",
+        imgPath: "/cards/heroes/iron-man/MarkVArmor-Upgrade.png",
+        tags: ["armor", "tech"], resources: ["mental"], flavorText: "",
+        attachmentLocation: "tableau",
+        whenPlayedEffects: [{ op: 'increaseHeroHp', amount: 6 }]
+    }],
+    [107, { name: "Mark V Helmet", side: "player", type: "upgrade", cost: 1, aspect: "hero",
+        imgPath: "/cards/heroes/iron-man/MarkVHelmet-Upgrade.png",
+        tags: ["armor", "tech"], resources: ["physical"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN",
+            actionType: "thwart",
+            effects: [
+                { op: 'if', condition: { type: 'heroHasAerial' },
+                  then: [{ op: 'removeThreatFromAllSchemes', amount: 1 }],
+                  else: [{ op: 'removeThreat', target: 'chooseScheme', amount: 1 }] }
+            ]
+        }
+    }],
+    [108, { name: "Powered Gauntlets", side: "player", type: "upgrade", cost: 2, aspect: "hero",
+        imgPath: "/cards/heroes/iron-man/PoweredGauntlets-Upgrade.png",
+        tags: ["armor", "tech"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN",
+            actionType: "attack",
+            effects: [
+                { op: 'if', condition: { type: 'heroHasAerial' },
+                  then: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 2 }],
+                  else: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 1 }] }
+            ]
+        }
+    }],
+    [109, { name: "Rocket Boots", side: "player", type: "upgrade", cost: 1, aspect: "hero",
+        imgPath: "/cards/heroes/iron-man/RocketBoots-Upgrade.png",
+        tags: ["armor", "tech"], resources: ["mental"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        whenPlayedEffects: [{ op: 'increaseHeroHp', amount: 1 }],
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN",
+            resourceCost: ["mental"],
+            effects: [{ op: 'gainAerialTrait' }]
+        }
+    }],
 ]);
 
 
@@ -1738,6 +1873,61 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
         },
         boostEffect: [{ op: 'revealBoostCardAsEncounterCard' }],
     }],
+    // ── Iron Man nemesis ──────────────────────────────────────────────────────
+    [110, { name: "Business Problems", side: "villain", type: "obligation", boostIcons: 2,
+        imgPath: "/cards/heroes/iron-man/nemesis/BusinessProblems-Obligation.png",
+        tags: ["nemesis"], flavorText: "",
+        logic: {
+            type: "action", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{
+                op: 'chooseOne', options: [
+                    { label: "Exhaust Tony Stark → remove from game",
+                      effect: { op: 'sequence', effects: [{ op: 'exhaustIdentity' }, { op: 'removeFromGame' }] } },
+                    { label: "Exhaust each Tech upgrade → discard obligation",
+                      effect: { op: 'exhaustAllTechUpgrades' } }
+                ]
+            }]
+        }
+    }],
+    [111, { name: "Imminent Overload", side: "villain", type: "side-scheme", boostIcons: 0,
+        imgPath: "/cards/heroes/iron-man/nemesis/ImminentOverload-SideScheme.png",
+        tags: ["nemesis"], flavorText: "",
+        startingThreat: 3, startingThreatIsPerPlayer: false,
+        acceleration: true,
+        whenRevealedThreat: 1, whenRevealedThreatIsPerPlayer: true
+    }],
+    [112, { name: "Whiplash", side: "villain", type: "minion", boostIcons: 2,
+        imgPath: "/cards/heroes/iron-man/nemesis/Whiplash-Minion.png",
+        tags: ["nemesis", "criminal"], flavorText: "",
+        sch: 2, atk: 3, hitPoints: 4, retaliate: 1
+    }],
+    [113, { name: "Electric Whip Attack", side: "villain", type: "treachery", boostIcons: 0,
+        imgPath: "/cards/heroes/iron-man/nemesis/ElectricWhipAttack-Treachery.png",
+        tags: ["nemesis"], flavorText: "",
+        boostEffect: [
+            { op: 'if', condition: { type: 'attackIsUndefended' },
+              then: [{ op: 'discardTableauCard', types: ['upgrade'] }] }
+        ],
+        logic: {
+            type: "action", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{
+                op: 'chooseOne', options: [
+                    { label: "Deal 1 damage per upgrade you control",
+                      effect: { op: 'dealDamagePerUpgrade', amount: 1 } },
+                    { label: "Discard an upgrade you control",
+                      effect: { op: 'discardTableauCard', types: ['upgrade'] } }
+                ]
+            }]
+        }
+    }],
+    [114, { name: "Electromagnetic Backlash", side: "villain", type: "treachery", boostIcons: 2,
+        imgPath: "/cards/heroes/iron-man/nemesis/ElectromagneticBacklash-Treachery.png",
+        tags: ["nemesis"], flavorText: "",
+        logic: {
+            type: "action", forced: true, formRequired: "any", timing: "treacheryRevealed",
+            effects: [{ op: 'eachPlayerDiscardTopDeckCountEnergyDamage', discardCount: 5 }]
+        }
+    }],
 ]);
 
 export function getCardImgPathById(cardId: number): string {
@@ -1764,6 +1954,8 @@ export const spiderManNemesisIds  = [41, 40, 42, 42, 43];
 export const sheHulkNemesisIds    = [45, 44, 46, 47, 47];
 export const colossusHeroDeckIds  = [85, 86, 87, 87, 88, 88, 89, 89, 90, 90, 91, 91, 92, 92, 93];
 export const colossusNemesisIds   = [95, 96, 97, 97, 98, 98];
+export const ironManHeroDeckIds   = [100, 101, 101, 101, 102, 102, 103, 104, 105, 106, 107, 108, 108, 109, 109];
+export const ironManNemesisIds    = [112, 111, 113, 113, 114];
 
 export const heroLibrary = [
     {
@@ -1801,6 +1993,15 @@ export const heroLibrary = [
         secondaryColor: '#37474f',
         nemesisSet: { minionStorageId: 95, sideSchemeStorageId: 96, otherStorageIds: [97, 97, 98, 98] },
         obligationId: 94,
+    },
+    {
+        id: 5,
+        name: "Iron Man",
+        heroDeckIds: ironManHeroDeckIds,
+        primaryColor: '#b71c1c',
+        secondaryColor: '#1565c0',
+        nemesisSet: { minionStorageId: 112, sideSchemeStorageId: 111, otherStorageIds: [113, 113, 114] },
+        obligationId: 110,
     },
 ];
 

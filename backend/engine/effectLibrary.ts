@@ -67,6 +67,9 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
                 context.targetDefeated = true;
                 await state.discardFromEngagedMinions(target.instanceId);
             }
+            if (target && (target as any).type === 'ally' && (target as any).hitPointsRemaining <= 0) {
+                await state.handleAllyDefeat(target as any);
+            }
             // Retaliate fires for attack events, unless the event has the "arrow" tag and
             // a rangedForArrowEvents upgrade (Hawkeye's Bow) is in the tableau.
             const src = context.sourceCard;
@@ -1658,6 +1661,165 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             break;
         }
 
+        // ── Iron Man effects ──────────────────────────────────────────────────
+
+        case 'gainAerialTrait': {
+            (state.hero as any).aerial = true;
+            state.addLog(`${state.hero.name} gained the [[Aerial]] trait!`, 'status');
+            break;
+        }
+
+        case 'increaseHeroHp': {
+            state.hero.hitPoints += effect.amount;
+            state.hero.hitPointsRemaining = Math.min(state.hero.hitPoints, state.hero.hitPointsRemaining + effect.amount);
+            state.addLog(`${state.hero.name} gained ${effect.amount} max HP (now ${state.hero.hitPoints}).`, 'status');
+            break;
+        }
+
+        case 'dealDamagePerUpgrade': {
+            const upgradeCount = state.tableauCards.filter((c: any) => c.type === 'upgrade').length;
+            if (upgradeCount === 0) { state.addLog('No upgrades — effect fizzles.', 'system'); break; }
+            const totalDamage = upgradeCount * effect.amount;
+            await state.applyDamageToEntity({ targetId: state.hero.instanceId, amount: totalDamage });
+            state.addLog(`${upgradeCount} upgrade(s) — hero takes ${totalDamage} damage.`, 'damage');
+            break;
+        }
+
+        case 'exhaustAllTechUpgrades': {
+            const techUpgrades = state.tableauCards.filter((c: any) => c.type === 'upgrade' && c.tags?.includes('tech'));
+            for (const card of techUpgrades) (card as any).exhausted = true;
+            state.addLog(`All Tech upgrades exhausted (${techUpgrades.length}).`, 'status');
+            break;
+        }
+
+        case 'returnTopTechUpgradeFromDiscardToHand': {
+            for (let i = state.playerDiscardIds.length - 1; i >= 0; i--) {
+                const id = state.playerDiscardIds[i]!;
+                const blueprint = cardMap.get(id);
+                if (blueprint?.type === 'upgrade' && blueprint?.tags?.includes('tech')) {
+                    state.playerDiscardIds.splice(i, 1);
+                    state.hand.push(createHandCard(id, state.getNextId()));
+                    state.addLog(`${blueprint.name} returned to hand from discard.`, 'draw');
+                    break;
+                }
+            }
+            break;
+        }
+
+        case 'discardTopDeckCountEnergyDamage': {
+            const bonusTargetId = context.lastResolvedTargetId;
+            let energyCount = 0;
+            for (let i = 0; i < effect.discardCount; i++) {
+                if (state.deckIds.length === 0) state.shuffleDiscardPileIntoDrawPile();
+                if (state.deckIds.length === 0) break;
+                const cardId = state.deckIds.shift()!;
+                const blueprint = cardMap.get(cardId);
+                if (blueprint?.resources?.includes('energy')) energyCount++;
+                state.playerDiscardIds.push(cardId);
+                state.addLog(`${blueprint?.name ?? cardId} discarded.`, 'discard');
+            }
+            if (energyCount > 0 && bonusTargetId) {
+                const bonusDmg = energyCount * effect.damagePerEnergy;
+                state.addLog(`${energyCount} energy resource(s) discarded — ${bonusDmg} bonus damage!`, 'play');
+                await state.applyDamageToEntity({ targetId: bonusTargetId, amount: bonusDmg });
+                const bonusTarget = state.findTargetById(bonusTargetId);
+                if (bonusTarget && (bonusTarget as any).type === 'minion' && (bonusTarget as any).hitPointsRemaining <= 0)
+                    await state.discardFromEngagedMinions(bonusTargetId);
+            }
+            break;
+        }
+
+        case 'eachPlayerDiscardTopDeckCountEnergyDamage': {
+            for (const slot of (state as any).players.values()) {
+                let energyCount = 0;
+                for (let i = 0; i < effect.discardCount; i++) {
+                    if (slot.deckIds.length === 0) break;
+                    const cardId = slot.deckIds.shift()!;
+                    const blueprint = cardMap.get(cardId);
+                    if (blueprint?.resources?.includes('energy')) energyCount++;
+                    slot.playerDiscardIds.push(cardId);
+                    state.addLog(`${slot.username}: ${blueprint?.name ?? cardId} discarded.`, 'discard');
+                }
+                if (energyCount > 0 && slot.playerIdentity) {
+                    state.addLog(`${slot.username} takes ${energyCount} damage from energy discards.`, 'damage');
+                    await state.applyDamageToEntity({ targetId: slot.playerIdentity.instanceId, amount: energyCount });
+                }
+            }
+            break;
+        }
+
+        case 'futuristScry': {
+            const topIds: number[] = [];
+            for (let i = 0; i < effect.amount; i++) {
+                if (state.deckIds.length === 0) state.shuffleDiscardPileIntoDrawPile();
+                if (state.deckIds.length > 0) topIds.push(state.deckIds.shift()!);
+            }
+            if (topIds.length === 0) { state.addLog('Futurist: deck is empty.', 'system'); break; }
+            if (topIds.length === 1) {
+                state.hand.push(createHandCard(topIds[0]!, state.getNextId()));
+                state.addLog(`Futurist: ${cardMap.get(topIds[0]!)?.name ?? 'Card'} added to hand.`, 'draw');
+                break;
+            }
+            const scryOptions = topIds.map(id => ({
+                id: String(id),
+                name: cardMap.get(id)?.name ?? `Card ${id}`,
+                imgPath: cardMap.get(id)?.imgPath ?? ''
+            }));
+            const chosen = await state.requestChoice('Futurist — choose a card to add to your hand', scryOptions);
+            for (const id of topIds) {
+                if (chosen?.id === String(id)) {
+                    state.hand.push(createHandCard(id, state.getNextId()));
+                    state.addLog(`Futurist: ${cardMap.get(id)?.name ?? 'Card'} added to hand.`, 'draw');
+                } else {
+                    state.playerDiscardIds.push(id);
+                    state.addLog(`Futurist: ${cardMap.get(id)?.name ?? 'Card'} discarded.`, 'discard');
+                }
+            }
+            break;
+        }
+
+        case 'removeThreatFromAllSchemes': {
+            if (state.mainScheme && !state.hasCrisisScheme) {
+                state.mainScheme.threatRemaining = Math.max(0, state.mainScheme.threatRemaining - effect.amount);
+                state.addLog(`Removed ${effect.amount} threat from ${state.mainScheme.name}.`, 'threat');
+            } else if (state.mainScheme && state.hasCrisisScheme) {
+                state.addLog(`Cannot remove threat from main scheme while Crisis is active.`, 'system');
+            }
+            for (const ss of [...state.activeSideSchemes]) {
+                ss.threatRemaining = Math.max(0, ss.threatRemaining - effect.amount);
+                state.addLog(`Removed ${effect.amount} threat from ${ss.name}. Remaining: ${ss.threatRemaining}`, 'threat');
+                if (ss.threatRemaining === 0) await state.discardSideScheme(ss.instanceId);
+            }
+            break;
+        }
+
+        case 'dealDamageToEachEnemy': {
+            const allEnemies = [state.villainCard, ...state.getAllEngagedMinions()].filter(Boolean);
+            for (const enemy of allEnemies) {
+                const dmgPayload = { amount: effect.amount, targetId: enemy!.instanceId, isCanceled: false, source: context.sourceCard ?? 'effect' };
+                await state.emitEvent('ENTITY_TAKES_DAMAGE', dmgPayload, async () => {
+                    if (!dmgPayload.isCanceled && dmgPayload.amount > 0)
+                        await state.applyDamageToEntity(dmgPayload);
+                });
+                if ((enemy as any).type === 'minion' && (enemy as any).hitPointsRemaining <= 0)
+                    await state.discardFromEngagedMinions(enemy!.instanceId);
+            }
+            break;
+        }
+
+        case 'generateResourceFromTopDiscard': {
+            const topId = state.playerDiscardIds[state.playerDiscardIds.length - 1];
+            if (topId == null) { state.addLog('Pepper Potts: discard pile is empty.', 'system'); break; }
+            const blueprint = cardMap.get(topId);
+            if (!blueprint?.resources?.length) {
+                state.addLog(`Pepper Potts: ${blueprint?.name ?? 'top card'} has no resources.`, 'system');
+                break;
+            }
+            for (const r of blueprint.resources) state.generatedResources.push(r as any);
+            state.addLog(`Pepper Potts: generated ${blueprint.resources.join(', ')} from ${blueprint.name}.`, 'system');
+            break;
+        }
+
         default: {
             const _exhaustive: never = effect;
             state.addLog(`Unknown effect op: ${(_exhaustive as any).op}`, 'system');
@@ -1787,5 +1949,9 @@ function evaluateCondition(condition: EffectCondition, state: GameRoom, context:
             const attachments = (attacker as any).attachments ?? [];
             return attachments.some((a: any) => a.instanceId === card.instanceId);
         }
+        case 'heroHasAerial':
+            return (state.hero as any)?.aerial === true;
+        case 'attackIsUndefended':
+            return context.isVillainAttack === true && context.isDefended !== true;
     }
 }

@@ -166,9 +166,16 @@ export class GameRoom {
 
     get currentHandSizeLimit(): number {
         if (!this.playerIdentity) return 6;
-        return this.playerIdentity.identityStatus === 'alter-ego'
-            ? this.playerIdentity.handsizeAe
-            : this.playerIdentity.handSizeHero;
+        if (this.playerIdentity.identityStatus === 'alter-ego') return this.playerIdentity.handsizeAe;
+        const base = this.playerIdentity.handSizeHero;
+        const cap = (this.playerIdentity as any).techHandSizeCap as number | undefined;
+        if (cap != null) {
+            const techCount = this.tableauCards.filter(
+                c => (c as any).type === 'upgrade' && (c as any).tags?.includes('tech')
+            ).length;
+            return Math.min(cap, base + techCount);
+        }
+        return base;
     }
 
     get effectiveAtk(): number {
@@ -580,6 +587,10 @@ export class GameRoom {
             }
 
             this.clearTemporaryAllyMods();
+            if ((this.hero as any).aerial) {
+                (this.hero as any).aerial = false;
+                this.addLog(`${this.hero.name} lost the [[Aerial]] trait.`, 'status');
+            }
             this.resetAbilityLimits('turn');
             this.heroTurnsCompletedThisRound++;
 
@@ -738,7 +749,7 @@ export class GameRoom {
         }
     }
 
-    async flipBoostCard(): Promise<number> {
+    async flipBoostCard(attackContext?: any): Promise<number> {
         const cardId = this.drawOneVillainCard();
         if (cardId === null) return 0;
 
@@ -760,7 +771,7 @@ export class GameRoom {
         this.villainDiscardIds.push(cardId);
         this.boostCard = null;
 
-        const boostContext: any = { boostCardId: cardId };
+        const boostContext: any = { boostCardId: cardId, ...(attackContext ?? {}) };
         if (blueprint?.boostEffect?.length) {
             await executeEffects(blueprint.boostEffect, this, boostContext);
         }
@@ -840,10 +851,11 @@ export class GameRoom {
 
             if (this.canAnyoneDefend) await this.handleDefenseStep(attackPayload);
 
-            attackPayload.boostDamage = attackPayload.skipBoost ? 0 : await this.flipBoostCard();
+            const boostAttackCtx = { isDefended: attackPayload.isDefended, isVillainAttack: true };
+            attackPayload.boostDamage = attackPayload.skipBoost ? 0 : await this.flipBoostCard(boostAttackCtx);
             const extraBoostCount = attackPayload.skipBoost ? 0 : (attackPayload.extraBoostCards ?? 0);
             for (let i = 0; i < extraBoostCount; i++) {
-                attackPayload.boostDamage += await this.flipBoostCard();
+                attackPayload.boostDamage += await this.flipBoostCard(boostAttackCtx);
             }
             attackPayload.isPiercing = this.pendingPiercingBoost;
             this.pendingPiercingBoost = false;
@@ -1191,8 +1203,21 @@ export class GameRoom {
     }
 
     drawToHandSize() {
-        const currentHandSize = this.hero.identityStatus === 'alter-ego'
-            ? this.hero.handsizeAe : this.hero.handSizeHero;
+        let currentHandSize: number;
+        if (this.hero.identityStatus === 'alter-ego') {
+            currentHandSize = this.hero.handsizeAe;
+        } else {
+            const base = this.hero.handSizeHero;
+            const cap = (this.hero as any).techHandSizeCap as number | undefined;
+            if (cap != null) {
+                const techCount = this.tableauCards.filter(
+                    c => (c as any).type === 'upgrade' && (c as any).tags?.includes('tech')
+                ).length;
+                currentHandSize = Math.min(cap, base + techCount);
+            } else {
+                currentHandSize = base;
+            }
+        }
         while (this.hand.length < currentHandSize) {
             this.drawCardFromDeck();
         }
@@ -2078,6 +2103,12 @@ export class GameRoom {
             const tableauCard = this.makeTableauCardFromHand(card.storageId!);
             this.destroyHandCard(card.instanceId!);
             afterPlayCard = tableauCard; // use tableau instance so afterPlay 'self' targets the placed ally
+
+            // Fire whenPlayedEffects for upgrades/supports entering the tableau (e.g. Mark V Armor +HP)
+            const whenPlayed = (cardMap.get(card.storageId!) as any)?.whenPlayedEffects;
+            if (whenPlayed?.length) {
+                await executeEffects(whenPlayed, this, { sourceCard: tableauCard });
+            }
         }
 
         // Clear payment state before afterPlay effects (e.g. Nick Fury) so that any
