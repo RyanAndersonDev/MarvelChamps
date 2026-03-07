@@ -2051,6 +2051,10 @@ export class GameRoom {
                     return;
                 }
                 this.playSnapshot = null;
+                // Fire response window for attack-tagged events so cards like Chase Them Down trigger
+                if ((card as any).tags?.includes('attack')) {
+                    await this.checkTriggers('response', 'HERO_ATTACK_EVENT_RESOLVED', ctx);
+                }
             }
         } else if (card.type === 'upgrade' && (card as any).attachmentLocation !== 'tableau') {
             try {
@@ -2406,8 +2410,11 @@ export class GameRoom {
     isValidTrigger(card: any, timing: string, event: string): boolean {
         const logic = card?.logic;
         if (!logic) return false;
+        const timingMatches = Array.isArray(logic.timing)
+            ? logic.timing.includes(event)
+            : logic.timing === event;
         return (
-            logic.timing === event &&
+            timingMatches &&
             logic.type === timing &&
             (!logic.formRequired || logic.formRequired === 'any' || logic.formRequired === this.hero.identityStatus)
         );

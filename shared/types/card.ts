@@ -14,7 +14,7 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
-export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "ALLY_ATTACKS" | "FLIP_TO_HERO" | "FLIP_TO_AE" | "HERO_DEFENDS" | "ALLY_THWARTS" | "MINION_DEFEATED" | "MINION_ENTERED_PLAY" | "MINION_ATTACK" | "HERO_TOUGH_DISCARDED";
+export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "HERO_ATTACK_EVENT_RESOLVED" | "ALLY_ATTACKS" | "FLIP_TO_HERO" | "FLIP_TO_AE" | "HERO_DEFENDS" | "ALLY_THWARTS" | "MINION_DEFEATED" | "MINION_ENTERED_PLAY" | "MINION_ATTACK" | "HERO_TOUGH_DISCARDED";
 
 // ======================== EFFECT DSL ========================
 
@@ -391,7 +391,7 @@ export interface CardLogic {
     type: CardActionKeywords;
     forced: boolean;
     formRequired: "hero" | "alter-ego" | "any";
-    timing: TimingWindow;
+    timing: TimingWindow | TimingWindow[];
     actionType?: "attack" | "thwart" | "defense";
     limit?: { uses: number; resetOn: 'round' | 'turn' | 'phase' | string };
     resourceCost?: Resource[];
