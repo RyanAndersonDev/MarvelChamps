@@ -50,7 +50,7 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
     [4, {
         name: "Piotr Rasputin/Colossus", side: "player",
         imgPath: "/cards/heroes/colossus/PiotrRasputin-AE.png",
-        heroImgPath: "/cards/heroes/colossus/Colossus-Hero.png",
+        heroImgPath: "/cards/heroes/colossus/PiotrRasputin-Hero.png",
         flavorText: "",
         hitPoints: 14, healing: 4, thw: 1, atk: 2, def: 2,
         handsizeAe: 6, handSizeHero: 4,
@@ -1648,7 +1648,7 @@ export const villainCardMap: Map<number, VillainCard> = new Map<number, VillainC
     // ── Colossus nemesis set ──────────────────────────────────────────────────
     [94, {
         name: "Homesick", side: "villain", type: "obligation", boostIcons: 2,
-        imgPath: "/cards/heroes/colossus/nemesis/Homesick-Obligation.png",
+        imgPath: "/cards/heroes/colossus/Homesick-Obligation.png",
         tags: [], flavorText: "",
         logic: {
             type: "action", forced: true, formRequired: "any", timing: "treacheryRevealed",
