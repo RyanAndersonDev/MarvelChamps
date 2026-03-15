@@ -451,7 +451,11 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
         }
 
         case 'giveTough': {
-            const target = resolveTargetEntity(effect.target, state, context);
+            let target = resolveTargetEntity(effect.target, state, context);
+            if (!target) {
+                const targetId = await resolveTargetId(effect.target, state, context);
+                if (targetId) target = state.findTargetById(targetId) as any;
+            }
             if (target) {
                 const maxTough = (target as any).maxToughCounters ?? 1;
                 const currentTough = (target as any).toughCounters ?? (target.tough ? 1 : 0);
@@ -1820,6 +1824,99 @@ export async function executeEffect(effect: EffectDef, state: GameRoom, context:
             break;
         }
 
+        case 'dealDamageToAttacker': {
+            const attackerEntity = context.source ?? (
+                context.attacker && typeof context.attacker === 'object' && 'instanceId' in context.attacker
+                    ? context.attacker : null
+            );
+            const targetId = attackerEntity?.instanceId ?? null;
+            if (!targetId) { state.addLog('No attacker to deal damage to.', 'system'); break; }
+            context.lastResolvedTargetId = targetId;
+            const damagePayload = { amount: effect.amount, targetId, isCanceled: false, source: context.sourceCard ?? 'effect' };
+            await state.emitEvent('ENTITY_TAKES_DAMAGE', damagePayload, async () => {
+                if (!damagePayload.isCanceled && damagePayload.amount > 0) await state.applyDamageToEntity(damagePayload);
+            });
+            const dTarget = state.findTargetById(targetId);
+            if (dTarget && 'type' in dTarget && dTarget.type === 'minion' && dTarget.hitPointsRemaining <= 0)
+                await state.discardFromEngagedMinions(dTarget.instanceId);
+            break;
+        }
+
+        case 'stunAttacker': {
+            const attackerEntity = context.source ?? (
+                context.attacker && typeof context.attacker === 'object' && 'instanceId' in context.attacker
+                    ? context.attacker : null
+            );
+            if (!attackerEntity) { state.addLog('No attacker to stun.', 'system'); break; }
+            if ((attackerEntity as any).stalwart) {
+                state.addLog(`${attackerEntity.name} is Stalwart — immune to stun.`, 'status');
+            } else {
+                (attackerEntity as any).stunned = true;
+                state.addLog(`${attackerEntity.name} is stunned.`, 'status');
+            }
+            break;
+        }
+
+        case 'shuffleIntoOwnerDeck': {
+            const card = context.sourceCard;
+            if (!card) break;
+            // Remove from tableau if still present
+            state.tableauCards = state.tableauCards.filter((c: any) => c.instanceId !== card.instanceId);
+            if (card.storageId != null) {
+                const insertAt = Math.floor(Math.random() * (state.deckIds.length + 1));
+                state.deckIds.splice(insertAt, 0, card.storageId);
+                state.addLog(`${card.name} shuffled back into the deck.`, 'system');
+            }
+            context.isCanceled = true;
+            break;
+        }
+
+        case 'searchTopNForCardType': {
+            const topIds: number[] = [];
+            for (let i = 0; i < effect.count; i++) {
+                if (state.deckIds.length === 0) state.shuffleDiscardPileIntoDrawPile();
+                if (state.deckIds.length > 0) topIds.push(state.deckIds.shift()!);
+            }
+            const matchIdx = topIds.findIndex(id => cardMap.get(id)?.type === effect.cardType);
+            if (matchIdx >= 0) {
+                const [foundId] = topIds.splice(matchIdx, 1);
+                state.hand.push(createHandCard(foundId!, state.getNextId()));
+                state.addLog(`Found ${cardMap.get(foundId!)?.name ?? 'a card'} — added to hand.`, 'draw');
+            } else {
+                state.addLog(`No ${effect.cardType} found in top ${effect.count} cards.`, 'system');
+            }
+            state.deckIds.unshift(...topIds);
+            break;
+        }
+
+        case 'dealDamageEqualToHeroAtk': {
+            const amount = state.effectiveAtk;
+            const targetId = await resolveTargetId(effect.target, state, context);
+            if (!targetId) break;
+            context.lastResolvedTargetId = targetId;
+            const damagePayload = { amount, targetId, isCanceled: false, source: context.sourceCard ?? 'effect' };
+            await state.emitEvent('ENTITY_TAKES_DAMAGE', damagePayload, async () => {
+                if (!damagePayload.isCanceled && damagePayload.amount > 0) await state.applyDamageToEntity(damagePayload);
+            });
+            const dTarget = state.findTargetById(targetId);
+            if (dTarget && 'type' in dTarget && dTarget.type === 'minion' && dTarget.hitPointsRemaining <= 0)
+                await state.discardFromEngagedMinions(dTarget.instanceId);
+            break;
+        }
+
+        case 'removeThreatEqualToHeroThw': {
+            const amount = state.effectiveThw;
+            if (state.hasCrisisScheme) {
+                state.addLog('Cannot remove threat from main scheme while Crisis is active.', 'system');
+                break;
+            }
+            if (state.mainScheme) {
+                state.mainScheme.threatRemaining = Math.max(0, state.mainScheme.threatRemaining - amount);
+                state.addLog(`Removed ${amount} threat from ${state.mainScheme.name}. Remaining: ${state.mainScheme.threatRemaining}`, 'threat');
+            }
+            break;
+        }
+
         default: {
             const _exhaustive: never = effect;
             state.addLog(`Unknown effect op: ${(_exhaustive as any).op}`, 'system');
@@ -1835,7 +1932,11 @@ function resolveTargetEntity(target: EffectTarget, state: GameRoom, context: any
         case 'villain':       return state.villainCard;
         case 'self':          return context.sourceCard ?? null;
         case 'attachedEnemy':
-        case 'attacker':      return context.attacker ?? null;
+        case 'attacker': {
+            const att = context.attacker;
+            if (att && typeof att === 'object' && 'instanceId' in att) return att;
+            return context.source ?? null;
+        }
         case 'lastTarget': {
             const tid = context.lastResolvedTargetId;
             if (!tid) return null;
@@ -1852,7 +1953,11 @@ async function resolveTargetId(target: EffectTarget, state: GameRoom, context: a
         case 'villain':       return state.villainCard?.instanceId;
         case 'self':          return context.sourceCard?.instanceId ?? null;
         case 'attachedEnemy':
-        case 'attacker':      return context.attacker?.instanceId ?? null;
+        case 'attacker': {
+            const att = context.attacker;
+            if (att && typeof att === 'object' && 'instanceId' in att) return (att as any).instanceId;
+            return context.source?.instanceId ?? null;
+        }
         case 'chooseEnemy':              return await state.requestTarget(context.sourceCard, 'enemy');
         case 'chooseEnemyIgnoreGuard':   return await state.requestTarget(context.sourceCard, 'enemy-ignore-guard');
         case 'chooseMinion':             return await state.requestTarget(context.sourceCard, 'minion');

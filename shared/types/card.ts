@@ -14,7 +14,7 @@ export type AttachmentLocation = "tableau" | "ally" | "minion" | "villain" | "en
 
 export type CardActionKeywords = "action" | "response" | "interrupt" | "resource";
 
-export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "HERO_ATTACK_EVENT_RESOLVED" | "ALLY_ATTACKS" | "FLIP_TO_HERO" | "FLIP_TO_AE" | "HERO_DEFENDS" | "ALLY_THWARTS" | "MINION_DEFEATED" | "MINION_ENTERED_PLAY" | "MINION_ATTACK" | "HERO_TOUGH_DISCARDED";
+export type TimingWindow = GamePhaseType | "any" | "VILLAIN_ATTACK" | "VILLAIN_ATTACK_CONCLUDED" | "VILLAIN_TAKES_DAMAGE" | "ENEMY_ATTACK" | "afterPlay" | "takeIdentityDamage" | "attachedDefeated" | "attachedAttacks" | "paymentWindow" | "treacheryRevealed" | "minionEntered" | "roundEnd" | "allyDefeated" | "MAIN_SCHEME_THREAT" | "BASIC_ATTACK" | "HERO_ATTACK_EVENT_RESOLVED" | "ALLY_ATTACKS" | "FLIP_TO_HERO" | "FLIP_TO_AE" | "HERO_DEFENDS" | "ALLY_THWARTS" | "MINION_DEFEATED" | "MINION_ENTERED_PLAY" | "MINION_ATTACK" | "HERO_TOUGH_DISCARDED" | "HERO_DEFEND_NO_DAMAGE" | "MINION_ATTACK_CONCLUDED";
 
 // ======================== EFFECT DSL ========================
 
@@ -173,7 +173,13 @@ export type EffectDef =
   | { op: 'futuristScry'; amount: number }
   | { op: 'removeThreatFromAllSchemes'; amount: number }
   | { op: 'dealDamageToEachEnemy'; amount: number }
-  | { op: 'generateResourceFromTopDiscard' };
+  | { op: 'generateResourceFromTopDiscard' }
+  | { op: 'dealDamageToAttacker'; amount: number }
+  | { op: 'stunAttacker' }
+  | { op: 'shuffleIntoOwnerDeck' }
+  | { op: 'searchTopNForCardType'; count: number; cardType: string }
+  | { op: 'dealDamageEqualToHeroAtk'; target: EffectTarget }
+  | { op: 'removeThreatEqualToHeroThw' };
 
 // ======================== CARD INTERFACES ========================
 
@@ -247,6 +253,8 @@ export interface PlayerCard extends CardBase {
     ignoresGuard?: boolean;
     ignoresCrisis?: boolean;
     whenPlayedEffects?: EffectDef[];
+    retaliate?: number;
+    toughOnEntry?: boolean;
 }
 
 export interface PlayerCardInstance extends PlayerCard {

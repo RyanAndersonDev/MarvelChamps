@@ -76,8 +76,8 @@ export const idCardMap: Map<number, IdentityCard> = new Map<number, IdentityCard
     }],
     [5, {
         name: "Tony Stark/Iron Man", side: "player",
-        imgPath: "/cards/heroes/iron-man/TonyStark-Alter-Ego.png",
-        heroImgPath: "/cards/heroes/iron-man/IronMan-Hero.png",
+        imgPath: "/cards/heroes/iron-man/TonyStark-AE.png",
+        heroImgPath: "/cards/heroes/iron-man/TonyStark-Hero.png",
         flavorText: "",
         hitPoints: 9, healing: 3, thw: 2, atk: 1, def: 1,
         handsizeAe: 6, handSizeHero: 1,
@@ -1334,6 +1334,817 @@ export const cardMap: Map<number, PlayerCard> = new Map<number, PlayerCard>([
             type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN",
             resourceCost: ["mental"],
             effects: [{ op: 'gainAerialTrait' }]
+        }
+    }],
+
+    // ── Protection aspect cards (storageIds 115–235) ──────────────────────────
+
+    [115, { name: "Energy Barrier", side: "player", type: "upgrade", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/EnergyBarrier-Upgrade.png",
+        tags: ["tech"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: false, counters: 3,
+        logic: {
+            type: "interrupt", forced: false, formRequired: "any", timing: "takeIdentityDamage",
+            effects: [{ op: 'if', condition: { type: 'selfHasCounters' },
+                then: [{ op: 'decrementCounter', discardIfEmpty: true }, { op: 'reduceDamage', amount: 1 }, { op: 'dealDamage', target: 'attacker', amount: 1 }]
+            }]
+        }
+    }],
+    [117, { name: "Preemptive Strike", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/PreemptiveStrike-Event.png",
+        tags: ["attack"], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack", effects: [] }
+    }],
+    [118, { name: "Nova", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Nova-Ally.png",
+        tags: ["cosmic", "nova corps"], resources: ["energy"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "interrupt", forced: false, formRequired: "any", timing: "ENEMY_ATTACK",
+            resourceCost: ["energy"],
+            effects: [{ op: 'dealDamage', target: 'attacker', amount: 2 }]
+        }
+    }],
+    [119, { name: "Iron Fist", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/IronFist-Ally.png",
+        tags: ["martial arts", "street level"], resources: ["physical"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1, counters: 2,
+        logic: {
+            type: "interrupt", forced: false, formRequired: "any", timing: "ALLY_ATTACKS",
+            effects: [{ op: 'if', condition: { type: 'selfHasCounters' },
+                then: [{ op: 'decrementCounter', discardIfEmpty: true }, { op: 'stun', target: 'payloadTarget' }, { op: 'dealDamage', target: 'payloadTarget', amount: 1 }]
+            }]
+        }
+    }],
+    [120, { name: "Desperate Defense", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/DesperateDefense-Event.png",
+        tags: ["defense"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "HERO_DEFENDS",
+            actionType: "defense",
+            effects: [{ op: 'addDefBonus', amount: 2 }]
+        }
+    }],
+    [122, { name: "Unflappable", side: "player", type: "upgrade", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Unflappable-Upgrade.png",
+        tags: ["condition"], resources: ["mental"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: {
+            type: "response", forced: false, formRequired: "any",
+            timing: ["VILLAIN_ATTACK_CONCLUDED", "MINION_ATTACK_CONCLUDED"],
+            effects: [{ op: 'if', condition: { type: 'heroDefended' },
+                then: [{ op: 'if', condition: { type: 'noDamageDealt' }, then: [{ op: 'drawCards', amount: 1 }] }]
+            }]
+        }
+    }],
+    [123, { name: "Second Wind", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/SecondWind-Event.png",
+        tags: ["superpower"], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN",
+            effects: [{ op: 'if', condition: { type: 'paidWithResource', resource: 'mental' },
+                then: [{ op: 'heal', target: 'chooseFriendly', amount: 5 }],
+                else: [{ op: 'heal', target: 'chooseFriendly', amount: 4 }]
+            }]
+        }
+    }],
+    [124, { name: "Defensive Stance", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/DefensiveStance-Event.png",
+        tags: ["defense"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "takeIdentityDamage",
+            effects: [{ op: 'discardSelf' }, { op: 'reduceDamage', amount: 3 }]
+        }
+    }],
+    [125, { name: "Brother Voodoo", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/BrotherVoodoo-Ally.png",
+        tags: ["mystic"], resources: ["mental"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "response", forced: false, formRequired: "any", timing: "afterPlay",
+            effects: [{ op: 'searchTopNForCardType', count: 5, cardType: 'event' }]
+        }
+    }],
+    [126, { name: "Clea", side: "player", type: "ally", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Clea-Ally.png",
+        tags: ["mystic"], resources: ["physical"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 2, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "interrupt", forced: true, formRequired: "any", timing: "allyDefeated",
+            effects: [{ op: 'shuffleIntoOwnerDeck' }]
+        }
+    }],
+    [127, { name: "Momentum Shift", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/MomentumShift-Event.png",
+        tags: ["attack", "skill"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack",
+            effects: [{ op: 'sequence', effects: [{ op: 'heal', target: 'identity', amount: 2 }, { op: 'dealDamage', target: 'chooseEnemy', amount: 2 }] }]
+        }
+    }],
+    [128, { name: "Electrostatic Armor", side: "player", type: "upgrade", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ElectrostaticArmor-Upgrade.png",
+        tags: ["armor", "tech"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: false,
+        logic: {
+            type: "response", forced: true, formRequired: "any",
+            timing: ["VILLAIN_ATTACK_CONCLUDED", "MINION_ATTACK_CONCLUDED"],
+            effects: [{ op: 'if', condition: { type: 'heroDefended' }, then: [{ op: 'dealDamageToAttacker', amount: 1 }] }]
+        }
+    }],
+    [129, { name: "Contaminant Immunity", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ContaminantImmunity-Event.png",
+        tags: ["superpower"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN",
+            effects: [{ op: 'sequence', effects: [{ op: 'heal', target: 'identity', amount: 3 }, { op: 'giveTough', target: 'identity' }] }]
+        }
+    }],
+    [130, { name: "Muster Courage", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/MusterCourage-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [131, { name: "Multiple Man", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/MultipleMan-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["energy"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [132, { name: "Warlock", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Warlock-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["mental"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: true, maxCopies: 1,
+        logic: {
+            type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN",
+            resourceCost: ["mental"],
+            effects: [{ op: 'heal', target: 'self', amount: 2 }]
+        }
+    }],
+    [133, { name: "Never Back Down", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/NeverBackDown-Event.png",
+        tags: ["defense"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "HERO_DEFENDS",
+            actionType: "defense",
+            effects: [{ op: 'addDefBonus', amount: 2 }]
+        }
+    }],
+    [134, { name: "Side Step", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/SideStep-Event.png",
+        tags: ["defense", "skill"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "takeIdentityDamage",
+            effects: [{ op: 'reduceDamage', amount: 3 }, { op: 'if', condition: { type: 'paidWithResource', resource: 'energy' }, then: [{ op: 'dealDamageToAttacker', amount: 1 }] }]
+        }
+    }],
+    [135, { name: "Nerves of Steel", side: "player", type: "upgrade", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/NervesOfSteel-Upgrade.png",
+        tags: ["condition"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau",
+        logic: { type: "response", forced: false, formRequired: "any", timing: "VILLAIN_ATTACK_CONCLUDED", effects: [] }
+    }],
+    [136, { name: "Perseverance", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Perseverance-Event.png",
+        tags: ["superpower"], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "response", forced: false, formRequired: "hero", timing: "FLIP_TO_HERO",
+            effects: [{ op: 'giveTough', target: 'identity' }]
+        }
+    }],
+    [137, { name: "Bait and Switch", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/BaitAndSwitch-Event.png",
+        tags: ["skill", "thwart"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "thwart",
+            effects: [{ op: 'sequence', effects: [{ op: 'villainAttack' }, { op: 'removeThreatIgnoreCrisis', amount: 4 }] }]
+        }
+    }],
+    [138, { name: "Starhawk", side: "player", type: "ally", cost: 4, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Starhawk-Ally.png",
+        tags: ["cosmic"], resources: ["energy"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 2, atkPain: 1, health: 4, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [139, { name: "Fighting Fit", side: "player", type: "event", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/FightingFit-Event.png",
+        tags: ["attack", "skill"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack",
+            effects: [{ op: 'if', condition: { type: 'targetHpFull', target: 'identity' },
+                then: [{ op: 'dealDamage', target: 'villain', amount: 5 }],
+                else: [{ op: 'dealDamage', target: 'villain', amount: 2 }]
+            }]
+        }
+    }],
+    [141, { name: "Hard to Ignore", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/HardToIgnore-Upgrade.png",
+        tags: ["condition"], resources: ["mental"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: {
+            type: "response", forced: false, formRequired: "any",
+            timing: ["VILLAIN_ATTACK_CONCLUDED", "MINION_ATTACK_CONCLUDED"],
+            effects: [{ op: 'if', condition: { type: 'heroDefended' },
+                then: [{ op: 'if', condition: { type: 'noDamageDealt' }, then: [{ op: 'removeThreatIgnoreCrisis', amount: 1 }] }]
+            }]
+        }
+    }],
+    [142, { name: "The Power of Protection", side: "player", type: "resource", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ThePowerOfProtection-Resource.png",
+        tags: [], resources: ["wild", "wild"], flavorText: "", maxCopies: 1,
+    }],
+    [143, { name: "Indomitable", side: "player", type: "upgrade", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Indomitable-Upgrade.png",
+        tags: ["condition"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: false,
+        logic: {
+            type: "response", forced: false, formRequired: "any",
+            timing: ["VILLAIN_ATTACK_CONCLUDED", "MINION_ATTACK_CONCLUDED"],
+            effects: [{ op: 'if', condition: { type: 'heroDefended' }, then: [{ op: 'discardSelf' }, { op: 'readyIdentity' }] }]
+        }
+    }],
+    [146, { name: "Armored Vest", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ArmoredVest-Upgrade.png",
+        tags: ["armor"], resources: ["physical"], flavorText: "",
+        attachmentLocation: "tableau", uniqueInPlay: true, defMod: 1,
+    }],
+    [147, { name: "First Hit", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/FirstHit-Event.png",
+        tags: ["attack"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack",
+            effects: [{ op: 'dealDamage', target: 'villain', amount: 2 }]
+        }
+    }],
+    [148, { name: "True Grit", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/TrueGrit-Upgrade.png",
+        tags: ["condition"], resources: ["mental"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: false,
+        logic: {
+            type: "response", forced: true, formRequired: "any",
+            timing: ["VILLAIN_ATTACK_CONCLUDED", "MINION_ATTACK_CONCLUDED"],
+            effects: [{ op: 'if', condition: { type: 'heroDefended' }, then: [{ op: 'removeThreatEqualToHeroThw' }] }]
+        }
+    }],
+    [149, { name: "Ever Vigilant", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/EverVigilant-Event.png",
+        tags: ["skill"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN",
+            effects: [{ op: 'sequence', effects: [{ op: 'readyIdentity' }, { op: 'removeThreatIgnoreCrisis', amount: 2 }] }]
+        }
+    }],
+    [150, { name: "Martyr", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Martyr-Event.png",
+        tags: ["defense"], resources: ["physical"], flavorText: "",
+        logic: { type: "interrupt", forced: false, formRequired: "hero", timing: "takeIdentityDamage", effects: [] }
+    }],
+    [151, { name: "Moondragon", side: "player", type: "ally", cost: 4, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Moondragon-Ally.png",
+        tags: ["cosmic", "telepathic"], resources: ["mental"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [152, { name: "Deflection", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Deflection-Event.png",
+        tags: ["defense"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "takeIdentityDamage",
+            effects: [{ op: 'reduceDamage', amount: 5 }]
+        }
+    }],
+    [153, { name: "Hard Knocks", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/HardKnocks-Event.png",
+        tags: ["attack", "skill"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack",
+            effects: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 4 },
+                { op: 'if', condition: { type: 'targetWasDefeated' }, then: [{ op: 'giveTough', target: 'identity' }] }]
+        }
+    }],
+    [154, { name: "Leading Blow", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/LeadingBlow-Event.png",
+        tags: ["attack"], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack", effects: [] }
+    }],
+    [155, { name: "Subdue", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Subdue-Event.png",
+        tags: ["attack"], resources: ["energy"], flavorText: "",
+        logic: { type: "interrupt", forced: false, formRequired: "hero", timing: "ENEMY_ATTACK", effects: [] }
+    }],
+    [156, { name: "Counter-Punch", side: "player", type: "upgrade", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/CounterPunch-Upgrade.png",
+        tags: ["condition"], resources: ["physical"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: false,
+        logic: {
+            type: "response", forced: true, formRequired: "any",
+            timing: ["VILLAIN_ATTACK_CONCLUDED", "MINION_ATTACK_CONCLUDED"],
+            effects: [{ op: 'if', condition: { type: 'heroDefended' }, then: [{ op: 'dealDamageEqualToHeroAtk', target: 'attacker' }] }]
+        }
+    }],
+    [157, { name: "Shake it Off", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ShakeItOff-Event.png",
+        tags: ["skill"], resources: ["mental"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [158, { name: "Charlie-27", side: "player", type: "ally", cost: 4, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Charlie27-Ally.png",
+        tags: ["guardians", "cosmic"], resources: ["physical"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 3, atkPain: 1, health: 4, abilityExhausts: false, maxCopies: 1,
+        retaliate: 1, toughOnEntry: true,
+    }],
+    [159, { name: "The Gardener", side: "player", type: "support", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/TheGardener-Support.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        abilityExhausts: false,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [160, { name: "Shield Spell", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ShieldSpell-Event.png",
+        tags: ["defense", "mystic"], resources: ["mental"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "takeIdentityDamage",
+            effects: [{ op: 'cancelDamage' }]
+        }
+    }],
+    [161, { name: "Preservation", side: "player", type: "resource", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Preservation-Resource.png",
+        tags: [], resources: ["wild"], flavorText: "", maxCopies: 1,
+    }],
+    [162, { name: "Defensive Training", side: "player", type: "upgrade", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/DefensiveTraining-Upgrade.png",
+        tags: ["skill"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau",
+        logic: { type: "response", forced: false, formRequired: "any", timing: "VILLAIN_ATTACK_CONCLUDED", effects: [] }
+    }],
+    [163, { name: "Stand Together", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/StandTogether-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [165, { name: "Jocasta", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Jocasta-Ally.png",
+        tags: ["android", "avenger"], resources: ["energy"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [166, { name: "Protector", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Protector-Upgrade.png",
+        tags: ["condition"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau",
+        logic: { type: "response", forced: false, formRequired: "any", timing: "VILLAIN_ATTACK_CONCLUDED", effects: [] }
+    }],
+    [167, { name: "Victor Mancha", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/VictorMancha-Ally.png",
+        tags: ["android", "runaway"], resources: ["energy"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [168, { name: "Flow Like Water", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/FlowLikeWater-Event.png",
+        tags: ["defense", "skill"], resources: ["physical"], flavorText: "",
+        logic: { type: "interrupt", forced: false, formRequired: "hero", timing: "takeIdentityDamage", effects: [] }
+    }],
+    [169, { name: "Defiance", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Defiance-Event.png",
+        tags: ["defense"], resources: ["energy"], flavorText: "",
+        logic: { type: "interrupt", forced: false, formRequired: "hero", timing: "HERO_DEFENDS", actionType: "defense", effects: [] }
+    }],
+    [170, { name: "Silk", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Silk-Ally.png",
+        tags: ["spider-person"], resources: ["physical"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [171, { name: "Spider-Man", side: "player", type: "ally", cost: 4, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/SpiderMan-Ally.png",
+        tags: ["spider-person", "avenger"], resources: ["physical"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 2, atkPain: 1, health: 4, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [172, { name: "Spider-UK", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/SpiderUK-Ally.png",
+        tags: ["spider-person"], resources: ["physical"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [173, { name: "Jump Flip", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/JumpFlip-Event.png",
+        tags: ["defense", "skill"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "takeIdentityDamage",
+            effects: [{ op: 'reduceDamage', amount: 2 }, { op: 'if', condition: { type: 'paidWithResource', resource: 'energy' }, then: [{ op: 'removeThreatIgnoreCrisis', amount: 2 }] }]
+        }
+    }],
+    [174, { name: "Return the Favor", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ReturnTheFavor-Event.png",
+        tags: ["attack"], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack", effects: [] }
+    }],
+    [175, { name: "What Doesn't Kill Me", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/WhatDoesntKillMe-Event.png",
+        tags: ["superpower"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN",
+            resourceCost: ["physical"],
+            effects: [{ op: 'sequence', effects: [{ op: 'heal', target: 'identity', amount: 2 }, { op: 'readyIdentity' }] }]
+        }
+    }],
+    [176, { name: "Pinpoint", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Pinpoint-Upgrade.png",
+        tags: ["skill"], resources: ["physical"], flavorText: "",
+        attachmentLocation: "tableau",
+        logic: { type: "response", forced: false, formRequired: "any", timing: "VILLAIN_ATTACK_CONCLUDED", effects: [] }
+    }],
+    [177, { name: "Height Advantage", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/HeightAdvantage-Event.png",
+        tags: ["attack"], resources: ["energy"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack", effects: [] }
+    }],
+    [178, { name: "Daredevil", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Daredevil-Ally.png",
+        tags: ["street level"], resources: ["physical"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 4, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [179, { name: "Spider-Man Noir", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/SpiderManNoir-Ally.png",
+        tags: ["spider-person"], resources: ["mental"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [180, { name: "Repurpose", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Repurpose-Event.png",
+        tags: [], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [181, { name: "Thwip Thwip!", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ThwipThwip-Event.png",
+        tags: ["attack"], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack", effects: [] }
+    }],
+    [182, { name: "Forcefield Generator", side: "player", type: "upgrade", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ForcefieldGenerator-Upgrade.png",
+        tags: ["tech"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: false, counters: 6,
+        logic: {
+            type: "interrupt", forced: false, formRequired: "any", timing: "takeIdentityDamage",
+            effects: [{ op: 'if', condition: { type: 'selfHasCounters' },
+                then: [{ op: 'decrementCounter', discardIfEmpty: true }, { op: 'reduceDamage', amount: 1 }]
+            }]
+        }
+    }],
+    [183, { name: "Spider-Tingle", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/SpiderTingle-Event.png",
+        tags: ["defense", "superpower"], resources: ["mental"], flavorText: "",
+        logic: { type: "interrupt", forced: false, formRequired: "hero", timing: "ENEMY_ATTACK", effects: [] }
+    }],
+    [184, { name: "Rockslide", side: "player", type: "ally", cost: 4, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Rockslide-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["physical"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 4, atkPain: 1, health: 5, abilityExhausts: false, maxCopies: 1,
+        retaliate: 1,
+    }],
+    [185, { name: "Pinned Down", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/PinnedDown-Upgrade.png",
+        tags: ["condition"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "minion", atkMod: -2,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [186, { name: "Nightcrawler", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Nightcrawler-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["physical"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [187, { name: "Polaris", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Polaris-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["energy"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "response", forced: false, formRequired: "any", timing: "afterPlay",
+            effects: [{ op: 'giveTough', target: 'chooseFriendly' }]
+        }
+    }],
+    [188, { name: "Protective Training", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ProtectiveTraining-Upgrade.png",
+        tags: ["skill"], resources: ["physical"], flavorText: "",
+        attachmentLocation: "tableau",
+        logic: { type: "response", forced: false, formRequired: "any", timing: "VILLAIN_ATTACK_CONCLUDED", effects: [] }
+    }],
+    [189, { name: "Powerful Punch", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/PowerfulPunch-Event.png",
+        tags: ["attack"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "ENEMY_ATTACK",
+            effects: [{ op: 'dealDamage', target: 'attacker', amount: 4 }]
+        }
+    }],
+    [190, { name: "Mutant Protectors", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/MutantProtectors-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [191, { name: "Defensive Energy", side: "player", type: "resource", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/DefensiveEnergy-Resource.png",
+        tags: [], resources: ["wild"], flavorText: "",
+    }],
+    [192, { name: "Psychic Misdirection", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/PsychicMisdirection-Event.png",
+        tags: ["mystic"], resources: ["mental"], flavorText: "",
+        logic: { type: "interrupt", forced: false, formRequired: "hero", timing: "ENEMY_ATTACK", effects: [] }
+    }],
+    [193, { name: "Hangar Bay", side: "player", type: "support", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/HangarBay-Support.png",
+        tags: ["location"], resources: ["energy"], flavorText: "",
+        abilityExhausts: false,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [194, { name: "Iceman", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Iceman-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["energy"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1, counters: 3,
+        logic: {
+            type: "response", forced: false, formRequired: "any", timing: "MINION_ENTERED_PLAY",
+            effects: [{ op: 'if', condition: { type: 'selfHasCounters' },
+                then: [{ op: 'decrementCounter', discardIfEmpty: true }, { op: 'stun', target: 'payloadTarget' }]
+            }]
+        }
+    }],
+    [195, { name: "Karma", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Karma-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["mental"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [196, { name: "Armor", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Armor-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["energy"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 4, abilityExhausts: false, maxCopies: 1,
+        toughOnEntry: true,
+    }],
+    [197, { name: "Judoka Skill", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/JudokaSkill-Upgrade.png",
+        tags: ["skill"], resources: ["physical"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: false, counters: 3,
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "HERO_DEFENDS",
+            effects: [{ op: 'if', condition: { type: 'selfHasCounters' },
+                then: [{ op: 'decrementCounter', discardIfEmpty: true }, { op: 'addDefBonus', amount: 2 }]
+            }]
+        }
+    }],
+    [198, { name: "Not Today!", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/NotToday-Event.png",
+        tags: ["defense"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "HERO_DEFENDS",
+            actionType: "defense",
+            effects: [{ op: 'addDefBonus', amount: 2 }]
+        }
+    }],
+    [199, { name: "United Front", side: "player", type: "support", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/UnitedFront-Support.png",
+        tags: [], resources: ["energy"], flavorText: "",
+        abilityExhausts: false,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [200, { name: "Elixir", side: "player", type: "support", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Elixir-Support.png",
+        tags: ["item"], resources: ["mental"], flavorText: "",
+        abilityExhausts: true,
+        logic: {
+            type: "response", forced: false, formRequired: "any", timing: "ALLY_ATTACKS",
+            effects: [{ op: 'heal', target: 'chooseFriendly', amount: 1 }]
+        }
+    }],
+    [201, { name: "Siryn", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Siryn-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["energy"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "response", forced: false, formRequired: "any", timing: "ALLY_ATTACKS",
+            effects: [{ op: 'stun', target: 'chooseMinion' }]
+        }
+    }],
+    [202, { name: "Warpath", side: "player", type: "ally", cost: 4, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Warpath-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["physical"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 3, atkPain: 1, health: 4, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [203, { name: "Aerial Intervention", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/AerialIntervention-Event.png",
+        tags: ["defense"], resources: ["energy"], flavorText: "",
+        logic: { type: "interrupt", forced: false, formRequired: "hero", timing: "ENEMY_ATTACK", effects: [] }
+    }],
+    [204, { name: "Taunt", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Taunt-Event.png",
+        tags: ["skill"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN",
+            effects: [{ op: 'sequence', effects: [{ op: 'villainAttack' }, { op: 'drawCards', amount: 3 }] }]
+        }
+    }],
+    [205, { name: "Urban Hideout", side: "player", type: "support", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/UrbanHideout-Support.png",
+        tags: ["location"], resources: ["physical"], flavorText: "",
+        abilityExhausts: false,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [206, { name: "Angel's Aerie", side: "player", type: "support", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/AngelsAerie-Support.png",
+        tags: ["location"], resources: ["energy"], flavorText: "",
+        abilityExhausts: false,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [207, { name: "Containment Strategy", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ContainmentStrategy-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [208, { name: "Psi-Flail Strike", side: "player", type: "event", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/PsiFlailStrike-Event.png",
+        tags: ["attack", "superpower"], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack", effects: [] }
+    }],
+    [209, { name: "Anticipated Attack", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/AnticipatedAttack-Event.png",
+        tags: ["defense"], resources: ["physical"], flavorText: "",
+        logic: { type: "interrupt", forced: false, formRequired: "hero", timing: "ENEMY_ATTACK", effects: [] }
+    }],
+    [210, { name: "Serve and Protect", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ServeAndProtect-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [211, { name: "Rogue", side: "player", type: "ally", cost: 4, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Rogue-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["energy"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 2, atkPain: 1, health: 4, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [212, { name: "Northstar", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Northstar-Ally.png",
+        tags: ["mutant", "x-men"], resources: ["energy"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [213, { name: "Change of Fortune", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ChangeOfFortune-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [214, { name: "Under Control", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/UnderControl-Event.png",
+        tags: [], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [215, { name: "Come Get Me Bub", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ComeGetMeBub-Event.png",
+        tags: [], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN",
+            effects: [{ op: 'sequence', effects: [{ op: 'discardUntilMinionIntoPlay' }, { op: 'heal', target: 'identity', amount: 3 }, { op: 'giveTough', target: 'identity' }] }]
+        }
+    }],
+    [216, { name: "Riposte", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Riposte-Event.png",
+        tags: ["defense", "skill"], resources: ["physical"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "HERO_DEFENDS",
+            actionType: "defense",
+            effects: [{ op: 'addDefBonus', amount: 2 }]
+        }
+    }],
+    [217, { name: "Astonishing X-Men", side: "player", type: "support", cost: 4, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/AstonishingXMen-Support.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        abilityExhausts: false,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [218, { name: "The Pericles", side: "player", type: "support", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ThePericles-Support.png",
+        tags: ["vehicle"], resources: ["energy"], flavorText: "",
+        abilityExhausts: false,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [219, { name: "Scarlet Spider", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ScarletSpider-Ally.png",
+        tags: ["spider-person"], resources: ["physical"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [220, { name: "Spider-Byte", side: "player", type: "ally", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/SpiderByte-Ally.png",
+        tags: ["spider-person"], resources: ["mental"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 2, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [221, { name: "Stop Hitting Yourself", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/StopHittingYourself-Event.png",
+        tags: ["attack"], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack", effects: [] }
+    }],
+    [222, { name: "Dr. Sinclair", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/DrSinclair-Ally.png",
+        tags: ["scientist"], resources: ["mental"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [223, { name: "Energy Shield", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/EnergyShield-Upgrade.png",
+        tags: ["tech"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau",
+        logic: { type: "interrupt", forced: false, formRequired: "hero", timing: "takeIdentityDamage", effects: [] }
+    }],
+    [224, { name: "Ready for a Fight", side: "player", type: "event", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ReadyForAFight-Event.png",
+        tags: [], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [225, { name: "Stun Gun", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/StunGun-Upgrade.png",
+        tags: ["item", "tech"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [226, { name: "Ops Room", side: "player", type: "upgrade", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/OpsRoom-Upgrade.png",
+        tags: ["location"], resources: ["mental"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: false, counters: 3,
+        logic: {
+            type: "interrupt", forced: false, formRequired: "any", timing: "takeIdentityDamage",
+            effects: [{ op: 'if', condition: { type: 'selfHasCounters' },
+                then: [{ op: 'decrementCounter', discardIfEmpty: true }, { op: 'reduceDamage', amount: 1 }, { op: 'removeThreatIgnoreCrisis', amount: 1 }]
+            }]
+        }
+    }],
+    [227, { name: "White Widow", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/WhiteWidow-Ally.png",
+        tags: ["spy"], resources: ["energy"], flavorText: "",
+        thw: 2, thwPain: 1, atk: 1, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [228, { name: "Patriot", side: "player", type: "ally", cost: 3, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Patriot-Ally.png",
+        tags: ["avenger"], resources: ["physical"], flavorText: "",
+        thw: 1, thwPain: 1, atk: 2, atkPain: 1, health: 3, abilityExhausts: false, maxCopies: 1,
+        logic: {
+            type: "response", forced: false, formRequired: "any", timing: "MINION_ENTERED_PLAY",
+            effects: [{ op: 'giveTough', target: 'self' }]
+        }
+    }],
+    [229, { name: "Hidden Base", side: "player", type: "support", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/HiddenBase-Support.png",
+        tags: ["location"], resources: ["energy"], flavorText: "",
+        abilityExhausts: false,
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [230, { name: "Excelsior!", side: "player", type: "upgrade", cost: 1, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/Excelsior-Upgrade.png",
+        tags: ["condition"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau", abilityExhausts: true,
+        logic: {
+            type: "response", forced: false, formRequired: "any",
+            timing: ["VILLAIN_ATTACK_CONCLUDED", "MINION_ATTACK_CONCLUDED"],
+            resourceCost: ["energy"],
+            effects: [{ op: 'if', condition: { type: 'heroDefended' }, then: [{ op: 'dealDamage', target: 'chooseEnemy', amount: 2 }] }]
+        }
+    }],
+    [231, { name: "Defensive Conditioning", side: "player", type: "upgrade", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/DefensiveConditioning-Upgrade.png",
+        tags: ["condition"], resources: ["physical"], flavorText: "",
+        attachmentLocation: "tableau", defMod: 1,
+        whenPlayedEffects: [{ op: 'increaseHeroHp', amount: 3 }],
+    }],
+    [232, { name: "I Can Do This All Day", side: "player", type: "upgrade", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/ICanDoThisAllDay-Upgrade.png",
+        tags: ["condition"], resources: ["energy"], flavorText: "",
+        attachmentLocation: "tableau",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "HERO_DEFENDS",
+            actionType: "defense",
+            effects: [{ op: 'addDefBonus', amount: 0 }]
+        }
+    }],
+    [233, { name: "Cuts Both Ways", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/CutsBothWays-Event.png",
+        tags: ["attack"], resources: ["physical"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "hero", timing: "PLAYER_TURN", actionType: "attack", effects: [] }
+    }],
+    [234, { name: "Stronger Together", side: "player", type: "event", cost: 2, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/StrongerTogether-Event.png",
+        tags: [], resources: ["mental"], flavorText: "",
+        logic: { type: "action", forced: false, formRequired: "any", timing: "PLAYER_TURN", effects: [] }
+    }],
+    [235, { name: "Disarming Defense", side: "player", type: "event", cost: 0, aspect: "protection",
+        imgPath: "/cards/player-cards/protection/DisarmingDefense-Event.png",
+        tags: ["defense"], resources: ["energy"], flavorText: "",
+        logic: {
+            type: "interrupt", forced: false, formRequired: "hero", timing: "HERO_DEFENDS",
+            actionType: "defense",
+            effects: [{ op: 'addDefBonus', amount: 2 }]
         }
     }],
 ]);

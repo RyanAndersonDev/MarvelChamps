@@ -905,9 +905,12 @@ export class GameRoom {
                 await executeEffects(effects, this, attackPayload);
             }
 
+            if (attackPayload.heroDefended && !attackPayload.damageWasDealt) {
+                await this.emitEvent('HERO_DEFEND_NO_DAMAGE', attackPayload, async () => {});
+            }
             if (attackPayload.defBonus && !attackPayload.damageWasDealt) {
                 this.hero.exhausted = false;
-                this.addLog(`${this.hero.name} readied — no damage taken (Desperate Defense).`, 'status');
+                this.addLog(`${this.hero.name} readied — no damage taken.`, 'status');
             }
         });
     }
@@ -1129,9 +1132,12 @@ export class GameRoom {
             await this.emitEvent('MINION_ATTACK_CONCLUDED', attackPayload, async () => {});
         });
 
+        if (attackPayload.heroDefended && !attackPayload.damageWasDealt) {
+            await this.emitEvent('HERO_DEFEND_NO_DAMAGE', attackPayload, async () => {});
+        }
         if (attackPayload.defBonus && !attackPayload.damageWasDealt) {
             this.hero.exhausted = false;
-            this.addLog(`${this.hero.name} readied — no damage taken (Desperate Defense).`, 'status');
+            this.addLog(`${this.hero.name} readied — no damage taken.`, 'status');
         }
         this.clearAllHighlights();
     }
